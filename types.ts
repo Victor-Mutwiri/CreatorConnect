@@ -43,6 +43,29 @@ export interface Review {
   projectTitle?: string;
 }
 
+export interface MpesaDetails {
+  type: 'personal' | 'till' | 'paybill';
+  number: string; // Phone number or Till/Paybill number
+  name?: string; // Account Name
+}
+
+export interface BankDetails {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+export interface CryptoDetails {
+  walletAddress: string;
+  network: string; // e.g. USDT (TRC20), BTC, ETH
+}
+
+export interface PaymentMethods {
+  mpesa?: MpesaDetails;
+  bank?: BankDetails;
+  crypto?: CryptoDetails;
+}
+
 export interface CreatorProfile {
   username: string;
   displayName: string;
@@ -90,6 +113,8 @@ export interface CreatorProfile {
     startingAt?: number;
     packages: ServicePackage[];
   };
+
+  paymentMethods?: PaymentMethods;
 
   reviews?: Review[];
   averageRating?: number;

@@ -1,16 +1,17 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
-  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star
+  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
+  Smartphone, Building, Bitcoin, Lock
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { useAuth } from '../../context/AuthContext';
 import { mockContractService } from '../../services/mockContract';
-import { Contract, ContractStatus, Message, ContractTerms } from '../../types';
+import { mockAuth } from '../../services/mockAuth';
+import { Contract, ContractStatus, Message, ContractTerms, User } from '../../types';
 
 const ContractDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,9 @@ const ContractDetail: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   
+  // To display creator payment info to client
+  const [creatorUser, setCreatorUser] = useState<User | null>(null);
+
   // Modals
   const [showCounterModal, setShowCounterModal] = useState(false);
   const [showEndContractModal, setShowEndContractModal] = useState(false);
@@ -45,7 +49,8 @@ const ContractDetail: React.FC = () => {
     durationDays: 0,
     deliverables: [],
     schedule: '',
-    startDate: ''
+    startDate: '',
+    deposit: 0
   });
 
   const scrollToBottom = () => {
@@ -61,7 +66,12 @@ const ContractDetail: React.FC = () => {
         ]);
         setContract(c);
         setMessages(m);
-        if(c) setCounterTerms(c.terms);
+        if(c) {
+          setCounterTerms(c.terms);
+          // Fetch creator details for payment info
+          const cUser = await mockAuth.getCreatorProfile(c.creatorId);
+          setCreatorUser(cUser);
+        }
       }
       setLoading(false);
     };
@@ -221,6 +231,9 @@ const ContractDetail: React.FC = () => {
   const isRejectedEndRequest = contract.endRequest?.status === 'rejected';
   const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
 
+  // Show Payment Info only if Client Viewer, Contract is Accepted/Active, Deposit Exists, and Creator has payment methods
+  const showPaymentInfo = isClientViewer && isActive && (contract.terms.deposit || 0) > 0 && creatorUser?.profile?.paymentMethods;
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       <Navbar />
@@ -263,6 +276,67 @@ const ContractDetail: React.FC = () => {
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{contract.description}</p>
           </div>
 
+          {/* Payment Information (Visible to Client ONLY when Active/Accepted and Deposit > 0) */}
+          {showPaymentInfo && (
+            <div className="bg-brand-50 dark:bg-brand-900/20 rounded-2xl shadow-sm border border-brand-200 dark:border-brand-800 p-6">
+              <div className="flex items-center mb-4">
+                 <Lock className="text-brand-600 dark:text-brand-400 mr-2" size={20} />
+                 <h3 className="font-bold text-lg text-brand-900 dark:text-brand-300">Creator Payment Details</h3>
+              </div>
+              <p className="text-sm text-brand-700 dark:text-brand-400 mb-6">
+                 Please make the deposit payment of <span className="font-bold">{contract.terms.currency} {contract.terms.deposit?.toLocaleString()}</span> using one of the methods below.
+              </p>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                 {/* M-PESA */}
+                 {creatorUser?.profile?.paymentMethods?.mpesa && creatorUser.profile.paymentMethods.mpesa.number && (
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                       <div className="flex items-center mb-2 font-bold text-slate-900 dark:text-white">
+                          <Smartphone size={18} className="text-green-600 mr-2" /> M-PESA
+                       </div>
+                       <div className="text-sm text-slate-600 dark:text-slate-300 space-y-1">
+                          <p><span className="font-medium text-slate-500">Type:</span> {creatorUser.profile.paymentMethods.mpesa.type.toUpperCase()}</p>
+                          <p><span className="font-medium text-slate-500">Number:</span> <span className="font-mono font-bold">{creatorUser.profile.paymentMethods.mpesa.number}</span></p>
+                          {creatorUser.profile.paymentMethods.mpesa.name && (
+                             <p><span className="font-medium text-slate-500">Name:</span> {creatorUser.profile.paymentMethods.mpesa.name}</p>
+                          )}
+                       </div>
+                    </div>
+                 )}
+
+                 {/* BANK */}
+                 {creatorUser?.profile?.paymentMethods?.bank && creatorUser.profile.paymentMethods.bank.accountNumber && (
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                       <div className="flex items-center mb-2 font-bold text-slate-900 dark:text-white">
+                          <Building size={18} className="text-blue-600 mr-2" /> Bank Transfer
+                       </div>
+                       <div className="text-sm text-slate-600 dark:text-slate-300 space-y-1">
+                          <p><span className="font-medium text-slate-500">Bank:</span> {creatorUser.profile.paymentMethods.bank.bankName}</p>
+                          <p><span className="font-medium text-slate-500">Acc No:</span> <span className="font-mono font-bold">{creatorUser.profile.paymentMethods.bank.accountNumber}</span></p>
+                          <p><span className="font-medium text-slate-500">Name:</span> {creatorUser.profile.paymentMethods.bank.accountName}</p>
+                       </div>
+                    </div>
+                 )}
+
+                 {/* CRYPTO */}
+                 {creatorUser?.profile?.paymentMethods?.crypto && creatorUser.profile.paymentMethods.crypto.walletAddress && (
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 md:col-span-2">
+                       <div className="flex items-center mb-2 font-bold text-slate-900 dark:text-white">
+                          <Bitcoin size={18} className="text-orange-500 mr-2" /> Crypto
+                       </div>
+                       <div className="text-sm text-slate-600 dark:text-slate-300 space-y-1">
+                          <p><span className="font-medium text-slate-500">Network:</span> {creatorUser.profile.paymentMethods.crypto.network}</p>
+                          <p><span className="font-medium text-slate-500">Address:</span></p>
+                          <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs font-mono break-all select-all">
+                             {creatorUser.profile.paymentMethods.crypto.walletAddress}
+                          </div>
+                       </div>
+                    </div>
+                 )}
+              </div>
+            </div>
+          )}
+
           {/* Terms */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
             <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4 flex items-center">
@@ -275,7 +349,7 @@ const ContractDetail: React.FC = () => {
                 <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><DollarSign size={14} className="mr-1"/> Total Amount</div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
               </div>
-              {contract.terms.deposit && (
+              {contract.terms.deposit !== undefined && (
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
                   <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Shield size={14} className="mr-1"/> Deposit</div>
                   <div className="text-xl font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.deposit.toLocaleString()}</div>
@@ -551,10 +625,16 @@ const ContractDetail: React.FC = () => {
             
             <div className="p-6 overflow-y-auto space-y-5">
               <Input 
-                label="Amount (KES)"
+                label="Total Amount (KES)"
                 type="number"
                 value={counterTerms.amount}
                 onChange={(e) => setCounterTerms({...counterTerms, amount: parseInt(e.target.value)})}
+              />
+              <Input 
+                label="Deposit (KES)"
+                type="number"
+                value={counterTerms.deposit || 0}
+                onChange={(e) => setCounterTerms({...counterTerms, deposit: parseInt(e.target.value)})}
               />
               <Input 
                 label="Duration (Days)"

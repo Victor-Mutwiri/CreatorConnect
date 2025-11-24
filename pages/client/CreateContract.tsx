@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -257,6 +256,34 @@ const CreateContract: React.FC = () => {
                     onChange={(e) => setTerms({...terms, schedule: e.target.value})}
                 />
              </div>
+
+             {/* Accepted Payment Methods Display */}
+             {creator.profile?.paymentMethods && (
+                <div className="mt-6">
+                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Creator's Accepted Payment Methods</label>
+                   <div className="flex flex-wrap gap-3">
+                      {creator.profile.paymentMethods.mpesa?.number && (
+                         <div className="flex items-center px-3 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg border border-green-200 dark:border-green-800 text-sm font-medium">
+                            <Smartphone size={16} className="mr-1.5" /> M-PESA
+                         </div>
+                      )}
+                      {creator.profile.paymentMethods.bank?.accountNumber && (
+                         <div className="flex items-center px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800 text-sm font-medium">
+                            <Building size={16} className="mr-1.5" /> Bank Transfer
+                         </div>
+                      )}
+                      {creator.profile.paymentMethods.crypto?.walletAddress && (
+                         <div className="flex items-center px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg border border-orange-200 dark:border-orange-800 text-sm font-medium">
+                            <Bitcoin size={16} className="mr-1.5" /> Crypto
+                         </div>
+                      )}
+                      {!creator.profile.paymentMethods.mpesa?.number && !creator.profile.paymentMethods.bank?.accountNumber && !creator.profile.paymentMethods.crypto?.walletAddress && (
+                         <span className="text-slate-500 text-sm italic">No specific payment methods listed.</span>
+                      )}
+                   </div>
+                </div>
+             )}
+
            </div>
 
            {!isValid && (

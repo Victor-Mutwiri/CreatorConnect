@@ -1,10 +1,9 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Bell, Lock, Palette, Save, CheckCircle, 
-  Instagram, Youtube, Trash2, Plus, Moon, Sun, AlertTriangle
+  Instagram, Youtube, Trash2, Plus, Moon, Sun, AlertTriangle, CreditCard,
+  Smartphone, Building, Bitcoin
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -19,12 +18,18 @@ const CATEGORIES = [
   "Art & Design", "Photography", "Parenting", "Sports"
 ];
 
+const KENYAN_BANKS = [
+  "KCB Bank", "Equity Bank", "Co-operative Bank", "NCBA Bank", 
+  "Stanbic Bank", "Absa Bank Kenya", "Diamond Trust Bank (DTB)", 
+  "I&M Bank", "Standard Chartered", "Family Bank"
+];
+
 const Settings: React.FC = () => {
   const { user, updateProfile, deleteAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'appearance'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'appearance' | 'payments'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   
@@ -119,7 +124,7 @@ const Settings: React.FC = () => {
                   const current = formData.categories || [];
                   if (isSelected) {
                     setFormData({...formData, categories: current.filter(c => c !== cat)});
-                  } else if (current.length < 4) {
+                  } else if (current.length < 5) {
                     setFormData({...formData, categories: [...current, cat]});
                   }
                 }}
@@ -170,6 +175,200 @@ const Settings: React.FC = () => {
                 })}
              />
           </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="flex items-center justify-end gap-4">
+        {successMsg && (
+          <span className="text-green-600 dark:text-green-400 font-medium flex items-center animate-in fade-in">
+            <CheckCircle size={18} className="mr-2" /> {successMsg}
+          </span>
+        )}
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderPaymentsTab = () => (
+    <div className="space-y-8 animate-in fade-in">
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-800 dark:text-blue-300 text-sm mb-6 border border-blue-100 dark:border-blue-800">
+        <p className="font-bold mb-1">Secure Information</p>
+        <p>Your payment details are encrypted and only shown to clients after you accept a contract that requires a deposit.</p>
+      </div>
+
+      {/* M-PESA */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+          <Smartphone size={20} className="mr-2 text-green-600" />
+          M-PESA
+        </h3>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account Type</label>
+            <select
+              className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
+              value={formData.paymentMethods?.mpesa?.type || 'personal'}
+              onChange={(e) => setFormData({
+                ...formData,
+                paymentMethods: {
+                  ...formData.paymentMethods,
+                  mpesa: { 
+                    ...(formData.paymentMethods?.mpesa || { number: '' }), 
+                    type: e.target.value as any 
+                  }
+                }
+              })}
+            >
+              <option value="personal">Send Money (Personal)</option>
+              <option value="till">Buy Goods (Till Number)</option>
+              <option value="paybill">Paybill</option>
+            </select>
+          </div>
+          <Input 
+            label={formData.paymentMethods?.mpesa?.type === 'personal' ? 'Phone Number' : 'Till / Paybill Number'}
+            placeholder="e.g. 0712345678"
+            value={formData.paymentMethods?.mpesa?.number || ''}
+            onChange={(e) => setFormData({
+              ...formData,
+              paymentMethods: {
+                ...formData.paymentMethods,
+                mpesa: { 
+                  ...(formData.paymentMethods?.mpesa || { type: 'personal' }), 
+                  number: e.target.value 
+                }
+              }
+            })}
+          />
+          {formData.paymentMethods?.mpesa?.type !== 'personal' && (
+            <Input 
+              label="Business/Account Name"
+              placeholder="e.g. Sarah K Creatives"
+              value={formData.paymentMethods?.mpesa?.name || ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                paymentMethods: {
+                  ...formData.paymentMethods,
+                  mpesa: { 
+                    ...(formData.paymentMethods?.mpesa || { type: 'till', number: '' }), 
+                    name: e.target.value 
+                  }
+                }
+              })}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Bank Transfer */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+          <Building size={20} className="mr-2 text-blue-600" />
+          Bank Transfer
+        </h3>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bank Name</label>
+            <select
+              className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
+              value={formData.paymentMethods?.bank?.bankName || ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                paymentMethods: {
+                  ...formData.paymentMethods,
+                  bank: { 
+                    ...(formData.paymentMethods?.bank || { accountNumber: '', accountName: '' }), 
+                    bankName: e.target.value 
+                  }
+                }
+              })}
+            >
+              <option value="">Select a Bank</option>
+              {KENYAN_BANKS.map(bank => (
+                <option key={bank} value={bank}>{bank}</option>
+              ))}
+            </select>
+          </div>
+          <Input 
+            label="Account Number"
+            placeholder="e.g. 1100220033"
+            value={formData.paymentMethods?.bank?.accountNumber || ''}
+            onChange={(e) => setFormData({
+              ...formData,
+              paymentMethods: {
+                ...formData.paymentMethods,
+                bank: { 
+                  ...(formData.paymentMethods?.bank || { bankName: '', accountName: '' }), 
+                  accountNumber: e.target.value 
+                }
+              }
+            })}
+          />
+          <Input 
+            label="Account Name"
+            placeholder="e.g. Sarah Kamau"
+            value={formData.paymentMethods?.bank?.accountName || ''}
+            onChange={(e) => setFormData({
+              ...formData,
+              paymentMethods: {
+                ...formData.paymentMethods,
+                bank: { 
+                  ...(formData.paymentMethods?.bank || { bankName: '', accountNumber: '' }), 
+                  accountName: e.target.value 
+                }
+              }
+            })}
+          />
+        </div>
+      </div>
+
+      {/* Crypto */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+          <Bitcoin size={20} className="mr-2 text-orange-500" />
+          Crypto
+        </h3>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Network</label>
+            <select
+              className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
+              value={formData.paymentMethods?.crypto?.network || ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                paymentMethods: {
+                  ...formData.paymentMethods,
+                  crypto: { 
+                    ...(formData.paymentMethods?.crypto || { walletAddress: '' }), 
+                    network: e.target.value 
+                  }
+                }
+              })}
+            >
+              <option value="">Select Network</option>
+              <option value="USDT (TRC20)">USDT (TRC20)</option>
+              <option value="USDT (ERC20)">USDT (ERC20)</option>
+              <option value="BTC">Bitcoin (BTC)</option>
+              <option value="ETH">Ethereum (ETH)</option>
+            </select>
+          </div>
+          <Input 
+            label="Wallet Address"
+            placeholder="0x..."
+            value={formData.paymentMethods?.crypto?.walletAddress || ''}
+            onChange={(e) => setFormData({
+              ...formData,
+              paymentMethods: {
+                ...formData.paymentMethods,
+                crypto: { 
+                  ...(formData.paymentMethods?.crypto || { network: '' }), 
+                  walletAddress: e.target.value 
+                }
+              }
+            })}
+          />
         </div>
       </div>
 
@@ -244,6 +443,16 @@ const Settings: React.FC = () => {
               <User size={18} className="mr-3" /> Profile Info
             </button>
             <button
+              onClick={() => setActiveTab('payments')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === 'payments' 
+                  ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400' 
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900'
+              }`}
+            >
+              <CreditCard size={18} className="mr-3" /> Payments
+            </button>
+            <button
               onClick={() => setActiveTab('appearance')}
               className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === 'appearance' 
@@ -268,6 +477,7 @@ const Settings: React.FC = () => {
           {/* Main Content Area */}
           <div className="flex-1">
              {activeTab === 'profile' && renderProfileTab()}
+             {activeTab === 'payments' && renderPaymentsTab()}
              {activeTab === 'appearance' && renderAppearanceTab()}
              {activeTab === 'account' && (
                 <div className="space-y-8 animate-in fade-in">
