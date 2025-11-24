@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import TermsAndConditions from './pages/legal/TermsAndConditions';
 import CreatorOnboarding from './pages/creator/Onboarding';
 import ClientOnboarding from './pages/client/ClientOnboarding';
 import ClientDashboard from './pages/client/ClientDashboard';
@@ -17,6 +18,7 @@ import Contracts from './pages/creator/Contracts';
 import ContractDetail from './pages/creator/ContractDetail';
 import Settings from './pages/creator/Settings';
 import Notifications from './pages/Notifications';
+import FraudWarningModal from './components/FraudWarningModal';
 
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -36,10 +38,15 @@ const App: React.FC = () => {
     <ThemeProvider>
       <AuthProvider>
         <Router>
+          {/* Global Fraud Warning Modal - Renders if user is logged in but hasn't signed */}
+          <FraudWarningModal />
+          
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/legal/terms" element={<TermsAndConditions />} />
+            
             <Route path="/profile/:id" element={<Profile />} />
             <Route path="/p/:username" element={<Profile />} />
             <Route path="/client/profile/:id" element={<ClientPublicProfile />} />

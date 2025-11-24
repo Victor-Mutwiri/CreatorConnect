@@ -163,6 +163,7 @@ export interface User {
   emailVerified?: boolean;
   phoneVerified?: boolean;
   onboardingCompleted?: boolean;
+  hasSignedLegalAgreement?: boolean; // New field for fraud warning signature
   profile?: CreatorProfile; // Stores creator-specific data
   clientProfile?: ClientProfile; // Stores client-specific data
 }

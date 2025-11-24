@@ -58,6 +58,7 @@ export const mockAuth = {
       avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
       emailVerified: false,
       onboardingCompleted: false,
+      hasSignedLegalAgreement: false, // Default to false
       profile: initialCreatorProfile as CreatorProfile,
       clientProfile: initialClientProfile as ClientProfile
     };
@@ -129,6 +130,11 @@ export const mockAuth = {
     }
 
     return updatedUser;
+  },
+
+  async signLegalAgreement(userId: string): Promise<User | null> {
+    await delay(500);
+    return this.updateUserProfile(userId, { hasSignedLegalAgreement: true });
   },
 
   async addUserRating(userId: string, newRating: number): Promise<void> {

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Camera, Briefcase } from 'lucide-react';
@@ -16,6 +15,7 @@ const Signup: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const { signUp } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +31,11 @@ const Signup: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!role) return;
+    
+    if (!acceptedTerms) {
+      setError("You must accept the Terms and Conditions to continue.");
+      return;
+    }
     
     setError(null);
     setIsSubmitting(true);
@@ -155,6 +160,23 @@ const Signup: React.FC = () => {
             minLength={6}
             required
           />
+
+          <div className="flex items-start">
+            <div className="flex h-5 items-center">
+              <input
+                id="terms"
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+              />
+            </div>
+            <div className="ml-3 text-sm">
+              <label htmlFor="terms" className="text-slate-600 dark:text-slate-400">
+                I agree to the <a href="#/legal/terms" target="_blank" className="font-medium text-brand-600 hover:text-brand-500">Terms and Conditions</a>.
+              </label>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -166,7 +188,7 @@ const Signup: React.FC = () => {
         <div className="pt-2">
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !acceptedTerms}
             className="w-full"
           >
             {isSubmitting ? 'Creating account...' : 'Create Account'}
