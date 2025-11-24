@@ -92,6 +92,25 @@ export interface CreatorProfile {
   reviews?: Review[];
 }
 
+// --- Client Types ---
+
+export enum ClientType {
+  INDIVIDUAL = 'INDIVIDUAL', // Small sellers, Solo entrepreneurs, Students
+  BUSINESS = 'BUSINESS',     // Small business owners, Online shops, Startups
+  COMPANY = 'COMPANY'        // Registered companies, Media houses, NGOs
+}
+
+export interface ClientProfile {
+  clientType: ClientType;
+  businessName?: string; // Optional for Individuals
+  website?: string;
+  location?: string;
+  description: string;
+  industry?: string;
+  budgetRange?: string; // e.g., "KES 10k - 50k"
+  isVerified?: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -102,7 +121,8 @@ export interface User {
   emailVerified?: boolean;
   phoneVerified?: boolean;
   onboardingCompleted?: boolean;
-  profile?: CreatorProfile; // Stores role-specific data
+  profile?: CreatorProfile; // Stores creator-specific data
+  clientProfile?: ClientProfile; // Stores client-specific data
 }
 
 export interface AuthResponse {

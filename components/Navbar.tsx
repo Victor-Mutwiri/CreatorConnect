@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Sparkles, User as UserIcon, LogOut, Settings, LayoutDashboard, FileText, Sun, Moon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -31,6 +32,7 @@ const Navbar: React.FC = () => {
   };
 
   const isCreator = user?.role === UserRole.CREATOR;
+  const isClient = user?.role === UserRole.CLIENT;
 
   return (
     <nav 
@@ -43,7 +45,7 @@ const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 group">
+          <Link to={user ? (isCreator ? "/creator/dashboard" : "/client/dashboard") : "/"} className="flex items-center space-x-2 group">
             <div className="w-10 h-10 bg-gradient-to-tr from-brand-600 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">
               <Sparkles size={20} fill="currentColor" />
             </div>
@@ -54,7 +56,7 @@ const Navbar: React.FC = () => {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
-            {NAV_ITEMS.map((item) => (
+            {!user && NAV_ITEMS.map((item) => (
               <a 
                 key={item.label} 
                 href={item.href}
@@ -63,6 +65,14 @@ const Navbar: React.FC = () => {
                 {item.label}
               </a>
             ))}
+            
+            {isClient && (
+              <>
+                <Link to="/client/dashboard" className="text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium">Dashboard</Link>
+                <Link to="#" className="text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium">Find Talent</Link>
+                <Link to="#" className="text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium">Jobs</Link>
+              </>
+            )}
           </div>
 
           {/* CTA Buttons */}
@@ -98,6 +108,11 @@ const Navbar: React.FC = () => {
                      <div className="px-4 py-2 border-b border-slate-50 dark:border-slate-800">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">{user.name}</p>
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                        {user.clientProfile?.clientType && (
+                           <span className="text-[10px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full mt-1 inline-block">
+                             {user.clientProfile.clientType}
+                           </span>
+                        )}
                      </div>
                      
                      {isCreator && (
@@ -118,20 +133,30 @@ const Navbar: React.FC = () => {
                             <FileText size={16} className="mr-2 text-slate-400" />
                             My Contracts
                           </Link>
+                          <Link 
+                            to={user.profile ? `/profile/${user.id}` : '/creator/onboarding'}
+                            className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <UserIcon size={16} className="mr-2 text-slate-400" />
+                            Public Profile
+                          </Link>
                        </>
                      )}
 
-                     <Link 
-                       to={user.profile ? `/profile/${user.id}` : '/creator/onboarding'}
-                       className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                       onClick={() => setUserMenuOpen(false)}
-                     >
-                       <UserIcon size={16} className="mr-2 text-slate-400" />
-                       Public Profile
-                     </Link>
+                     {isClient && (
+                        <Link 
+                          to="/client/dashboard"
+                          className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <LayoutDashboard size={16} className="mr-2 text-slate-400" />
+                          Dashboard
+                        </Link>
+                     )}
                      
                      <Link 
-                       to="/creator/settings"
+                       to={isCreator ? "/creator/settings" : "#"} // TODO: Client settings page
                        className="flex w-full items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                        onClick={() => setUserMenuOpen(false)}
                      >
@@ -183,7 +208,7 @@ const Navbar: React.FC = () => {
       {isOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shadow-xl p-4 animate-in slide-in-from-top-5 h-screen overflow-y-auto">
           <div className="flex flex-col space-y-4">
-            {NAV_ITEMS.map((item) => (
+            {!user && NAV_ITEMS.map((item) => (
               <a 
                 key={item.label} 
                 href={item.href}
@@ -197,37 +222,12 @@ const Navbar: React.FC = () => {
               {user ? (
                 <>
                   <Link 
-                    to="/creator/dashboard"
+                    to={isCreator ? "/creator/dashboard" : "/client/dashboard"}
                     className="flex items-center space-x-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg"
                     onClick={() => setIsOpen(false)}
                   >
                      <LayoutDashboard size={20} className="text-slate-500" />
                      <span className="font-medium text-slate-900 dark:text-white">Dashboard</span>
-                  </Link>
-                  <Link 
-                    to="/creator/settings"
-                    className="flex items-center space-x-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg"
-                    onClick={() => setIsOpen(false)}
-                  >
-                     <Settings size={20} className="text-slate-500" />
-                     <span className="font-medium text-slate-900 dark:text-white">Settings</span>
-                  </Link>
-                  <Link 
-                    to={user.profile ? `/profile/${user.id}` : '/creator/onboarding'} 
-                    className="flex items-center space-x-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-brand-200 flex items-center justify-center text-brand-700 font-bold overflow-hidden">
-                      {user.avatarUrl ? (
-                       <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                     ) : (
-                       user.name.charAt(0)
-                     )}
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-900 dark:text-white">{user.name}</div>
-                      <div className="text-xs text-slate-500">View Profile</div>
-                    </div>
                   </Link>
                   <Button variant="outline" className="w-full justify-center" onClick={handleSignOut}>Sign Out</Button>
                 </>

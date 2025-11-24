@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Camera, Briefcase } from 'lucide-react';
@@ -43,7 +44,7 @@ const Signup: React.FC = () => {
         if (role === UserRole.CREATOR) {
           navigate('/creator/onboarding');
         } else {
-          navigate('/'); // Client dashboard (to be built)
+          navigate('/client/onboarding');
         }
       }
     } catch (err) {

@@ -76,8 +76,12 @@ export const mockAuth = {
     // Deep merge profile if it exists in updates
     let updatedUser = { ...users[userIndex], ...updates };
     
-    if (updates.profile && users[userIndex].profile) {
-       updatedUser.profile = { ...users[userIndex].profile, ...updates.profile };
+    if (updates.profile) {
+       updatedUser.profile = { ...(users[userIndex].profile || {}), ...updates.profile };
+    }
+    
+    if (updates.clientProfile) {
+       updatedUser.clientProfile = { ...(users[userIndex].clientProfile || {}), ...updates.clientProfile };
     }
 
     users[userIndex] = updatedUser;
