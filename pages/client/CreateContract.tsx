@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -22,7 +22,7 @@ const CreateContract: React.FC = () => {
   // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
+  const [expiryDate, setExpiryDate] = useState(''); // Offer Expiry
   const [terms, setTerms] = useState<ContractTerms>({
     amount: 0,
     currency: 'KES',
@@ -63,7 +63,7 @@ const CreateContract: React.FC = () => {
           expiryDate
         }
       );
-      // Redirect to the contract details (client view - effectively same as creator view for now)
+      // Redirect to the contract details (client view)
       navigate(`/creator/contracts/${contract.id}`); 
     } catch (error) {
       console.error(error);
@@ -72,6 +72,23 @@ const CreateContract: React.FC = () => {
     }
   };
 
+  const calculateEndDate = () => {
+    if (!terms.startDate || !terms.durationDays) return null;
+    const start = new Date(terms.startDate);
+    const end = new Date(start);
+    end.setDate(start.getDate() + terms.durationDays);
+    return end.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  // Validation
+  const isValid = 
+    title.trim() !== '' &&
+    description.trim() !== '' &&
+    terms.amount > 0 &&
+    terms.durationDays > 0 &&
+    terms.startDate !== '' &&
+    expiryDate !== '';
+
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!creator) return <div className="p-20 text-center dark:text-white">Creator not found</div>;
 
@@ -79,7 +96,7 @@ const CreateContract: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <button 
            onClick={() => navigate(-1)}
            className="flex items-center text-slate-500 hover:text-slate-900 dark:hover:text-white mb-6 transition-colors"
@@ -105,6 +122,7 @@ const CreateContract: React.FC = () => {
                  placeholder="e.g. Summer Campaign Instagram Reels"
                  value={title}
                  onChange={(e) => setTitle(e.target.value)}
+                 required
                />
                <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description & Requirements</label>
@@ -167,8 +185,9 @@ const CreateContract: React.FC = () => {
                 <Input 
                    label="Total Amount (KES)"
                    type="number"
-                   value={terms.amount}
+                   value={terms.amount || ''}
                    onChange={(e) => setTerms({...terms, amount: Number(e.target.value)})}
+                   required
                 />
                 <Input 
                    label="Upfront Deposit (KES)"
@@ -179,15 +198,33 @@ const CreateContract: React.FC = () => {
                 <Input 
                    label="Duration (Days)"
                    type="number"
-                   value={terms.durationDays}
+                   value={terms.durationDays || ''}
                    onChange={(e) => setTerms({...terms, durationDays: Number(e.target.value)})}
+                   required
                 />
                 <Input 
                    label="Start Date"
                    type="date"
                    value={terms.startDate ? terms.startDate.split('T')[0] : ''}
                    onChange={(e) => setTerms({...terms, startDate: new Date(e.target.value).toISOString()})}
+                   required
                 />
+             </div>
+
+             {/* Auto-Calculated Date Info */}
+             {terms.startDate && terms.durationDays > 0 && (
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-3 border border-blue-100 dark:border-blue-800">
+                   <Calendar className="text-blue-600 dark:text-blue-400 mt-1" size={18} />
+                   <div>
+                      <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Project Timeline</p>
+                      <p className="text-sm text-blue-700 dark:text-blue-400">
+                        Based on the start date and duration, this project is estimated to end on <span className="font-bold">{calculateEndDate()}</span>.
+                      </p>
+                   </div>
+                </div>
+             )}
+             
+             <div className="grid md:grid-cols-2 gap-6 mb-6">
                 <div>
                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Revision Policy</label>
                    <select 
@@ -202,10 +239,11 @@ const CreateContract: React.FC = () => {
                    </select>
                 </div>
                 <Input 
-                   label="Offer Expiry Date"
+                   label="Offer Valid Until"
                    type="date"
                    value={expiryDate}
                    onChange={(e) => setExpiryDate(e.target.value)}
+                   required
                 />
              </div>
              
@@ -221,9 +259,16 @@ const CreateContract: React.FC = () => {
              </div>
            </div>
 
+           {!isValid && (
+             <div className="flex items-center text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg text-sm">
+               <AlertCircle size={18} className="mr-2" />
+               Please fill in all required fields (Title, Amount, Duration, Start Date, Offer Expiry) to send.
+             </div>
+           )}
+
            <div className="pt-6 flex justify-end gap-4">
               <Button variant="ghost" onClick={() => navigate(-1)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={isSubmitting}>
+              <Button onClick={handleCreate} disabled={isSubmitting || !isValid}>
                 {isSubmitting ? 'Sending...' : 'Send Contract Offer'}
               </Button>
            </div>

@@ -6,8 +6,8 @@ import { mockAuth } from '../services/mockAuth';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>;
+  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ user: User | null; error: string | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       setUser(user);
     }
-    return { error };
+    return { user, error };
   };
 
   const signUp = async (email: string, password: string, name: string, role: UserRole) => {
@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       setUser(user);
     }
-    return { error };
+    return { user, error };
   };
 
   const signOut = async () => {

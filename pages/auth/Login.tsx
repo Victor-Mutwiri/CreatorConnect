@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../../components/AuthLayout';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
+import { UserRole } from '../../types';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -23,7 +25,15 @@ const Login: React.FC = () => {
       if (result.error) {
         setError(result.error);
       } else {
-        navigate('/');
+        // Immediate redirection based on role
+        if (result.user?.role === UserRole.CLIENT) {
+          navigate('/client/dashboard');
+        } else if (result.user?.role === UserRole.CREATOR) {
+          navigate('/creator/dashboard');
+        } else {
+           // Fallback
+           navigate('/');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred.');

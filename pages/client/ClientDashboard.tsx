@@ -3,13 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   PlusCircle, Search, Users, Briefcase, 
-  MessageSquare, FileText, TrendingUp, Bell, MapPin, 
+  TrendingUp, Bell, MapPin, 
   Instagram, Star, Heart, CheckCircle, Clock, Filter,
-  CreditCard, ChevronRight, User as UserIcon, Send
+  CreditCard, ChevronRight, User as UserIcon, Send, FileText
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
-import Input from '../../components/Input';
 import { useAuth } from '../../context/AuthContext';
 import { mockAuth } from '../../services/mockAuth';
 import { mockContractService } from '../../services/mockContract';
@@ -151,7 +150,6 @@ const ClientDashboard: React.FC = () => {
   };
 
   // Contracts Filtering Logic
-  // ACCEPTED contracts are considered Active until they are Completed/Cancelled
   const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status));
   const pendingContracts = contracts.filter(c => [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status));
   const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
@@ -511,7 +509,8 @@ const ClientDashboard: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Added pt-24 here to ensure content clears fixed navbar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
           <div>

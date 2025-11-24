@@ -1,11 +1,29 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Features from '../components/Features';
 import Footer from '../components/Footer';
 import Button from '../components/Button';
+import { useAuth } from '../context/AuthContext';
+import { UserRole } from '../types';
 
 const LandingPage: React.FC = () => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is already authenticated, redirect to dashboard
+    if (!isLoading && user) {
+      if (user.role === UserRole.CLIENT) {
+        navigate('/client/dashboard');
+      } else {
+        navigate('/creator/dashboard');
+      }
+    }
+  }, [user, isLoading, navigate]);
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
