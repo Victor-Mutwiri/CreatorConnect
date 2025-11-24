@@ -17,12 +17,19 @@ import { CreatorProfile, ServicePackage } from '../../types';
 const CATEGORIES = [
   "Lifestyle", "Fashion", "Beauty", "Tech", "Travel", "Food", 
   "Gaming", "Fitness", "Music", "Education", "Comedy", "Business",
-  "Art & Design", "Photography", "Parenting", "Sports"
+  "Art & Design", "Photography", "Parenting", "Sports", "Automotive",
+  "Finance & Investing", "Books & Literature", "DIY & Crafts", "Pets",
+  "Eco & Sustainability", "Movies & TV", "Mental Health", "Career & Productivity",
+  "Real Estate", "Events & Weddings"
 ];
 
 const SKILLS = [
   "Content Creation", "Video Editing", "Photography", "Live Streaming",
-  "Copywriting", "Modelling", "Voice Over", "Public Speaking"
+  "Copywriting", "Modelling", "Voice Over", "Public Speaking",
+  "Graphic Design", "Motion Graphics", "Scriptwriting", "Storytelling", 
+  "SEO", "Social Media Strategy", "Community Management", "Analytics", 
+  "Brand Partnerships", "Event Hosting", "Project Management", 
+  "Creative Direction", "UGC Creation", "Podcast Production"
 ];
 
 const Onboarding: React.FC = () => {
@@ -57,6 +64,12 @@ const Onboarding: React.FC = () => {
   const totalSteps = 7;
 
   const handleNext = () => {
+    // Validation for Step 2
+    if (currentStep === 2 && (formData.categories?.length || 0) === 0) {
+      alert("Please select at least one niche to continue.");
+      return;
+    }
+
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
       window.scrollTo(0, 0);
@@ -166,7 +179,7 @@ const Onboarding: React.FC = () => {
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">What's your niche?</h2>
-        <p className="text-slate-600 dark:text-slate-400">Select up to 4 categories that best describe your content.</p>
+        <p className="text-slate-600 dark:text-slate-400">Select up to 5 categories that best describe your content. (Required)</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -179,7 +192,7 @@ const Onboarding: React.FC = () => {
                 const current = formData.categories || [];
                 if (isSelected) {
                   setFormData({...formData, categories: current.filter(c => c !== cat)});
-                } else if (current.length < 4) {
+                } else if (current.length < 5) {
                   setFormData({...formData, categories: [...current, cat]});
                 }
               }}
@@ -193,6 +206,9 @@ const Onboarding: React.FC = () => {
             </button>
           );
         })}
+      </div>
+      <div className="text-center text-sm text-slate-500">
+        Selected: {formData.categories?.length || 0}/5
       </div>
     </div>
   );
@@ -660,7 +676,7 @@ const Onboarding: React.FC = () => {
                  Back
                </button>
                
-               <Button onClick={handleNext} disabled={isSubmitting}>
+               <Button onClick={handleNext} disabled={isSubmitting || (currentStep === 2 && (formData.categories?.length || 0) === 0)}>
                  {isSubmitting ? 'Finalizing...' : (currentStep === totalSteps ? 'Complete Profile' : 'Continue')}
                  {!isSubmitting && currentStep !== totalSteps && <ChevronRight size={16} className="ml-1" />}
                </Button>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -128,9 +129,10 @@ const Profile: React.FC = () => {
           
           {/* Left Column: Info Card */}
           <div className="space-y-6">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+            {/* Removed overflow-hidden to fix avatar clipping */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
               <div className="p-6 text-center border-b border-slate-100 dark:border-slate-800">
-                <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-900 shadow-md mx-auto -mt-20 overflow-hidden bg-white dark:bg-slate-800">
+                <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-900 shadow-md mx-auto -mt-20 overflow-hidden bg-white dark:bg-slate-800 relative z-20">
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt={profile.displayName} className="w-full h-full object-cover" />
                   ) : (
@@ -213,7 +215,8 @@ const Profile: React.FC = () => {
                 )}
               </div>
               
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
+              {/* Added rounded-b-2xl to maintain bottom corners since parent overflow is visible */}
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 rounded-b-2xl">
                 {!isOwner ? (
                   <>
                     <Button onClick={handleHireMe} className="w-full mb-3 shadow-brand-500/20">
