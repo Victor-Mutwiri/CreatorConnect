@@ -34,11 +34,13 @@ export interface ServicePackage {
 
 export interface Review {
   id: string;
-  clientId: string;
-  clientName: string;
+  reviewerId: string;
+  reviewerName: string;
+  reviewerAvatar?: string;
   rating: number; // 1-5
   comment: string;
   date: string;
+  projectTitle?: string;
 }
 
 export interface CreatorProfile {
@@ -100,6 +102,14 @@ export enum ClientType {
   COMPANY = 'COMPANY'        // Registered companies, Media houses, NGOs
 }
 
+export interface ClientStats {
+  contractsSent: number;
+  contractsCompleted: number;
+  hiringRate: string; // e.g. "85%"
+  reliabilityScore: number; // 0-100 (Payment reliability)
+  avgResponseTime: string; // e.g. "2 hours"
+}
+
 export interface ClientProfile {
   clientType: ClientType;
   businessName?: string; // Optional for Individuals
@@ -109,6 +119,9 @@ export interface ClientProfile {
   industry?: string;
   budgetRange?: string; // e.g., "KES 10k - 50k"
   isVerified?: boolean;
+  stats?: ClientStats;
+  reviews?: Review[];
+  savedCreatorIds?: string[]; // IDs of favorite creators
 }
 
 export interface User {
@@ -146,10 +159,12 @@ export enum ContractStatus {
 export interface ContractTerms {
   amount: number;
   currency: string;
+  deposit?: number; // Upfront payment
   durationDays: number;
   deliverables: string[];
   schedule: string; // Description of milestones
   startDate: string;
+  revisionPolicy?: string; // e.g., "2 Revisions", "Unlimited"
 }
 
 export interface ContractHistoryItem {
@@ -166,10 +181,12 @@ export interface Contract {
   clientName: string;
   clientAvatar?: string;
   creatorId: string;
+  creatorName?: string;
   title: string;
   description: string;
   status: ContractStatus;
   terms: ContractTerms;
+  expiryDate?: string;
   createdAt: string;
   updatedAt: string;
   history: ContractHistoryItem[];

@@ -1,4 +1,5 @@
 
+
 import { Contract, ContractStatus, Message, Notification, ContractTerms, User } from '../types';
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
@@ -26,6 +27,7 @@ const seedData = (userId: string) => {
       terms: {
         amount: 45000,
         currency: 'KES',
+        deposit: 15000,
         durationDays: 14,
         deliverables: [
           '2 Instagram Reels (30s)',
@@ -33,7 +35,8 @@ const seedData = (userId: string) => {
           '3 Instagram Stories with link'
         ],
         schedule: 'Week 1: Teaser stories. Week 2: Main reels and TikTok posts.',
-        startDate: new Date(Date.now() + 86400000 * 5).toISOString()
+        startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
+        revisionPolicy: '2 Revisions included'
       },
       createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
       updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
@@ -136,13 +139,69 @@ export const mockContractService = {
     await delay(500);
     seedData(userId);
     const allContracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
-    return allContracts.filter((c: Contract) => c.creatorId === userId);
+    return allContracts.filter((c: Contract) => c.creatorId === userId || c.clientId === userId);
   },
 
   getContractById: async (id: string): Promise<Contract | null> => {
     await delay(300);
     const allContracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
     return allContracts.find((c: Contract) => c.id === id) || null;
+  },
+
+  createContract: async (
+    clientId: string,
+    clientName: string,
+    clientAvatar: string | undefined,
+    creatorId: string,
+    creatorName: string,
+    data: Partial<Contract>
+  ): Promise<Contract> => {
+    await delay(1000);
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    
+    const newContract: Contract = {
+      id: `c-${Date.now()}`,
+      clientId,
+      clientName,
+      clientAvatar,
+      creatorId,
+      creatorName,
+      title: data.title || 'Untitled Project',
+      description: data.description || '',
+      status: ContractStatus.SENT,
+      terms: data.terms as ContractTerms,
+      expiryDate: data.expiryDate,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      history: [
+        {
+          id: `h-${Date.now()}`,
+          date: new Date().toISOString(),
+          action: 'created',
+          actorName: clientName,
+          note: 'Contract drafted and sent'
+        }
+      ]
+    };
+
+    contracts.push(newContract);
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    // Send notification to creator
+    const notifications = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
+    notifications.push({
+      id: `n-${Date.now()}`,
+      userId: creatorId,
+      title: 'New Job Offer',
+      message: `${clientName} has sent you a contract for "${newContract.title}".`,
+      type: 'success',
+      read: false,
+      date: new Date().toISOString(),
+      link: `/creator/contracts/${newContract.id}`
+    });
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+
+    return newContract;
   },
 
   updateContractStatus: async (contractId: string, status: ContractStatus, userId: string, userName: string, note?: string): Promise<Contract> => {

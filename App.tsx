@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -9,6 +10,8 @@ import Signup from './pages/auth/Signup';
 import CreatorOnboarding from './pages/creator/Onboarding';
 import ClientOnboarding from './pages/client/ClientOnboarding';
 import ClientDashboard from './pages/client/ClientDashboard';
+import ClientPublicProfile from './pages/client/Profile';
+import CreateContract from './pages/client/CreateContract';
 import Profile from './pages/creator/Profile';
 import Dashboard from './pages/creator/Dashboard';
 import Contracts from './pages/creator/Contracts';
@@ -38,6 +41,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/profile/:id" element={<Profile />} />
+            <Route path="/client/profile/:id" element={<ClientPublicProfile />} />
             
             {/* Creator Routes */}
             <Route 
@@ -95,6 +99,14 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <ClientDashboard />
+                </ProtectedRoute>
+              } 
+            />
+             <Route 
+              path="/client/create-contract/:creatorId" 
+              element={
+                <ProtectedRoute>
+                  <CreateContract />
                 </ProtectedRoute>
               } 
             />
