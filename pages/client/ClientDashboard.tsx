@@ -1,12 +1,10 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   PlusCircle, Search, Users, Briefcase, 
   MessageSquare, FileText, TrendingUp, Bell, MapPin, 
   Instagram, Star, Heart, CheckCircle, Clock, Filter,
-  CreditCard, ChevronRight
+  CreditCard, ChevronRight, User as UserIcon
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -18,7 +16,7 @@ import { Contract, ContractStatus, User, Notification } from '../../types';
 
 type Tab = 'overview' | 'contracts' | 'search' | 'saved';
 
-const CATEGORIES = ["All", "Fashion", "Tech", "Food", "Lifestyle", "Beauty", "Travel"];
+const CATEGORIES = ["All", "Fashion", "Tech", "Food", "Lifestyle", "Beauty", "Travel", "Business", "Art & Design"];
 
 const ClientDashboard: React.FC = () => {
   const { user, updateProfile } = useAuth();
@@ -56,11 +54,7 @@ const ClientDashboard: React.FC = () => {
     if (!user) return;
     const updatedUser = await mockAuth.toggleSavedCreator(user.id, creatorId);
     if (updatedUser) {
-       // Refresh local user state implies re-render, usually handled by context, 
-       // but here we might need to manually trigger update if context doesn't auto-update from local storage change immediately.
-       // However, mockAuth updates session storage, so a window reload or context refresh would catch it.
-       // For this demo, we'll force a reload of the context user via the provided hook if available, or just rely on local state optimization.
-       await updateProfile({}); // Triggers context refresh
+       await updateProfile({}); 
     }
   };
 
@@ -129,7 +123,7 @@ const ClientDashboard: React.FC = () => {
               <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full">New</span>
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Unread Messages</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">5</h3>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">0</h3>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
@@ -139,7 +133,7 @@ const ClientDashboard: React.FC = () => {
               </div>
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Spent</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">KES 450k</h3>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">KES 0</h3>
           </div>
       </div>
 
@@ -315,14 +309,25 @@ const ClientDashboard: React.FC = () => {
     const profile = creator.profile;
     if (!profile) return null;
 
+    // Handle case where user just signed up and has no images/data
+    const coverImage = profile.portfolio?.images?.[0];
+    const categories = profile.categories || [];
+    const trustScore = profile.verification?.trustScore || 0;
+
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow group">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
         <div className="relative h-48 bg-slate-100 dark:bg-slate-800">
-          <img 
-            src={profile.portfolio.images[0] || 'https://via.placeholder.com/400'} 
-            alt="Portfolio" 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+          {coverImage ? (
+            <img 
+              src={coverImage} 
+              alt="Portfolio" 
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-400">
+               <UserIcon size={48} />
+            </div>
+          )}
           <div className="absolute top-3 right-3">
              <button 
                onClick={(e) => {
@@ -338,7 +343,7 @@ const ClientDashboard: React.FC = () => {
           </div>
         </div>
         
-        <div className="p-5">
+        <div className="p-5 flex-1 flex flex-col">
            <div className="flex justify-between items-start mb-2">
               <div>
                 <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
@@ -349,19 +354,23 @@ const ClientDashboard: React.FC = () => {
               </div>
               <div className="flex items-center bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs font-bold text-slate-700 dark:text-slate-300">
                  <Star size={12} className="text-yellow-500 mr-1" fill="currentColor" />
-                 {profile.verification?.trustScore && (profile.verification.trustScore / 20).toFixed(1)}
+                 {(trustScore / 20).toFixed(1)}
               </div>
            </div>
 
            <div className="flex flex-wrap gap-1 mb-4">
-             {profile.categories.slice(0, 3).map(cat => (
+             {categories.length > 0 ? categories.slice(0, 3).map(cat => (
                <span key={cat} className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
                  {cat}
                </span>
-             ))}
+             )) : (
+                <span className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-1 rounded">
+                  New Creator
+                </span>
+             )}
            </div>
 
-           <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
+           <div className="mt-auto flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-4">
               <div className="text-sm">
                 <span className="text-slate-500 dark:text-slate-400 block text-xs">Starting at</span>
                 <span className="font-bold text-slate-900 dark:text-white">
@@ -421,11 +430,23 @@ const ClientDashboard: React.FC = () => {
         </div>
 
         {/* Results Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {creators.map(creator => (
-             <CreatorCard key={creator.id} creator={creator} />
-           ))}
-        </div>
+        {creators.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             {creators.map(creator => (
+               <CreatorCard key={creator.id} creator={creator} />
+             ))}
+          </div>
+        ) : (
+          <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+               <Search size={24} />
+             </div>
+             <h3 className="text-lg font-medium text-slate-900 dark:text-white">No creators found</h3>
+             <p className="text-slate-500 dark:text-slate-400 mt-1 mb-6">
+                Try adjusting your search terms or ask a friend to sign up as a Creator!
+             </p>
+          </div>
+        )}
      </div>
   );
 
