@@ -9,18 +9,23 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const mockAuth = {
   async signUp(email: string, password: string, name: string, role: UserRole): Promise<AuthResponse> {
     await delay(800);
+    const normalizedEmail = email.toLowerCase();
     
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const existingUser = users.find((u: any) => u.email === email);
+    const existingUser = users.find((u: any) => u.email.toLowerCase() === normalizedEmail);
 
     if (existingUser) {
-      return { user: null, error: 'User already exists with this email.' };
+      const existingRole = existingUser.role === UserRole.CLIENT ? 'Client' : 'Creator';
+      return { 
+        user: null, 
+        error: `This email is already registered as a ${existingRole}. You cannot create a ${role === UserRole.CLIENT ? 'Client' : 'Creator'} account with the same email.` 
+      };
     }
 
     // Initialize basic profile structures so they appear in search immediately
     const initialCreatorProfile: Partial<CreatorProfile> = role === UserRole.CREATOR ? {
       displayName: name,
-      username: email.split('@')[0],
+      username: normalizedEmail.split('@')[0],
       bio: 'New creator on Ubuni.',
       location: 'Kenya',
       categories: [],
@@ -41,7 +46,7 @@ export const mockAuth = {
 
     const newUser: User = {
       id: Math.random().toString(36).substr(2, 9),
-      email,
+      email: normalizedEmail,
       name,
       role,
       createdAt: new Date().toISOString(),
@@ -64,9 +69,10 @@ export const mockAuth = {
 
   async signIn(email: string, password: string): Promise<AuthResponse> {
     await delay(800);
+    const normalizedEmail = email.toLowerCase();
 
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const user = users.find((u: any) => u.email === email && u.password === password);
+    const user = users.find((u: any) => u.email.toLowerCase() === normalizedEmail && u.password === password);
 
     if (!user) {
       return { user: null, error: 'Invalid email or password.' };
