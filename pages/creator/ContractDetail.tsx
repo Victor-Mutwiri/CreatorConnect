@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
@@ -94,7 +93,6 @@ const ContractDetail: React.FC = () => {
       );
       setContract(updated);
       
-      // Add system message to chat
       const sysMsg = await mockContractService.sendMessage(
         contract.id, 'system', 'System', 
         `Contract was ${status.toLowerCase()} by ${user.name}`
@@ -114,7 +112,6 @@ const ContractDetail: React.FC = () => {
       );
       setContract(updated);
       setShowCounterModal(false);
-       // Add system message to chat
        const sysMsg = await mockContractService.sendMessage(
         contract.id, 'system', 'System', 
         `A counter-offer was proposed by ${user.name}`
@@ -150,7 +147,6 @@ const ContractDetail: React.FC = () => {
      if (!contract || !user) return;
      
      if (!approved && !rejectionReason && !showRejectEndModal) {
-       // If rejecting, we need to show the modal first
        setShowRejectEndModal(true);
        return;
      }
@@ -191,16 +187,15 @@ const ContractDetail: React.FC = () => {
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!contract) return <div className="p-20 text-center dark:text-white">Contract not found</div>;
 
-  // Logic to determine what buttons to show
   const isPending = [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(contract.status);
-  // Treated as Active if ACTIVE or ACCEPTED (ready to start)
   const isActive = [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(contract.status);
   const isCompleted = contract.status === ContractStatus.COMPLETED;
   
   const lastHistoryItem = contract.history[contract.history.length - 1];
   const isCreator = user?.id === contract.creatorId;
+  const isClientViewer = user?.id === contract.clientId;
 
-  // --- Proposal/Negotiation Logic ---
+  // Proposal/Negotiation Logic
   let canTakeAction = false;
   let statusMessage = "";
 
@@ -221,12 +216,9 @@ const ContractDetail: React.FC = () => {
     }
   }
 
-  // --- End Contract Logic ---
   const pendingEndRequest = contract.endRequest?.status === 'pending';
   const iRequestedEnd = contract.endRequest?.requesterId === user?.id;
   const isRejectedEndRequest = contract.endRequest?.status === 'rejected';
-
-  // --- Review Logic ---
   const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
 
   return (
@@ -246,9 +238,18 @@ const ContractDetail: React.FC = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h1>
-                <p className="text-slate-500 dark:text-slate-400">
-                  Client: <Link to={`/client/profile/${contract.clientId}`} className="font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">{contract.clientName}</Link>
-                </p>
+                
+                {/* Dynamic Link based on Viewer Role */}
+                {isClientViewer ? (
+                   <p className="text-slate-500 dark:text-slate-400">
+                     Creator: <Link to={`/profile/${contract.creatorId}`} className="font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">{contract.creatorName}</Link>
+                   </p>
+                ) : (
+                   <p className="text-slate-500 dark:text-slate-400">
+                     Client: <Link to={`/client/profile/${contract.clientId}`} className="font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">{contract.clientName}</Link>
+                   </p>
+                )}
+
               </div>
               <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
                 contract.status === ContractStatus.ACTIVE || contract.status === ContractStatus.ACCEPTED ? 'bg-green-100 text-green-700' : 
@@ -438,13 +439,6 @@ const ContractDetail: React.FC = () => {
                       className="text-xs bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-lg font-medium hover:bg-red-50 dark:hover:bg-slate-700"
                     >
                       New Request
-                    </button>
-                    {/* Placeholder for dispute logic */}
-                    <button 
-                      disabled
-                      className="text-xs bg-transparent border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-lg font-medium opacity-50 cursor-not-allowed"
-                    >
-                      Raise Dispute (Coming Soon)
                     </button>
                  </div>
              </div>

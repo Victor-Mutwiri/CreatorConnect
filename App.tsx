@@ -17,6 +17,7 @@ import Dashboard from './pages/creator/Dashboard';
 import Contracts from './pages/creator/Contracts';
 import ContractDetail from './pages/creator/ContractDetail';
 import Settings from './pages/creator/Settings';
+import Notifications from './pages/Notifications';
 
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -43,6 +44,15 @@ const App: React.FC = () => {
             <Route path="/profile/:id" element={<Profile />} />
             <Route path="/client/profile/:id" element={<ClientPublicProfile />} />
             
+            <Route 
+              path="/notifications" 
+              element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              } 
+            />
+
             {/* Creator Routes */}
             <Route 
               path="/creator/onboarding" 

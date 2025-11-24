@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -534,9 +533,6 @@ const ClientDashboard: React.FC = () => {
                    <Search size={18} className="mr-2" /> Find Creators
                 </Button>
              )}
-             <Button className="flex items-center shadow-lg shadow-brand-500/20">
-                <PlusCircle size={18} className="mr-2" /> Post a Job
-             </Button>
           </div>
         </div>
 

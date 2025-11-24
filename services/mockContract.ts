@@ -1,5 +1,4 @@
 
-
 import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
@@ -10,24 +9,34 @@ const NOTIFICATIONS_KEY = 'ubuni_notifications_db';
 // Helper to delay response
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper to create notifications
+const createNotification = (userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error', link?: string) => {
+  const notifications = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
+  notifications.push({
+    id: `n-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    userId,
+    title,
+    message,
+    type,
+    read: false,
+    date: new Date().toISOString(),
+    link
+  });
+  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+};
+
 // Seed data generator
 const seedData = (userId: string) => {
   const existingContracts = localStorage.getItem(CONTRACTS_KEY);
   if (existingContracts) return;
 
-  const contracts: Contract[] = [
-  ];
-
+  const contracts: Contract[] = [];
   localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
 
-  // Seed Messages
-  const messages: Message[] = [
-  ];
+  const messages: Message[] = [];
   localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
 
-  // Seed Notifications
-  const notifications: Notification[] = [
-  ];
+  const notifications: Notification[] = [];
   localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
 };
 
@@ -87,19 +96,14 @@ export const mockContractService = {
     contracts.push(newContract);
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
 
-    // Send notification to creator
-    const notifications = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
-    notifications.push({
-      id: `n-${Date.now()}`,
-      userId: creatorId,
-      title: 'New Job Offer',
-      message: `${clientName} has sent you a contract for "${newContract.title}".`,
-      type: 'success',
-      read: false,
-      date: new Date().toISOString(),
-      link: `/creator/contracts/${newContract.id}`
-    });
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+    // Notify Creator
+    createNotification(
+      creatorId,
+      'New Job Offer',
+      `${clientName} has sent you a contract for "${newContract.title}".`,
+      'success',
+      `/creator/contracts/${newContract.id}`
+    );
 
     return newContract;
   },
@@ -125,6 +129,29 @@ export const mockContractService = {
 
     contracts[index] = updatedContract;
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    // Notify the OTHER party
+    const isCreatorAction = userId === updatedContract.creatorId;
+    const targetUserId = isCreatorAction ? updatedContract.clientId : updatedContract.creatorId;
+    
+    if (status === ContractStatus.ACCEPTED) {
+       createNotification(
+         targetUserId,
+         'Contract Accepted',
+         `${userName} has accepted the contract for "${updatedContract.title}". Work can begin!`,
+         'success',
+         `/creator/contracts/${updatedContract.id}`
+       );
+    } else if (status === ContractStatus.DECLINED) {
+       createNotification(
+         targetUserId,
+         'Contract Declined',
+         `${userName} has declined the contract for "${updatedContract.title}".`,
+         'error',
+         `/creator/contracts/${updatedContract.id}`
+       );
+    }
+
     return updatedContract;
   },
 
@@ -153,6 +180,19 @@ export const mockContractService = {
 
     contracts[index] = updatedContract;
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    // Notify the OTHER party
+    const isCreatorAction = userId === updatedContract.creatorId;
+    const targetUserId = isCreatorAction ? updatedContract.clientId : updatedContract.creatorId;
+
+    createNotification(
+       targetUserId,
+       'Counter Offer Received',
+       `${userName} has proposed new terms for "${updatedContract.title}".`,
+       'warning',
+       `/creator/contracts/${updatedContract.id}`
+    );
+
     return updatedContract;
   },
 
@@ -174,6 +214,19 @@ export const mockContractService = {
 
     contracts[index] = updatedContract;
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    // Notify the OTHER party
+    const isCreatorAction = userId === updatedContract.creatorId;
+    const targetUserId = isCreatorAction ? updatedContract.clientId : updatedContract.creatorId;
+
+    createNotification(
+       targetUserId,
+       'End Contract Proposal',
+       `${userName} has requested to end the contract "${updatedContract.title}" (${type}).`,
+       'info',
+       `/creator/contracts/${updatedContract.id}`
+    );
+
     return updatedContract;
   },
 
@@ -188,13 +241,14 @@ export const mockContractService = {
 
     if (!request) throw new Error("No end request found");
 
+    // Notify the requester (who originally asked to end)
+    const requesterId = request.requesterId;
+
     if (approved) {
-      // Set status based on the requested type
       const newStatus = request.type === 'completion' ? ContractStatus.COMPLETED : ContractStatus.CANCELLED;
       updatedContract.status = newStatus;
       updatedContract.endRequest.status = 'approved';
       
-      // Add History
       updatedContract.history.push({
         id: Math.random().toString(36).substr(2, 9),
         date: new Date().toISOString(),
@@ -203,11 +257,19 @@ export const mockContractService = {
         actionBy: userId,
         note: `Mutual agreement to end contract: ${request.reason}`
       });
+
+      createNotification(
+        requesterId,
+        'End Request Approved',
+        `${userName} accepted your request to end "${updatedContract.title}".`,
+        'success',
+        `/creator/contracts/${updatedContract.id}`
+      );
+
     } else {
       updatedContract.endRequest.status = 'rejected';
       updatedContract.endRequest.rejectionReason = rejectionReason;
       
-      // Add History
       updatedContract.history.push({
         id: Math.random().toString(36).substr(2, 9),
         date: new Date().toISOString(),
@@ -216,13 +278,14 @@ export const mockContractService = {
         actionBy: userId,
         note: `End contract request rejected. Reason: ${rejectionReason || 'No reason provided'}`
       });
-      
-      // Clear the request after processing rejection so it can be requested again or disputed later
-      // For now, we keep the rejected status on the endRequest object to show history in the UI if needed
-      // But typically we might want to clear it so a new request can be made. 
-      // Let's keep it but mark status as rejected, the UI can choose to show a "New Request" button.
-      // However, to allow re-request immediately, we might set endRequest to undefined after a delay or just let the user overwrite it.
-      // For simplicity in this mock, we will leave the endRequest object there with status 'rejected'.
+
+      createNotification(
+        requesterId,
+        'End Request Rejected',
+        `${userName} declined your request to end "${updatedContract.title}".`,
+        'error',
+        `/creator/contracts/${updatedContract.id}`
+      );
     }
 
     contracts[index] = updatedContract;
@@ -243,7 +306,6 @@ export const mockContractService = {
       throw new Error('Can only review completed contracts');
     }
 
-    // Update contract review status
     if (isClient) {
       if (contract.isClientReviewed) throw new Error('You have already reviewed this contract');
       contract.isClientReviewed = true;
@@ -255,7 +317,6 @@ export const mockContractService = {
     contracts[index] = contract;
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
 
-    // Update the Profile of the person being reviewed
     const targetUserId = isClient ? contract.creatorId : contract.clientId;
     await mockAuth.addUserRating(targetUserId, rating);
 
@@ -289,7 +350,7 @@ export const mockContractService = {
   getNotifications: async (userId: string): Promise<Notification[]> => {
     // await delay(200); // Intentionally fast
     const allNotes = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
-    return allNotes.filter((n: Notification) => n.userId === userId);
+    return allNotes.filter((n: Notification) => n.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
   },
 
   markNotificationRead: async (notificationId: string) => {

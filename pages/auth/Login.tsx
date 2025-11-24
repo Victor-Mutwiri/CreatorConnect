@@ -6,6 +6,7 @@ import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types';
+import { mockContractService } from '../../services/mockContract';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -24,15 +25,23 @@ const Login: React.FC = () => {
       const result = await signIn(email, password);
       if (result.error) {
         setError(result.error);
-      } else {
-        // Immediate redirection based on role
-        if (result.user?.role === UserRole.CLIENT) {
-          navigate('/client/dashboard');
-        } else if (result.user?.role === UserRole.CREATOR) {
-          navigate('/creator/dashboard');
+      } else if (result.user) {
+        
+        // Check for notifications first
+        const notifications = await mockContractService.getNotifications(result.user.id);
+        const hasUnread = notifications.some(n => !n.read);
+
+        if (hasUnread) {
+          navigate('/notifications');
         } else {
-           // Fallback
-           navigate('/');
+          // Standard Redirection
+          if (result.user.role === UserRole.CLIENT) {
+            navigate('/client/dashboard');
+          } else if (result.user.role === UserRole.CREATOR) {
+            navigate('/creator/dashboard');
+          } else {
+             navigate('/');
+          }
         }
       }
     } catch (err) {
