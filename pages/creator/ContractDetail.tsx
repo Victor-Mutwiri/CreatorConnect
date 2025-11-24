@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
-  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info
+  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -22,7 +22,15 @@ const ContractDetail: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Modals
   const [showCounterModal, setShowCounterModal] = useState(false);
+  const [showEndContractModal, setShowEndContractModal] = useState(false);
+  
+  // End Contract State
+  const [endReason, setEndReason] = useState('');
+  const [endType, setEndType] = useState<'completion' | 'termination'>('completion');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Counter offer state
@@ -111,15 +119,57 @@ const ContractDetail: React.FC = () => {
     }
   };
 
+  const handleRequestEndContract = async () => {
+    if (!contract || !user || !endReason) return;
+    try {
+      const updated = await mockContractService.requestEndContract(
+        contract.id, user.id, user.name, endReason, endType
+      );
+      setContract(updated);
+      setShowEndContractModal(false);
+      
+      const actionText = endType === 'completion' ? 'completion' : 'termination';
+      const sysMsg = await mockContractService.sendMessage(
+        contract.id, 'system', 'System', 
+        `End of contract (${actionText}) requested by ${user.name}. Reason: ${endReason}`
+      );
+      setMessages([...messages, sysMsg]);
+
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
+  const handleResolveEndRequest = async (approved: boolean) => {
+     if (!contract || !user) return;
+     try {
+       const updated = await mockContractService.resolveEndContract(
+         contract.id, approved, user.id, user.name
+       );
+       setContract(updated);
+       
+       const text = approved ? "End request APPROVED." : "End request REJECTED.";
+       const sysMsg = await mockContractService.sendMessage(
+        contract.id, 'system', 'System', text
+      );
+      setMessages([...messages, sysMsg]);
+
+     } catch(e) {
+       console.error(e);
+     }
+  };
+
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!contract) return <div className="p-20 text-center dark:text-white">Contract not found</div>;
 
-  // Determine if user can act
+  // Logic to determine what buttons to show
   const isPending = [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(contract.status);
+  const isActive = contract.status === ContractStatus.ACTIVE;
+  
   const lastHistoryItem = contract.history[contract.history.length - 1];
   const isCreator = user?.id === contract.creatorId;
-  const isClient = user?.id === contract.clientId;
 
+  // --- Proposal/Negotiation Logic ---
   let canTakeAction = false;
   let statusMessage = "";
 
@@ -130,22 +180,19 @@ const ContractDetail: React.FC = () => {
       statusMessage = "Waiting for creator to respond";
     }
   } else if (contract.status === ContractStatus.NEGOTIATING) {
-    // If the last action was done by the current user, they must wait.
-    // If done by the other party (or system/unknown), current user can act.
-    // If history has actionBy, use it. Otherwise assume client initiated NEGOTIATING? 
-    // Actually mockContract sets actionBy now.
-    
     if (lastHistoryItem?.actionBy && lastHistoryItem.actionBy !== user?.id) {
        canTakeAction = true;
        statusMessage = "Counter-offer received. Your turn to respond.";
     } else if (lastHistoryItem?.actionBy === user?.id) {
        statusMessage = "Waiting for response to your counter-offer";
     } else {
-      // Fallback for old data or unclear state: typically creator receives first, so if NEGOTIATING, likely creator countered?
-      // But client could counter back. Let's assume if it's not explicitly me, I can act (safer fallback for demo).
       canTakeAction = true; 
     }
   }
+
+  // --- End Contract Logic ---
+  const pendingEndRequest = contract.endRequest?.status === 'pending';
+  const iRequestedEnd = contract.endRequest?.requesterId === user?.id;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
@@ -169,6 +216,7 @@ const ContractDetail: React.FC = () => {
               <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
                 contract.status === ContractStatus.ACTIVE ? 'bg-green-100 text-green-700' : 
                 contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' :
+                contract.status === ContractStatus.COMPLETED ? 'bg-slate-100 text-slate-700' :
                 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}>
                 {contract.status.replace('_', ' ')}
@@ -227,7 +275,9 @@ const ContractDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions Bar - Conditional Render based on whose turn it is */}
+          {/* --- ACTION BARS --- */}
+
+          {/* 1. Proposal Actions (Accept/Decline/Counter) */}
           {isPending && canTakeAction && (
             <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4 ring-2 ring-brand-500/10">
                <div>
@@ -257,12 +307,65 @@ const ContractDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Waiting Banner */}
+          {/* 2. Active Contract Actions (End Contract) */}
+          {isActive && !pendingEndRequest && (
+            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between animate-in slide-in-from-bottom-4">
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">Active Contract</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Project is currently in progress.</p>
+              </div>
+              <button 
+                onClick={() => setShowEndContractModal(true)}
+                className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              >
+                End Contract
+              </button>
+            </div>
+          )}
+
+          {/* 3. Waiting Banner (Proposal) */}
           {isPending && !canTakeAction && (
              <div className="sticky bottom-4 z-10 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center animate-in slide-in-from-bottom-4">
                  <Info className="text-slate-400 mr-2" size={20} />
                  <span className="text-slate-600 dark:text-slate-300 font-medium">{statusMessage || "Waiting for other party to respond."}</span>
              </div>
+          )}
+
+          {/* 4. End Request Banner (Approval or Waiting) */}
+          {pendingEndRequest && (
+            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom-4 ring-2 ring-orange-500/20">
+               {iRequestedEnd ? (
+                 <div className="flex items-center justify-center text-slate-600 dark:text-slate-300">
+                    <Clock className="mr-2 text-orange-500" size={20} />
+                    <span>You have requested to end this contract. Waiting for approval.</span>
+                 </div>
+               ) : (
+                 <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                       <p className="font-bold text-slate-900 dark:text-white flex items-center">
+                         <AlertTriangle className="mr-2 text-orange-500" size={20} />
+                         Request to End Contract
+                       </p>
+                       <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                         <span className="font-medium">{contract.endRequest?.requesterName}</span> wants to mark this as 
+                         <span className="font-bold uppercase ml-1">{contract.endRequest?.type}</span>.
+                       </p>
+                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Reason: "{contract.endRequest?.reason}"</p>
+                    </div>
+                    <div className="flex gap-2">
+                       <button 
+                         onClick={() => handleResolveEndRequest(false)}
+                         className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                       >
+                         Reject
+                       </button>
+                       <Button onClick={() => handleResolveEndRequest(true)}>
+                         Approve & Close
+                       </Button>
+                    </div>
+                 </div>
+               )}
+            </div>
           )}
 
           {/* History / Audit Trail */}
@@ -282,6 +385,10 @@ const ContractDetail: React.FC = () => {
                       {item.action === 'counter_offer' && 'Counter Offer Proposed'}
                       {item.action === 'accepted' && 'Contract Accepted'}
                       {item.action === 'declined' && 'Contract Declined'}
+                      {item.action === 'started' && 'Contract Started'}
+                      {item.action === 'completed' && 'Contract Completed'}
+                      {item.action === 'cancelled' && 'Contract Cancelled'}
+                      {item.action === 'end_request_rejected' && 'End Request Rejected'}
                     </span>
                     <span className="text-sm text-slate-500 dark:text-slate-400">
                       by {item.actorName}
@@ -313,7 +420,7 @@ const ContractDetail: React.FC = () => {
               if (isSystem) {
                 return (
                   <div key={msg.id} className="flex justify-center my-2">
-                    <span className="text-xs bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full">
+                    <span className="text-xs bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full text-center">
                       {msg.content}
                     </span>
                   </div>
@@ -428,6 +535,69 @@ const ContractDetail: React.FC = () => {
             <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowCounterModal(false)}>Cancel</Button>
               <Button onClick={handleCounterOffer}>Submit Proposal</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Contract Modal */}
+      {showEndContractModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">End Contract</h3>
+              <button onClick={() => setShowEndContractModal(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                <XCircle size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+               <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Reason Type</label>
+                  <div className="grid grid-cols-2 gap-4">
+                     <button
+                       onClick={() => setEndType('completion')}
+                       className={`p-4 rounded-xl border-2 text-center transition-all ${
+                         endType === 'completion'
+                           ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400'
+                           : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
+                       }`}
+                     >
+                       <CheckCircle className="mx-auto mb-2" size={24} />
+                       <div className="font-bold text-sm">Completed</div>
+                     </button>
+                     <button
+                       onClick={() => setEndType('termination')}
+                       className={`p-4 rounded-xl border-2 text-center transition-all ${
+                         endType === 'termination'
+                           ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                           : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
+                       }`}
+                     >
+                       <XCircle className="mx-auto mb-2" size={24} />
+                       <div className="font-bold text-sm">Terminate / Dispute</div>
+                     </button>
+                  </div>
+               </div>
+               
+               <div>
+                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reason Description</label>
+                 <textarea 
+                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
+                   rows={3}
+                   placeholder="e.g. Work delivered successfully, project ended early..."
+                   value={endReason}
+                   onChange={(e) => setEndReason(e.target.value)}
+                 />
+                 <p className="text-xs text-slate-500 mt-2">
+                   This request must be approved by the other party before the contract is closed.
+                 </p>
+               </div>
+            </div>
+
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowEndContractModal(false)}>Cancel</Button>
+              <Button onClick={handleRequestEndContract} disabled={!endReason}>Send Request</Button>
             </div>
           </div>
         </div>

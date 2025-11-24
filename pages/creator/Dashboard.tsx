@@ -1,9 +1,10 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   BarChart3, CheckCircle, Clock, DollarSign, Bell, ArrowRight,
-  TrendingUp, Activity, Briefcase
+  TrendingUp, Activity, Briefcase, XCircle, CheckSquare
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/AuthContext';
@@ -22,7 +23,9 @@ const StatCard: React.FC<{
     brand: 'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400',
     blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
     purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
   };
   
   // @ts-ignore
@@ -70,11 +73,18 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, [user]);
 
+  // Updated filtering logic to be more precise
   const activeContracts = contracts.filter(c => c.status === ContractStatus.ACTIVE);
   const pendingContracts = contracts.filter(c => [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status));
+  const rejectedContracts = contracts.filter(c => c.status === ContractStatus.DECLINED);
+  const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
+  const cancelledContracts = contracts.filter(c => c.status === ContractStatus.CANCELLED);
   
+  // Calculate total closed (Completed + Cancelled)
+  const closedCount = completedContracts.length + cancelledContracts.length;
+
   // Calculated stats (mocked earnings for now as we don't have completed payment history)
-  const totalEarnings = 125000; 
+  const totalEarnings = completedContracts.reduce((sum, c) => sum + c.terms.amount, 0); 
   const profileViews = 342;
 
   // Profile completion calc
@@ -126,8 +136,6 @@ const Dashboard: React.FC = () => {
             value={`KES ${totalEarnings.toLocaleString()}`} 
             icon={DollarSign} 
             color="brand"
-            trend="+12% this month"
-            trendUp={true}
           />
           <StatCard 
             title="Active Jobs" 
@@ -135,21 +143,54 @@ const Dashboard: React.FC = () => {
             icon={Activity} 
             color="blue"
           />
-          <StatCard 
+           <StatCard 
             title="Pending Offers" 
             value={pendingContracts.length} 
             icon={Clock} 
             color="orange"
           />
           <StatCard 
-            title="Profile Views" 
-            value={profileViews} 
-            icon={TrendingUp} 
-            color="purple"
-            trend="+5% last 7 days"
-            trendUp={true}
+            title="Closed Jobs" 
+            value={closedCount} 
+            icon={CheckSquare} 
+            color="green"
           />
         </div>
+
+         {/* Additional Stats Row */}
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Offers Rejected</p>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{rejectedContracts.length}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                <XCircle size={20} />
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Profile Views</p>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{profileViews}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                <TrendingUp size={20} />
+              </div>
+            </div>
+             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Completion Rate</p>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {completedContracts.length + cancelledContracts.length > 0 
+                     ? Math.round((completedContracts.length / (completedContracts.length + cancelledContracts.length)) * 100)
+                     : 0}%
+                </h3>
+              </div>
+              <div className="p-3 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                <CheckCircle size={20} />
+              </div>
+            </div>
+         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           

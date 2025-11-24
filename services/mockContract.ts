@@ -1,6 +1,6 @@
 
 
-import { Contract, ContractStatus, Message, Notification, ContractTerms, User } from '../types';
+import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest } from '../types';
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
 const MESSAGES_KEY = 'ubuni_messages_db';
@@ -253,6 +253,71 @@ export const mockContractService = {
       actionBy: userId,
       note: 'Updated terms proposed'
     });
+
+    contracts[index] = updatedContract;
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+    return updatedContract;
+  },
+
+  requestEndContract: async (contractId: string, userId: string, userName: string, reason: string, type: 'completion' | 'termination'): Promise<Contract> => {
+    await delay(600);
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    const index = contracts.findIndex((c: Contract) => c.id === contractId);
+    if (index === -1) throw new Error('Contract not found');
+
+    const updatedContract = { ...contracts[index] };
+    updatedContract.endRequest = {
+      requesterId: userId,
+      requesterName: userName,
+      reason,
+      type,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    contracts[index] = updatedContract;
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+    return updatedContract;
+  },
+
+  resolveEndContract: async (contractId: string, approved: boolean, userId: string, userName: string): Promise<Contract> => {
+    await delay(600);
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    const index = contracts.findIndex((c: Contract) => c.id === contractId);
+    if (index === -1) throw new Error('Contract not found');
+
+    let updatedContract = { ...contracts[index] };
+    const request = updatedContract.endRequest;
+
+    if (!request) throw new Error("No end request found");
+
+    if (approved) {
+      // Set status based on the requested type
+      const newStatus = request.type === 'completion' ? ContractStatus.COMPLETED : ContractStatus.CANCELLED;
+      updatedContract.status = newStatus;
+      updatedContract.endRequest.status = 'approved';
+      
+      // Add History
+      updatedContract.history.push({
+        id: Math.random().toString(36).substr(2, 9),
+        date: new Date().toISOString(),
+        action: newStatus.toLowerCase(),
+        actorName: userName,
+        actionBy: userId,
+        note: `Mutual agreement to end contract: ${request.reason}`
+      });
+    } else {
+      updatedContract.endRequest = undefined; // Clear the request if rejected
+       // Add History
+       updatedContract.history.push({
+        id: Math.random().toString(36).substr(2, 9),
+        date: new Date().toISOString(),
+        action: 'end_request_rejected',
+        actorName: userName,
+        actionBy: userId,
+        note: `End contract request rejected`
+      });
+    }
 
     contracts[index] = updatedContract;
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));

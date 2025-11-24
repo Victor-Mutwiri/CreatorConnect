@@ -176,6 +176,15 @@ export interface ContractHistoryItem {
   note?: string;
 }
 
+export interface ContractEndRequest {
+  requesterId: string;
+  requesterName: string;
+  type: 'completion' | 'termination'; // Completion = happy path, Termination = cancel
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
 export interface Contract {
   id: string;
   clientId: string;
@@ -191,6 +200,7 @@ export interface Contract {
   createdAt: string;
   updatedAt: string;
   history: ContractHistoryItem[];
+  endRequest?: ContractEndRequest; // New field for mutual agreement
 }
 
 export interface Message {
