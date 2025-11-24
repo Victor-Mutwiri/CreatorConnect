@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthLayout from '../../components/AuthLayout';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
@@ -15,6 +14,7 @@ const Login: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,14 +27,20 @@ const Login: React.FC = () => {
         setError(result.error);
       } else if (result.user) {
         
-        // Check for notifications first
+        // Priority 1: Redirect back if user was forced to login (e.g. from "Hire Me")
+        if (location.state?.from) {
+          navigate(location.state.from);
+          return;
+        }
+
+        // Priority 2: Check for notifications
         const notifications = await mockContractService.getNotifications(result.user.id);
         const hasUnread = notifications.some(n => !n.read);
 
         if (hasUnread) {
           navigate('/notifications');
         } else {
-          // Standard Redirection
+          // Priority 3: Dashboard
           if (result.user.role === UserRole.CLIENT) {
             navigate('/client/dashboard');
           } else if (result.user.role === UserRole.CREATOR) {

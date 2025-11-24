@@ -177,6 +177,18 @@ export const mockAuth = {
     return safeUser;
   },
 
+  async getUserByUsername(username: string): Promise<User | null> {
+    await delay(400);
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    // Case insensitive match
+    const user = users.find((u: User) => u.profile?.username?.toLowerCase() === username.toLowerCase());
+    
+    if (!user) return null;
+    
+    const { password: _, ...safeUser } = user;
+    return safeUser;
+  },
+
   async getClientProfile(userId: string): Promise<User | null> {
     await delay(400);
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');

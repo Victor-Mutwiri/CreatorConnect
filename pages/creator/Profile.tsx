@@ -1,10 +1,8 @@
-
-
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   MapPin, CheckCircle, Star, Instagram, Youtube, Twitter, Facebook, 
-  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare
+  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare, Copy, Link as LinkIcon
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -15,31 +13,41 @@ import { User, CreatorProfile, ServicePackage, ContractStatus, Contract } from '
 import { useAuth } from '../../context/AuthContext';
 
 const Profile: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, username } = useParams<{ id?: string; username?: string }>();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   
   // Metrics State
   const [ongoingCount, setOngoingCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
 
+  // Share Modal State
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     const fetchProfile = async () => {
-      if (id) {
-        const [userData, contracts] = await Promise.all([
-           mockAuth.getCreatorProfile(id),
-           mockContractService.getContracts(id)
-        ]);
-        
-        setUser(userData);
-        
+      let userData: User | null = null;
+      
+      if (username) {
+        userData = await mockAuth.getUserByUsername(username);
+      } else if (id) {
+        userData = await mockAuth.getCreatorProfile(id);
+      }
+      
+      setUser(userData);
+      
+      if (userData) {
+        const contracts = await mockContractService.getContracts(userData.id);
         if (contracts) {
           const ongoing = contracts.filter((c: Contract) => 
-             (c.creatorId === id) && [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status)
+             (c.creatorId === userData?.id) && [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status)
           ).length;
           const completed = contracts.filter((c: Contract) => 
-             (c.creatorId === id) && c.status === ContractStatus.COMPLETED
+             (c.creatorId === userData?.id) && c.status === ContractStatus.COMPLETED
           ).length;
           
           setOngoingCount(ongoing);
@@ -49,7 +57,25 @@ const Profile: React.FC = () => {
       setLoading(false);
     };
     fetchProfile();
-  }, [id]);
+  }, [id, username]);
+
+  const handleHireMe = () => {
+    if (!currentUser) {
+      // Redirect to login with state to come back here
+      navigate('/login', { state: { from: location.pathname } });
+    } else {
+      if (user) {
+        navigate(`/client/create-contract/${user.id}`);
+      }
+    }
+  };
+
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (loading) {
     return (
@@ -71,6 +97,7 @@ const Profile: React.FC = () => {
   }
 
   const profile = user.profile;
+  const isOwner = currentUser?.id === user.id;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -84,6 +111,16 @@ const Profile: React.FC = () => {
           className="w-full h-full object-cover opacity-60"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+        
+        {/* Share Button (Visible to everyone) */}
+        <div className="absolute top-24 right-4 z-20">
+           <button 
+             onClick={() => setShowShareModal(true)}
+             className="p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-colors"
+           >
+             <Share2 size={24} />
+           </button>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 -mt-24 relative z-10">
@@ -177,15 +214,14 @@ const Profile: React.FC = () => {
               </div>
               
               <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
-                {currentUser?.id !== user.id && (
+                {!isOwner ? (
                   <>
-                    <Link to={`/client/create-contract/${user.id}`}>
-                      <Button className="w-full mb-3 shadow-brand-500/20">Hire Me</Button>
-                    </Link>
+                    <Button onClick={handleHireMe} className="w-full mb-3 shadow-brand-500/20">
+                      Hire Me
+                    </Button>
                     <Button variant="outline" className="w-full bg-white dark:bg-slate-800">Message</Button>
                   </>
-                )}
-                {currentUser?.id === user.id && (
+                ) : (
                   <Link to="/creator/settings">
                     <Button variant="outline" className="w-full">Edit Profile</Button>
                   </Link>
@@ -300,9 +336,9 @@ const Profile: React.FC = () => {
                            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
                              KES {pkg.price.toLocaleString()}
                            </div>
-                           <Link to={`/client/create-contract/${user.id}`}>
-                             <Button size="sm" variant="outline" className="w-full">Select</Button>
-                           </Link>
+                           <Button size="sm" variant="outline" className="w-full" onClick={handleHireMe}>
+                             Select
+                           </Button>
                         </div>
                       </div>
                     ))}
@@ -325,6 +361,55 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl p-6 relative">
+            <button 
+              onClick={() => setShowShareModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+            >
+              x
+            </button>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Share Profile</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+              Share this profile with clients or on social media.
+            </p>
+
+            <div className="flex gap-2 mb-6">
+               <input 
+                 readOnly
+                 value={window.location.href}
+                 className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300"
+               />
+               <Button onClick={handleCopyLink} size="sm">
+                 {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
+               </Button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4">
+              <a href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=Check out this creator on Ubuni Connect!`} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-blue-400 transition-colors">
+                 <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full"><Twitter size={20} /></div>
+                 <span className="text-xs">Twitter</span>
+              </a>
+              <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">
+                 <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full"><Facebook size={20} /></div>
+                 <span className="text-xs">Facebook</span>
+              </a>
+              <a href={`mailto:?subject=Check out this creator&body=${encodeURIComponent(window.location.href)}`} className="flex flex-col items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-red-500 transition-colors">
+                 <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full"><MessageCircle size={20} /></div>
+                 <span className="text-xs">Email</span>
+              </a>
+               <button onClick={handleCopyLink} className="flex flex-col items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-green-500 transition-colors">
+                 <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full"><LinkIcon size={20} /></div>
+                 <span className="text-xs">Copy</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

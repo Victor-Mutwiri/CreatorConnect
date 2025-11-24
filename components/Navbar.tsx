@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Sparkles, User as UserIcon, LogOut, Settings, LayoutDashboard, FileText, Sun, Moon, Bell } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -166,7 +165,7 @@ const Navbar: React.FC = () => {
                             My Contracts
                           </Link>
                           <Link 
-                            to={user.profile ? `/profile/${user.id}` : '/creator/onboarding'}
+                            to={user.profile?.username ? `/p/${user.profile.username}` : (user.profile ? `/profile/${user.id}` : '/creator/onboarding')}
                             className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                             onClick={() => setUserMenuOpen(false)}
                           >
