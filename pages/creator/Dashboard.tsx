@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -208,7 +207,7 @@ const Dashboard: React.FC = () => {
                 {activeContracts.length > 0 ? activeContracts.map(contract => (
                   <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-3">
+                      <Link to={`/client/profile/${contract.clientId}`} className="flex items-center space-x-3 group">
                         <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           {contract.clientAvatar ? (
                             <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
@@ -217,10 +216,10 @@ const Dashboard: React.FC = () => {
                           )}
                         </div>
                         <div>
-                          <h4 className="font-bold text-slate-900 dark:text-white">{contract.title}</h4>
+                          <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{contract.title}</h4>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{contract.clientName}</p>
                         </div>
-                      </div>
+                      </Link>
                       <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold px-3 py-1 rounded-full uppercase">
                         {contract.status}
                       </span>
@@ -254,15 +253,19 @@ const Dashboard: React.FC = () => {
                   {pendingContracts.map(contract => (
                     <div key={contract.id} className="p-6 bg-orange-50/30 dark:bg-orange-900/10">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold">
-                            {contract.clientName[0]}
+                        <Link to={`/client/profile/${contract.clientId}`} className="flex items-center space-x-3 group">
+                          <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold overflow-hidden">
+                             {contract.clientAvatar ? (
+                                <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
+                             ) : (
+                                contract.clientName[0]
+                             )}
                           </div>
                           <div>
-                            <h4 className="font-bold text-slate-900 dark:text-white">{contract.title}</h4>
+                            <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{contract.title}</h4>
                             <p className="text-sm text-slate-500 dark:text-slate-400">From {contract.clientName}</p>
                           </div>
-                        </div>
+                        </Link>
                         <div className="flex items-center space-x-3">
                            <div className="text-right mr-2 hidden sm:block">
                              <div className="font-bold text-slate-900 dark:text-white">KES {contract.terms.amount.toLocaleString()}</div>

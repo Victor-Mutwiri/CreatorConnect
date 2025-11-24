@@ -1,7 +1,6 @@
 
-
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle
@@ -211,7 +210,9 @@ const ContractDetail: React.FC = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h1>
-                <p className="text-slate-500 dark:text-slate-400">Client: <span className="font-semibold text-slate-700 dark:text-slate-300">{contract.clientName}</span></p>
+                <p className="text-slate-500 dark:text-slate-400">
+                  Client: <Link to={`/client/profile/${contract.clientId}`} className="font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">{contract.clientName}</Link>
+                </p>
               </div>
               <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
                 contract.status === ContractStatus.ACTIVE ? 'bg-green-100 text-green-700' : 

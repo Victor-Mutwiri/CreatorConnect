@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   PlusCircle, Search, Users, Briefcase, 
   MessageSquare, FileText, TrendingUp, Bell, MapPin, 
   Instagram, Star, Heart, CheckCircle, Clock, Filter,
-  CreditCard, ChevronRight, User as UserIcon
+  CreditCard, ChevronRight, User as UserIcon, Send
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -205,12 +206,12 @@ const ClientDashboard: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                <MessageSquare size={20} />
+                <Send size={20} />
               </div>
-              <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full">New</span>
+              <span className="text-xs font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-2 py-1 rounded-full">In Review</span>
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Unread Messages</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">0</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Pending Offers</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{pendingContracts.length}</h3>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
@@ -307,7 +308,7 @@ const ClientDashboard: React.FC = () => {
                     </div>
                   </div>
                 )) : (
-                  <p className="text-sm text-slate-500">No new notifications.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No new notifications.</p>
                 )}
               </div>
             </div>

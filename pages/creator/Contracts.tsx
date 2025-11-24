@@ -98,18 +98,22 @@ const Contracts: React.FC = () => {
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
                     
                     <div className="flex gap-4">
-                       <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex-shrink-0 overflow-hidden">
-                          {contract.clientAvatar ? (
-                            <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center font-bold text-slate-500">{contract.clientName[0]}</div>
-                          )}
-                       </div>
+                       <Link to={`/client/profile/${contract.clientId}`}>
+                          <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity">
+                              {contract.clientAvatar ? (
+                                <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center font-bold text-slate-500">{contract.clientName[0]}</div>
+                              )}
+                          </div>
+                       </Link>
                        <div>
                          <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors">
                             {contract.title}
                          </h3>
-                         <p className="text-slate-500 dark:text-slate-400 text-sm mb-2">{contract.clientName}</p>
+                         <Link to={`/client/profile/${contract.clientId}`} className="text-slate-500 dark:text-slate-400 text-sm mb-2 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                            {contract.clientName}
+                         </Link>
                          <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                             <span className="flex items-center">
                               <Calendar size={14} className="mr-1" />
