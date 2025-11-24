@@ -33,7 +33,9 @@ export const mockAuth = {
       portfolio: { images: [], links: [] },
       experience: { years: '0', languages: ['English'], skills: [] },
       pricing: { model: 'negotiable', currency: 'KES', packages: [] },
-      verification: { isIdentityVerified: false, isSocialVerified: false, trustScore: 0 }
+      verification: { isIdentityVerified: false, isSocialVerified: false, trustScore: 0 },
+      averageRating: 0,
+      totalReviews: 0
     } : undefined;
 
     const initialClientProfile: Partial<ClientProfile> = role === UserRole.CLIENT ? {
@@ -41,7 +43,9 @@ export const mockAuth = {
       businessName: name,
       location: 'Kenya',
       description: 'New client account.',
-      stats: { contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', reliabilityScore: 0, avgResponseTime: '-' }
+      stats: { contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', reliabilityScore: 0, avgResponseTime: '-' },
+      averageRating: 0,
+      totalReviews: 0
     } : undefined;
 
     const newUser: User = {
@@ -124,6 +128,41 @@ export const mockAuth = {
     }
 
     return updatedUser;
+  },
+
+  async addUserRating(userId: string, newRating: number): Promise<void> {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const userIndex = users.findIndex((u: User) => u.id === userId);
+    
+    if (userIndex === -1) return;
+    
+    const user = users[userIndex];
+    let currentRating = 0;
+    let totalReviews = 0;
+
+    if (user.role === UserRole.CREATOR && user.profile) {
+        currentRating = user.profile.averageRating || 0;
+        totalReviews = user.profile.totalReviews || 0;
+        
+        // Calculate new weighted average
+        const newTotal = (currentRating * totalReviews) + newRating;
+        const newCount = totalReviews + 1;
+        user.profile.averageRating = parseFloat((newTotal / newCount).toFixed(1));
+        user.profile.totalReviews = newCount;
+
+    } else if (user.role === UserRole.CLIENT && user.clientProfile) {
+        currentRating = user.clientProfile.averageRating || 0;
+        totalReviews = user.clientProfile.totalReviews || 0;
+        
+        // Calculate new weighted average
+        const newTotal = (currentRating * totalReviews) + newRating;
+        const newCount = totalReviews + 1;
+        user.clientProfile.averageRating = parseFloat((newTotal / newCount).toFixed(1));
+        user.clientProfile.totalReviews = newCount;
+    }
+
+    users[userIndex] = user;
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
   },
 
   async getCreatorProfile(userId: string): Promise<User | null> {

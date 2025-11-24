@@ -1,6 +1,7 @@
 
 
-import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest } from '../types';
+import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review } from '../types';
+import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
 const MESSAGES_KEY = 'ubuni_messages_db';
@@ -78,7 +79,9 @@ export const mockContractService = {
           actionBy: clientId,
           note: 'Contract drafted and sent'
         }
-      ]
+      ],
+      isClientReviewed: false,
+      isCreatorReviewed: false
     };
 
     contracts.push(newContract);
@@ -216,6 +219,38 @@ export const mockContractService = {
     contracts[index] = updatedContract;
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
     return updatedContract;
+  },
+
+  leaveReview: async (contractId: string, reviewerId: string, rating: number): Promise<Contract> => {
+    await delay(800);
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    const index = contracts.findIndex((c: Contract) => c.id === contractId);
+    if (index === -1) throw new Error('Contract not found');
+
+    const contract = contracts[index];
+    const isClient = contract.clientId === reviewerId;
+
+    if (contract.status !== ContractStatus.COMPLETED) {
+      throw new Error('Can only review completed contracts');
+    }
+
+    // Update contract review status
+    if (isClient) {
+      if (contract.isClientReviewed) throw new Error('You have already reviewed this contract');
+      contract.isClientReviewed = true;
+    } else {
+      if (contract.isCreatorReviewed) throw new Error('You have already reviewed this contract');
+      contract.isCreatorReviewed = true;
+    }
+
+    contracts[index] = contract;
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    // Update the Profile of the person being reviewed
+    const targetUserId = isClient ? contract.creatorId : contract.clientId;
+    await mockAuth.addUserRating(targetUserId, rating);
+
+    return contract;
   },
 
   getMessages: async (contractId: string): Promise<Message[]> => {

@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -84,9 +85,16 @@ const ClientPublicProfile: React.FC = () => {
                       <CheckCircle className="text-brand-500 fill-brand-100 dark:fill-brand-900" size={24} />
                     )}
                   </h1>
-                  <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
-                    {profile.industry} • {profile.location}
-                  </p>
+                   <div className="flex items-center gap-3 mt-1">
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">
+                        {profile.industry} • {profile.location}
+                    </p>
+                    <div className="inline-flex items-center bg-yellow-50 dark:bg-yellow-900/20 px-2 py-0.5 rounded text-xs border border-yellow-100 dark:border-yellow-800/30">
+                        <Star className="text-yellow-500 mr-1" size={12} fill="currentColor" />
+                        <span className="font-bold text-slate-900 dark:text-white mr-1">{profile.averageRating || '0.0'}</span>
+                        <span className="text-slate-500 dark:text-slate-400">({profile.totalReviews || 0})</span>
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Only show "Send Proposal" if user is NOT the client themselves */}
@@ -191,7 +199,7 @@ const ClientPublicProfile: React.FC = () => {
                         {review.projectTitle && (
                            <p className="text-xs font-medium text-brand-600 dark:text-brand-400 mb-2">Project: {review.projectTitle}</p>
                         )}
-                        <p className="text-slate-600 dark:text-slate-300 text-sm italic">"{review.comment}"</p>
+                        {review.comment && <p className="text-slate-600 dark:text-slate-300 text-sm italic">"{review.comment}"</p>}
                       </div>
                     ))
                   ) : (

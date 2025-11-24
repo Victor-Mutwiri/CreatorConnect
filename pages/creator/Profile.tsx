@@ -4,13 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   MapPin, CheckCircle, Star, Instagram, Youtube, Twitter, Facebook, 
-  MessageCircle, Share2, Briefcase, Globe, Shield
+  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Button from '../../components/Button';
 import { mockAuth } from '../../services/mockAuth';
-import { User, CreatorProfile, ServicePackage } from '../../types';
+import { mockContractService } from '../../services/mockContract';
+import { User, CreatorProfile, ServicePackage, ContractStatus, Contract } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 const Profile: React.FC = () => {
@@ -18,12 +19,32 @@ const Profile: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { user: currentUser } = useAuth();
+  
+  // Metrics State
+  const [ongoingCount, setOngoingCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (id) {
-        const data = await mockAuth.getCreatorProfile(id);
-        setUser(data);
+        const [userData, contracts] = await Promise.all([
+           mockAuth.getCreatorProfile(id),
+           mockContractService.getContracts(id)
+        ]);
+        
+        setUser(userData);
+        
+        if (contracts) {
+          const ongoing = contracts.filter((c: Contract) => 
+             (c.creatorId === id) && [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status)
+          ).length;
+          const completed = contracts.filter((c: Contract) => 
+             (c.creatorId === id) && c.status === ContractStatus.COMPLETED
+          ).length;
+          
+          setOngoingCount(ongoing);
+          setCompletedCount(completed);
+        }
       }
       setLoading(false);
     };
@@ -98,6 +119,13 @@ const Profile: React.FC = () => {
                       {cat}
                     </span>
                   ))}
+                </div>
+
+                {/* Rating Badge */}
+                <div className="mt-4 inline-flex items-center bg-yellow-50 dark:bg-yellow-900/20 px-3 py-1 rounded-full border border-yellow-100 dark:border-yellow-800/30">
+                  <Star className="text-yellow-500 mr-1.5" size={16} fill="currentColor" />
+                  <span className="font-bold text-slate-900 dark:text-white mr-1">{profile.averageRating || '0.0'}</span>
+                  <span className="text-slate-500 dark:text-slate-400 text-sm">({profile.totalReviews || 0} reviews)</span>
                 </div>
 
                 <div className="mt-6 flex justify-center space-x-3">
@@ -185,6 +213,28 @@ const Profile: React.FC = () => {
 
           {/* Right Column: Content */}
           <div className="lg:col-span-2 space-y-8">
+
+            {/* Performance Metrics Bar (New) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center shadow-sm">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl mr-4">
+                  <Clock size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Ongoing Contracts</p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{ongoingCount}</h3>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center shadow-sm">
+                 <div className="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl mr-4">
+                  <CheckSquare size={24} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Completed Jobs</p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{completedCount}</h3>
+                </div>
+              </div>
+            </div>
             
             {/* About */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8">

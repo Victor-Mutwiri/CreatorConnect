@@ -38,7 +38,7 @@ export interface Review {
   reviewerName: string;
   reviewerAvatar?: string;
   rating: number; // 1-5
-  comment: string;
+  comment?: string; // Optional now
   date: string;
   projectTitle?: string;
 }
@@ -92,6 +92,8 @@ export interface CreatorProfile {
   };
 
   reviews?: Review[];
+  averageRating?: number;
+  totalReviews?: number;
 }
 
 // --- Client Types ---
@@ -122,6 +124,8 @@ export interface ClientProfile {
   stats?: ClientStats;
   reviews?: Review[];
   savedCreatorIds?: string[]; // IDs of favorite creators
+  averageRating?: number;
+  totalReviews?: number;
 }
 
 export interface User {
@@ -201,6 +205,10 @@ export interface Contract {
   updatedAt: string;
   history: ContractHistoryItem[];
   endRequest?: ContractEndRequest; // New field for mutual agreement
+  
+  // Review Status
+  isClientReviewed?: boolean; // Has the client reviewed the creator?
+  isCreatorReviewed?: boolean; // Has the creator reviewed the client?
 }
 
 export interface Message {

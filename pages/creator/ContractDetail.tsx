@@ -1,9 +1,10 @@
 
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
-  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle
+  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -25,10 +26,14 @@ const ContractDetail: React.FC = () => {
   // Modals
   const [showCounterModal, setShowCounterModal] = useState(false);
   const [showEndContractModal, setShowEndContractModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
   
   // End Contract State
   const [endReason, setEndReason] = useState('');
   const [endType, setEndType] = useState<'completion' | 'termination'>('completion');
+
+  // Rating State
+  const [rating, setRating] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -158,6 +163,17 @@ const ContractDetail: React.FC = () => {
      }
   };
 
+  const handleSubmitRating = async () => {
+    if (!contract || !user || rating === 0) return;
+    try {
+      const updated = await mockContractService.leaveReview(contract.id, user.id, rating);
+      setContract(updated);
+      setShowRatingModal(false);
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!contract) return <div className="p-20 text-center dark:text-white">Contract not found</div>;
 
@@ -165,6 +181,7 @@ const ContractDetail: React.FC = () => {
   const isPending = [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(contract.status);
   // Treated as Active if ACTIVE or ACCEPTED (ready to start)
   const isActive = [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(contract.status);
+  const isCompleted = contract.status === ContractStatus.COMPLETED;
   
   const lastHistoryItem = contract.history[contract.history.length - 1];
   const isCreator = user?.id === contract.creatorId;
@@ -193,6 +210,9 @@ const ContractDetail: React.FC = () => {
   // --- End Contract Logic ---
   const pendingEndRequest = contract.endRequest?.status === 'pending';
   const iRequestedEnd = contract.endRequest?.requesterId === user?.id;
+
+  // --- Review Logic ---
+  const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
@@ -323,6 +343,23 @@ const ContractDetail: React.FC = () => {
                 End Contract
               </button>
             </div>
+          )}
+
+          {/* 3. Completed Contract Actions (Review) */}
+          {isCompleted && !hasReviewed && (
+             <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between animate-in slide-in-from-bottom-4 ring-2 ring-yellow-500/10">
+               <div>
+                  <p className="font-bold text-slate-900 dark:text-white flex items-center">
+                    <CheckCircle className="mr-2 text-green-500" size={18} />
+                    Contract Completed
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Please rate your experience with {isCreator ? contract.clientName : contract.creatorName}.</p>
+               </div>
+               <Button onClick={() => setShowRatingModal(true)} className="flex items-center">
+                 <Star size={16} className="mr-2" />
+                 Rate Experience
+               </Button>
+             </div>
           )}
 
           {/* 3. Waiting Banner (Proposal) */}
@@ -601,6 +638,40 @@ const ContractDetail: React.FC = () => {
               <Button variant="ghost" onClick={() => setShowEndContractModal(false)}>Cancel</Button>
               <Button onClick={handleRequestEndContract} disabled={!endReason}>Send Request</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
+             <div className="p-6 text-center">
+               <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-2">Rate Your Experience</h3>
+               <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+                 How was working with {isCreator ? contract?.clientName : contract?.creatorName}?
+               </p>
+
+               <div className="flex justify-center gap-2 mb-8">
+                 {[1, 2, 3, 4, 5].map((star) => (
+                   <button 
+                     key={star}
+                     onClick={() => setRating(star)}
+                     className="transition-transform hover:scale-110 focus:outline-none"
+                   >
+                     <Star 
+                       size={32} 
+                       className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} 
+                     />
+                   </button>
+                 ))}
+               </div>
+
+               <div className="flex gap-3">
+                 <Button variant="ghost" className="flex-1" onClick={() => setShowRatingModal(false)}>Cancel</Button>
+                 <Button className="flex-1" onClick={handleSubmitRating} disabled={rating === 0}>Submit Rating</Button>
+               </div>
+             </div>
           </div>
         </div>
       )}
