@@ -46,6 +46,7 @@ const seedData = (userId: string) => {
           date: new Date(Date.now() - 86400000 * 2).toISOString(),
           action: 'created',
           actorName: 'Safaricom PLC',
+          actionBy: 'client-1',
           note: 'Contract drafted'
         },
         {
@@ -53,6 +54,7 @@ const seedData = (userId: string) => {
           date: new Date(Date.now() - 86400000 * 2).toISOString(),
           action: 'sent',
           actorName: 'Safaricom PLC',
+          actionBy: 'client-1',
           note: 'Contract sent to creator'
         }
       ]
@@ -80,9 +82,9 @@ const seedData = (userId: string) => {
       createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
       updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
       history: [
-        { id: 'h-3', date: new Date(Date.now() - 86400000 * 10).toISOString(), action: 'sent', actorName: 'Java House' },
-        { id: 'h-4', date: new Date(Date.now() - 86400000 * 9).toISOString(), action: 'accepted', actorName: 'You' },
-        { id: 'h-5', date: new Date(Date.now() - 86400000 * 3).toISOString(), action: 'started', actorName: 'System', note: 'Project marked as Active' }
+        { id: 'h-3', date: new Date(Date.now() - 86400000 * 10).toISOString(), action: 'sent', actorName: 'Java House', actionBy: 'client-2' },
+        { id: 'h-4', date: new Date(Date.now() - 86400000 * 9).toISOString(), action: 'accepted', actorName: 'You', actionBy: userId },
+        { id: 'h-5', date: new Date(Date.now() - 86400000 * 3).toISOString(), action: 'started', actorName: 'System', actionBy: 'system', note: 'Project marked as Active' }
       ]
     }
   ];
@@ -179,6 +181,7 @@ export const mockContractService = {
           date: new Date().toISOString(),
           action: 'created',
           actorName: clientName,
+          actionBy: clientId,
           note: 'Contract drafted and sent'
         }
       ]
@@ -219,6 +222,7 @@ export const mockContractService = {
       date: new Date().toISOString(),
       action: status.toLowerCase(),
       actorName: userName,
+      actionBy: userId,
       note
     });
 
@@ -246,6 +250,7 @@ export const mockContractService = {
       date: new Date().toISOString(),
       action: 'counter_offer',
       actorName: userName,
+      actionBy: userId,
       note: 'Updated terms proposed'
     });
 

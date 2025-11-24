@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
@@ -12,7 +13,7 @@ interface AuthLayoutProps {
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle, image }) => {
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="min-h-screen flex bg-white dark:bg-slate-950">
       {/* Left Side - Form */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24 relative z-10">
         <div className="mx-auto w-full max-w-sm lg:w-96">
@@ -20,14 +21,14 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle, imag
             <div className="w-8 h-8 bg-gradient-to-tr from-brand-600 to-teal-500 rounded-lg flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">
               <Sparkles size={16} fill="currentColor" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">
+            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
               {APP_NAME}
             </span>
           </Link>
           
           <div className="mb-8">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900">{title}</h2>
-            <p className="mt-2 text-sm text-slate-600">{subtitle}</p>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{title}</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{subtitle}</p>
           </div>
 
           {children}

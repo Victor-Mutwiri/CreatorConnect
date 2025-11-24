@@ -172,6 +172,7 @@ export interface ContractHistoryItem {
   date: string;
   action: string; // 'created', 'sent', 'counter_offer', 'accepted', etc.
   actorName: string;
+  actionBy?: string; // User ID of the actor
   note?: string;
 }
 

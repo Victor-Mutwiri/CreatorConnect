@@ -156,7 +156,7 @@ const Navbar: React.FC = () => {
                      )}
                      
                      <Link 
-                       to={isCreator ? "/creator/settings" : "#"} // TODO: Client settings page
+                       to={isCreator ? "/creator/settings" : "/client/settings"}
                        className="flex w-full items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                        onClick={() => setUserMenuOpen(false)}
                      >
@@ -228,6 +228,14 @@ const Navbar: React.FC = () => {
                   >
                      <LayoutDashboard size={20} className="text-slate-500" />
                      <span className="font-medium text-slate-900 dark:text-white">Dashboard</span>
+                  </Link>
+                   <Link 
+                    to={isCreator ? "/creator/settings" : "/client/settings"}
+                    className="flex items-center space-x-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg"
+                    onClick={() => setIsOpen(false)}
+                  >
+                     <Settings size={20} className="text-slate-500" />
+                     <span className="font-medium text-slate-900 dark:text-white">Settings</span>
                   </Link>
                   <Button variant="outline" className="w-full justify-center" onClick={handleSignOut}>Sign Out</Button>
                 </>

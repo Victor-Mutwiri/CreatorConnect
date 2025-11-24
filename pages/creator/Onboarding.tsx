@@ -105,20 +105,20 @@ const Onboarding: React.FC = () => {
   const renderStep1 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Let's start with the basics</h2>
-        <p className="text-slate-600">Tell us a bit about who you are.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Let's start with the basics</h2>
+        <p className="text-slate-600 dark:text-slate-400">Tell us a bit about who you are.</p>
       </div>
 
       <div className="flex justify-center mb-6">
         <div className="relative">
-          <div className="w-24 h-24 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-2xl font-bold border-4 border-white shadow-lg overflow-hidden">
+          <div className="w-24 h-24 rounded-full bg-brand-100 dark:bg-brand-900 flex items-center justify-center text-brand-600 dark:text-brand-400 text-2xl font-bold border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden">
              {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
              ) : (
                 formData.displayName?.[0] || 'U'
              )}
           </div>
-          <button className="absolute bottom-0 right-0 bg-white p-1.5 rounded-full shadow border border-slate-200 text-slate-600 hover:text-brand-600">
+          <button className="absolute bottom-0 right-0 bg-white dark:bg-slate-700 p-1.5 rounded-full shadow border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-brand-600">
             <Sparkles size={14} />
           </button>
         </div>
@@ -140,10 +140,10 @@ const Onboarding: React.FC = () => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Bio</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bio</label>
         <textarea
           rows={4}
-          className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all duration-200"
+          className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white transition-all duration-200"
           placeholder="Tell brands and followers what makes you unique..."
           value={formData.bio}
           onChange={(e) => setFormData({...formData, bio: e.target.value})}
@@ -165,8 +165,8 @@ const Onboarding: React.FC = () => {
   const renderStep2 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">What's your niche?</h2>
-        <p className="text-slate-600">Select up to 4 categories that best describe your content.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">What's your niche?</h2>
+        <p className="text-slate-600 dark:text-slate-400">Select up to 4 categories that best describe your content.</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -185,8 +185,8 @@ const Onboarding: React.FC = () => {
               }}
               className={`p-3 rounded-xl border text-sm font-medium transition-all duration-200 ${
                 isSelected 
-                  ? 'bg-brand-50 border-brand-500 text-brand-700 shadow-sm ring-1 ring-brand-500' 
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-slate-50'
+                  ? 'bg-brand-50 dark:bg-brand-900/20 border-brand-500 text-brand-700 dark:text-brand-400 shadow-sm ring-1 ring-brand-500' 
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-brand-300 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               {cat}
@@ -200,8 +200,8 @@ const Onboarding: React.FC = () => {
   const renderStep3 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Link your socials</h2>
-        <p className="text-slate-600">Connect your accounts to verify your audience.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Link your socials</h2>
+        <p className="text-slate-600 dark:text-slate-400">Connect your accounts to verify your audience.</p>
       </div>
 
       <div className="space-y-4">
@@ -211,7 +211,7 @@ const Onboarding: React.FC = () => {
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-24 py-3 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+            className="block w-full pl-10 pr-24 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
             placeholder="Instagram Username"
             value={formData.socials?.instagram}
             onChange={(e) => setFormData({
@@ -223,13 +223,13 @@ const Onboarding: React.FC = () => {
 
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-black" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="h-5 w-5 text-black dark:text-white" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
             </svg>
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-24 py-3 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+            className="block w-full pl-10 pr-24 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
             placeholder="TikTok Username"
             value={formData.socials?.tiktok}
             onChange={(e) => setFormData({
@@ -245,7 +245,7 @@ const Onboarding: React.FC = () => {
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-24 py-3 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+            className="block w-full pl-10 pr-24 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
             placeholder="YouTube Channel URL"
             value={formData.socials?.youtube}
             onChange={(e) => setFormData({
@@ -261,8 +261,8 @@ const Onboarding: React.FC = () => {
   const renderStep4 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Showcase your work</h2>
-        <p className="text-slate-600">Upload your best photos or add links to past campaigns.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Showcase your work</h2>
+        <p className="text-slate-600 dark:text-slate-400">Upload your best photos or add links to past campaigns.</p>
       </div>
 
       <FileUpload 
@@ -281,12 +281,12 @@ const Onboarding: React.FC = () => {
       />
 
       <div className="mt-6">
-        <label className="block text-sm font-medium text-slate-700 mb-2">External Portfolio Links</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">External Portfolio Links</label>
         {formData.portfolio?.links.map((link, idx) => (
           <div key={idx} className="flex gap-2 mb-2">
              <input
               type="text"
-              className="block w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+              className="block w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
               placeholder="https://..."
               value={link}
               onChange={(e) => {
@@ -304,7 +304,7 @@ const Onboarding: React.FC = () => {
                   ...formData,
                   portfolio: {...formData.portfolio!, links: [...(formData.portfolio?.links || []), '']}
                 })}
-                className="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
+                className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 +
               </button>
@@ -318,12 +318,12 @@ const Onboarding: React.FC = () => {
   const renderStep5 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Experience & Skills</h2>
-        <p className="text-slate-600">Help brands understand what you bring to the table.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Experience & Skills</h2>
+        <p className="text-slate-600 dark:text-slate-400">Help brands understand what you bring to the table.</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Years of Experience</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Years of Experience</label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {['0-1', '1-3', '3-5', '5+'].map(opt => (
             <button
@@ -331,8 +331,8 @@ const Onboarding: React.FC = () => {
               onClick={() => setFormData({...formData, experience: {...formData.experience!, years: opt}})}
               className={`py-2 px-4 rounded-lg border text-sm font-medium ${
                 formData.experience?.years === opt
-                  ? 'bg-brand-50 border-brand-500 text-brand-700 ring-1 ring-brand-500'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  ? 'bg-brand-50 dark:bg-brand-900/20 border-brand-500 text-brand-700 dark:text-brand-400 ring-1 ring-brand-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               {opt} Years
@@ -342,7 +342,7 @@ const Onboarding: React.FC = () => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Skills</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Skills</label>
         <div className="flex flex-wrap gap-2">
           {SKILLS.map(skill => {
             const isSelected = formData.experience?.skills.includes(skill);
@@ -365,8 +365,8 @@ const Onboarding: React.FC = () => {
                 }}
                 className={`py-1.5 px-3 rounded-full text-sm border transition-colors ${
                   isSelected
-                    ? 'bg-slate-800 text-white border-slate-800'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+                    ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900 border-slate-800 dark:border-white'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400'
                 }`}
               >
                 {skill}
@@ -381,8 +381,8 @@ const Onboarding: React.FC = () => {
   const renderStep6 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Pricing & Packages</h2>
-        <p className="text-slate-600">Set your rates and service options.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Pricing & Packages</h2>
+        <p className="text-slate-600 dark:text-slate-400">Set your rates and service options.</p>
       </div>
 
       {/* Pricing Model */}
@@ -396,18 +396,18 @@ const Onboarding: React.FC = () => {
             })}
             className={`p-4 rounded-xl border-2 text-center transition-all ${
               formData.pricing?.model === m
-                ? 'border-brand-500 bg-brand-50'
-                : 'border-slate-200 hover:bg-slate-50'
+                ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
-            <DollarSign className={`w-6 h-6 mx-auto mb-2 ${formData.pricing?.model === m ? 'text-brand-600' : 'text-slate-400'}`} />
-            <div className="font-semibold capitalize text-slate-900">{m} Rate</div>
+            <DollarSign className={`w-6 h-6 mx-auto mb-2 ${formData.pricing?.model === m ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400'}`} />
+            <div className="font-semibold capitalize text-slate-900 dark:text-white">{m} Rate</div>
           </button>
         ))}
       </div>
 
       {/* Dynamic Inputs based on Model */}
-      <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+      <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 mb-8">
         {formData.pricing?.model === 'fixed' && (
           <Input 
             label="Starting Rate (KES)" 
@@ -445,7 +445,7 @@ const Onboarding: React.FC = () => {
           </div>
         )}
         {formData.pricing?.model === 'negotiable' && (
-          <p className="text-slate-600 text-center italic">
+          <p className="text-slate-600 dark:text-slate-300 text-center italic">
             Clients will contact you to discuss budget.
           </p>
         )}
@@ -454,7 +454,7 @@ const Onboarding: React.FC = () => {
       {/* Simple Package Builder */}
       <div>
         <div className="flex justify-between items-center mb-4">
-          <label className="text-sm font-medium text-slate-700">Packages (Optional)</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Packages (Optional)</label>
           <button 
              onClick={() => {
                const newPkg: ServicePackage = {
@@ -478,7 +478,7 @@ const Onboarding: React.FC = () => {
 
         <div className="space-y-4">
           {formData.pricing?.packages?.map((pkg, idx) => (
-            <div key={pkg.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+            <div key={pkg.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
               <div className="flex justify-between mb-2">
                 <input 
                   value={pkg.title}
@@ -487,7 +487,7 @@ const Onboarding: React.FC = () => {
                     newPkgs[idx].title = e.target.value;
                     setFormData({...formData, pricing: {...formData.pricing!, packages: newPkgs}});
                   }}
-                  className="font-bold text-slate-900 border-none p-0 focus:ring-0 w-full"
+                  className="font-bold text-slate-900 dark:text-white bg-transparent border-none p-0 focus:ring-0 w-full"
                 />
                 <button 
                   onClick={() => {
@@ -507,7 +507,7 @@ const Onboarding: React.FC = () => {
                     newPkgs[idx].price = parseInt(e.target.value);
                     setFormData({...formData, pricing: {...formData.pricing!, packages: newPkgs}});
                   }}
-                  className="text-brand-600 font-semibold mb-2 block w-full border-none p-0 focus:ring-0"
+                  className="text-brand-600 font-semibold mb-2 block w-full bg-transparent border-none p-0 focus:ring-0"
               />
               <textarea
                 value={pkg.description}
@@ -516,13 +516,13 @@ const Onboarding: React.FC = () => {
                     newPkgs[idx].description = e.target.value;
                     setFormData({...formData, pricing: {...formData.pricing!, packages: newPkgs}});
                 }}
-                className="w-full text-sm text-slate-600 border-none resize-none bg-slate-50 p-2 rounded"
+                className="w-full text-sm text-slate-600 dark:text-slate-300 border-none resize-none bg-slate-50 dark:bg-slate-800 p-2 rounded"
                 rows={2}
               />
             </div>
           ))}
           {formData.pricing?.packages?.length === 0 && (
-             <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-lg text-slate-400">
+             <div className="text-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-slate-400">
                <Package className="mx-auto w-8 h-8 mb-2 opacity-50" />
                <p className="text-sm">No packages added yet.</p>
              </div>
@@ -535,35 +535,35 @@ const Onboarding: React.FC = () => {
   const renderStep7 = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Verify your Identity</h2>
-        <p className="text-slate-600">Verified profiles get 3x more job offers.</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Verify your Identity</h2>
+        <p className="text-slate-600 dark:text-slate-400">Verified profiles get 3x more job offers.</p>
       </div>
 
       {/* Verification Badge Preview */}
-      <div className="bg-gradient-to-br from-brand-50 to-teal-50 p-6 rounded-xl border border-brand-100 flex items-center justify-between mb-8">
+      <div className="bg-gradient-to-br from-brand-50 to-teal-50 dark:from-brand-900/30 dark:to-teal-900/30 p-6 rounded-xl border border-brand-100 dark:border-brand-800 flex items-center justify-between mb-8">
         <div>
-          <h3 className="font-bold text-brand-900 flex items-center">
-            <ShieldCheck className="w-5 h-5 mr-2 text-brand-600" />
+          <h3 className="font-bold text-brand-900 dark:text-brand-300 flex items-center">
+            <ShieldCheck className="w-5 h-5 mr-2 text-brand-600 dark:text-brand-400" />
             Trust Score
           </h3>
-          <p className="text-sm text-brand-700 mt-1">
+          <p className="text-sm text-brand-700 dark:text-brand-400 mt-1">
             Complete verification to boost your trust score to 100%
           </p>
         </div>
-        <div className="text-2xl font-bold text-brand-600">
+        <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">
           {formData.verification?.trustScore}%
         </div>
       </div>
 
       {/* Bio Code Method */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <h4 className="font-bold text-slate-900 mb-2">Social Verification</h4>
-        <p className="text-sm text-slate-600 mb-4">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <h4 className="font-bold text-slate-900 dark:text-white mb-2">Social Verification</h4>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
           To verify you own your social accounts, place this unique code in your Instagram or TikTok bio temporarily.
         </p>
         
         <div className="flex items-center gap-2 mb-4">
-          <code className="flex-1 bg-slate-100 p-3 rounded-lg font-mono text-center text-lg tracking-widest text-slate-800 border border-slate-200">
+          <code className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-lg font-mono text-center text-lg tracking-widest text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
             {formData.verification?.bioCode}
           </code>
           <button 
@@ -571,7 +571,7 @@ const Onboarding: React.FC = () => {
               navigator.clipboard.writeText(formData.verification?.bioCode || '');
               // Toast notification would go here
             }}
-            className="p-3 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600"
+            className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
           >
             <Copy size={20} />
           </button>
@@ -594,7 +594,7 @@ const Onboarding: React.FC = () => {
            disabled={formData.verification?.isSocialVerified}
         >
            {formData.verification?.isSocialVerified ? (
-             <span className="flex items-center justify-center text-green-600">
+             <span className="flex items-center justify-center text-green-600 dark:text-green-400">
                <Check size={18} className="mr-2" /> Verified
              </span>
            ) : 'Verify Code'}
@@ -602,13 +602,13 @@ const Onboarding: React.FC = () => {
       </div>
 
       {/* ID Upload */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <h4 className="font-bold text-slate-900 mb-2">Identity Verification</h4>
-        <p className="text-sm text-slate-600 mb-4">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <h4 className="font-bold text-slate-900 dark:text-white mb-2">Identity Verification</h4>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
           Upload a clear photo of your National ID or Passport.
         </p>
         
-        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors cursor-pointer">
+        <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
           <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
           <span className="text-sm text-brand-600 font-medium">Click to upload document</span>
         </div>
@@ -618,18 +618,18 @@ const Onboarding: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
       <div className="pt-24 pb-12 px-4 sm:px-6">
         <div className="max-w-2xl mx-auto">
           
           {/* Progress Bar */}
           <div className="mb-8">
-            <div className="flex justify-between text-xs font-medium text-slate-500 mb-2">
+            <div className="flex justify-between text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
               <span>Step {currentStep} of {totalSteps}</span>
               <span>{Math.round((currentStep / totalSteps) * 100)}% Complete</span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
+            <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
               <motion.div 
                 className="bg-brand-600 h-2 rounded-full"
                 initial={{ width: 0 }}
@@ -639,7 +639,7 @@ const Onboarding: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-6 sm:p-10">
              {currentStep === 1 && renderStep1()}
              {currentStep === 2 && renderStep2()}
              {currentStep === 3 && renderStep3()}
@@ -648,12 +648,12 @@ const Onboarding: React.FC = () => {
              {currentStep === 6 && renderStep6()}
              {currentStep === 7 && renderStep7()}
 
-             <div className="mt-10 flex justify-between pt-6 border-t border-slate-100">
+             <div className="mt-10 flex justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
                <button
                  onClick={handleBack}
                  disabled={currentStep === 1}
                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                   currentStep === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                   currentStep === 1 ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                  }`}
                >
                  <ChevronLeft size={16} className="mr-1" />

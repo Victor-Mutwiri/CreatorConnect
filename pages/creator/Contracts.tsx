@@ -34,40 +34,40 @@ const Contracts: React.FC = () => {
 
   const getStatusColor = (status: ContractStatus) => {
     switch(status) {
-      case ContractStatus.ACTIVE: return 'bg-green-100 text-green-700';
-      case ContractStatus.SENT: return 'bg-blue-100 text-blue-700';
-      case ContractStatus.NEGOTIATING: return 'bg-orange-100 text-orange-700';
-      case ContractStatus.COMPLETED: return 'bg-slate-100 text-slate-700';
+      case ContractStatus.ACTIVE: return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+      case ContractStatus.SENT: return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+      case ContractStatus.NEGOTIATING: return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400';
+      case ContractStatus.COMPLETED: return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
       case ContractStatus.CANCELLED:
-      case ContractStatus.DECLINED: return 'bg-red-100 text-red-700';
-      default: return 'bg-slate-100 text-slate-600';
+      case ContractStatus.DECLINED: return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      default: return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
     }
   };
 
   if (loading) {
     return (
-       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">My Contracts</h1>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">My Contracts</h1>
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="text" 
                 placeholder="Search clients..." 
-                className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 text-sm"
+                className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg focus:ring-brand-500 focus:border-brand-500 text-sm dark:text-white"
               />
             </div>
-            <button className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600">
+            <button className="p-2 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">
               <Filter size={20} />
             </button>
           </div>
@@ -82,7 +82,7 @@ const Contracts: React.FC = () => {
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                 filter === tab 
                   ? 'bg-brand-600 text-white' 
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               {tab.charAt(0) + tab.slice(1).toLowerCase()}
@@ -90,15 +90,15 @@ const Contracts: React.FC = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
           {filteredContracts.length > 0 ? (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredContracts.map(contract => (
-                <div key={contract.id} className="p-6 hover:bg-slate-50 transition-colors group">
+                <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                   <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
                     
                     <div className="flex gap-4">
-                       <div className="w-12 h-12 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden">
+                       <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex-shrink-0 overflow-hidden">
                           {contract.clientAvatar ? (
                             <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
                           ) : (
@@ -106,11 +106,11 @@ const Contracts: React.FC = () => {
                           )}
                        </div>
                        <div>
-                         <h3 className="font-bold text-lg text-slate-900 group-hover:text-brand-700 transition-colors">
+                         <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors">
                             {contract.title}
                          </h3>
-                         <p className="text-slate-500 text-sm mb-2">{contract.clientName}</p>
-                         <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                         <p className="text-slate-500 dark:text-slate-400 text-sm mb-2">{contract.clientName}</p>
+                         <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                             <span className="flex items-center">
                               <Calendar size={14} className="mr-1" />
                               {new Date(contract.createdAt).toLocaleDateString()}
@@ -128,7 +128,7 @@ const Contracts: React.FC = () => {
                         {contract.status.replace('_', ' ')}
                       </span>
                       <Link to={`/creator/contracts/${contract.id}`} className="w-full sm:w-auto">
-                        <button className="w-full flex items-center justify-center px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-brand-300 hover:text-brand-600 transition-all bg-white">
+                        <button className="w-full flex items-center justify-center px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:border-brand-300 dark:hover:border-brand-500 hover:text-brand-600 dark:hover:text-brand-400 transition-all bg-white dark:bg-slate-800">
                            View Details <ChevronRight size={16} className="ml-1" />
                         </button>
                       </Link>
@@ -139,11 +139,11 @@ const Contracts: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="p-12 text-center text-slate-500">
-              <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="p-12 text-center text-slate-500 dark:text-slate-400">
+              <div className="bg-slate-50 dark:bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Filter size={24} className="opacity-50" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900">No contracts found</h3>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white">No contracts found</h3>
               <p className="mt-1">Try adjusting your filters.</p>
             </div>
           )}

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
-  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield
+  CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -114,7 +114,38 @@ const ContractDetail: React.FC = () => {
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!contract) return <div className="p-20 text-center dark:text-white">Contract not found</div>;
 
+  // Determine if user can act
   const isPending = [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(contract.status);
+  const lastHistoryItem = contract.history[contract.history.length - 1];
+  const isCreator = user?.id === contract.creatorId;
+  const isClient = user?.id === contract.clientId;
+
+  let canTakeAction = false;
+  let statusMessage = "";
+
+  if (contract.status === ContractStatus.SENT) {
+    if (isCreator) {
+      canTakeAction = true;
+    } else {
+      statusMessage = "Waiting for creator to respond";
+    }
+  } else if (contract.status === ContractStatus.NEGOTIATING) {
+    // If the last action was done by the current user, they must wait.
+    // If done by the other party (or system/unknown), current user can act.
+    // If history has actionBy, use it. Otherwise assume client initiated NEGOTIATING? 
+    // Actually mockContract sets actionBy now.
+    
+    if (lastHistoryItem?.actionBy && lastHistoryItem.actionBy !== user?.id) {
+       canTakeAction = true;
+       statusMessage = "Counter-offer received. Your turn to respond.";
+    } else if (lastHistoryItem?.actionBy === user?.id) {
+       statusMessage = "Waiting for response to your counter-offer";
+    } else {
+      // Fallback for old data or unclear state: typically creator receives first, so if NEGOTIATING, likely creator countered?
+      // But client could counter back. Let's assume if it's not explicitly me, I can act (safer fallback for demo).
+      canTakeAction = true; 
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
@@ -196,12 +227,12 @@ const ContractDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions Bar (Only if pending) */}
-          {isPending && (
-            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4">
+          {/* Actions Bar - Conditional Render based on whose turn it is */}
+          {isPending && canTakeAction && (
+            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4 ring-2 ring-brand-500/10">
                <div>
-                 <p className="font-bold text-slate-900 dark:text-white">Take Action</p>
-                 <p className="text-xs text-slate-500 dark:text-slate-400">This contract is waiting for response.</p>
+                 <p className="font-bold text-slate-900 dark:text-white">Action Required</p>
+                 <p className="text-xs text-slate-500 dark:text-slate-400">Please respond to this proposal.</p>
                </div>
                <div className="flex gap-2">
                  <button 
@@ -224,6 +255,14 @@ const ContractDetail: React.FC = () => {
                  </Button>
                </div>
             </div>
+          )}
+
+          {/* Waiting Banner */}
+          {isPending && !canTakeAction && (
+             <div className="sticky bottom-4 z-10 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center animate-in slide-in-from-bottom-4">
+                 <Info className="text-slate-400 mr-2" size={20} />
+                 <span className="text-slate-600 dark:text-slate-300 font-medium">{statusMessage || "Waiting for other party to respond."}</span>
+             </div>
           )}
 
           {/* History / Audit Trail */}
