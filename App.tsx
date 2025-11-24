@@ -19,7 +19,7 @@ import ContractDetail from './pages/creator/ContractDetail';
 import Settings from './pages/creator/Settings';
 
 // Protected Route Wrapper
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
   
   if (isLoading) return <div className="min-h-screen flex items-center justify-center dark:bg-slate-950 dark:text-white">Loading...</div>;

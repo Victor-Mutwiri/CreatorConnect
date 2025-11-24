@@ -18,6 +18,93 @@ type Tab = 'overview' | 'contracts' | 'search' | 'saved';
 
 const CATEGORIES = ["All", "Fashion", "Tech", "Food", "Lifestyle", "Beauty", "Travel", "Business", "Art & Design"];
 
+interface CreatorCardProps {
+  creator: User;
+  saved: boolean;
+  onToggleSave: (id: string) => void;
+}
+
+const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave }) => {
+  const profile = creator.profile;
+  if (!profile) return null;
+
+  // Handle case where user just signed up and has no images/data
+  const coverImage = profile.portfolio?.images?.[0];
+  const categories = profile.categories || [];
+  const trustScore = profile.verification?.trustScore || 0;
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
+      <div className="relative h-48 bg-slate-100 dark:bg-slate-800">
+        {coverImage ? (
+          <img 
+            src={coverImage} 
+            alt="Portfolio" 
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-400">
+              <UserIcon size={48} />
+          </div>
+        )}
+        <div className="absolute top-3 right-3">
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                onToggleSave(creator.id);
+              }}
+              className={`p-2 rounded-full backdrop-blur-md transition-all ${
+                saved ? 'bg-brand-500 text-white' : 'bg-white/80 text-slate-600 hover:text-red-500'
+              }`}
+            >
+              <Heart size={18} fill={saved ? "currentColor" : "none"} />
+            </button>
+        </div>
+      </div>
+      
+      <div className="p-5 flex-1 flex flex-col">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
+                {creator.name}
+                {profile.verification?.isIdentityVerified && <CheckCircle size={16} className="text-brand-500 ml-1" />}
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">@{profile.username}</p>
+            </div>
+            <div className="flex items-center bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs font-bold text-slate-700 dark:text-slate-300">
+                <Star size={12} className="text-yellow-500 mr-1" fill="currentColor" />
+                {(trustScore / 20).toFixed(1)}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1 mb-4">
+            {categories.length > 0 ? categories.slice(0, 3).map(cat => (
+              <span key={cat} className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
+                {cat}
+              </span>
+            )) : (
+              <span className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-1 rounded">
+                New Creator
+              </span>
+            )}
+          </div>
+
+          <div className="mt-auto flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-4">
+            <div className="text-sm">
+              <span className="text-slate-500 dark:text-slate-400 block text-xs">Starting at</span>
+              <span className="font-bold text-slate-900 dark:text-white">
+                {profile.pricing?.currency || 'KES'} {profile.pricing?.startingAt?.toLocaleString() || profile.pricing?.minRate?.toLocaleString() || 'Negotiable'}
+              </span>
+            </div>
+            <Link to={`/profile/${creator.id}`}>
+              <Button size="sm" variant="outline">View Profile</Button>
+            </Link>
+          </div>
+      </div>
+    </div>
+  );
+};
+
 const ClientDashboard: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -59,7 +146,7 @@ const ClientDashboard: React.FC = () => {
   };
 
   const isCreatorSaved = (creatorId: string) => {
-    return user?.clientProfile?.savedCreatorIds?.includes(creatorId);
+    return user?.clientProfile?.savedCreatorIds?.includes(creatorId) || false;
   };
 
   const activeContracts = contracts.filter(c => c.status === ContractStatus.ACTIVE);
@@ -304,88 +391,6 @@ const ClientDashboard: React.FC = () => {
     </div>
   );
 
-  const CreatorCard = ({ creator }: { creator: User }) => {
-    const saved = isCreatorSaved(creator.id);
-    const profile = creator.profile;
-    if (!profile) return null;
-
-    // Handle case where user just signed up and has no images/data
-    const coverImage = profile.portfolio?.images?.[0];
-    const categories = profile.categories || [];
-    const trustScore = profile.verification?.trustScore || 0;
-
-    return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
-        <div className="relative h-48 bg-slate-100 dark:bg-slate-800">
-          {coverImage ? (
-            <img 
-              src={coverImage} 
-              alt="Portfolio" 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-400">
-               <UserIcon size={48} />
-            </div>
-          )}
-          <div className="absolute top-3 right-3">
-             <button 
-               onClick={(e) => {
-                 e.preventDefault();
-                 toggleSaveCreator(creator.id);
-               }}
-               className={`p-2 rounded-full backdrop-blur-md transition-all ${
-                 saved ? 'bg-brand-500 text-white' : 'bg-white/80 text-slate-600 hover:text-red-500'
-               }`}
-             >
-               <Heart size={18} fill={saved ? "currentColor" : "none"} />
-             </button>
-          </div>
-        </div>
-        
-        <div className="p-5 flex-1 flex flex-col">
-           <div className="flex justify-between items-start mb-2">
-              <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
-                  {creator.name}
-                  {profile.verification?.isIdentityVerified && <CheckCircle size={16} className="text-brand-500 ml-1" />}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">@{profile.username}</p>
-              </div>
-              <div className="flex items-center bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs font-bold text-slate-700 dark:text-slate-300">
-                 <Star size={12} className="text-yellow-500 mr-1" fill="currentColor" />
-                 {(trustScore / 20).toFixed(1)}
-              </div>
-           </div>
-
-           <div className="flex flex-wrap gap-1 mb-4">
-             {categories.length > 0 ? categories.slice(0, 3).map(cat => (
-               <span key={cat} className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
-                 {cat}
-               </span>
-             )) : (
-                <span className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-1 rounded">
-                  New Creator
-                </span>
-             )}
-           </div>
-
-           <div className="mt-auto flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-4">
-              <div className="text-sm">
-                <span className="text-slate-500 dark:text-slate-400 block text-xs">Starting at</span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {profile.pricing?.currency || 'KES'} {profile.pricing?.startingAt?.toLocaleString() || profile.pricing?.minRate?.toLocaleString() || 'Negotiable'}
-                </span>
-              </div>
-              <Link to={`/profile/${creator.id}`}>
-                <Button size="sm" variant="outline">View Profile</Button>
-              </Link>
-           </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderSearch = () => (
      <div className="space-y-8 animate-in fade-in">
         {/* Search Bar & Filters */}
@@ -433,7 +438,12 @@ const ClientDashboard: React.FC = () => {
         {creators.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {creators.map(creator => (
-               <CreatorCard key={creator.id} creator={creator} />
+               <CreatorCard 
+                 key={creator.id} 
+                 creator={creator} 
+                 saved={!!isCreatorSaved(creator.id)} 
+                 onToggleSave={toggleSaveCreator} 
+               />
              ))}
           </div>
         ) : (
@@ -458,7 +468,12 @@ const ClientDashboard: React.FC = () => {
         {savedCreators.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {savedCreators.map(creator => (
-              <CreatorCard key={creator.id} creator={creator} />
+              <CreatorCard 
+                 key={creator.id} 
+                 creator={creator} 
+                 saved={!!isCreatorSaved(creator.id)} 
+                 onToggleSave={toggleSaveCreator} 
+              />
             ))}
           </div>
         ) : (
