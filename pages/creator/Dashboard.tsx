@@ -73,7 +73,8 @@ const Dashboard: React.FC = () => {
   }, [user]);
 
   // Updated filtering logic to be more precise
-  const activeContracts = contracts.filter(c => c.status === ContractStatus.ACTIVE);
+  // Active jobs include ACCEPTED (agreed upon) and ACTIVE (in progress)
+  const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status));
   const pendingContracts = contracts.filter(c => [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status));
   const rejectedContracts = contracts.filter(c => c.status === ContractStatus.DECLINED);
   const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
@@ -221,7 +222,7 @@ const Dashboard: React.FC = () => {
                         </div>
                       </Link>
                       <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold px-3 py-1 rounded-full uppercase">
-                        {contract.status}
+                        {contract.status.replace('_', ' ')}
                       </span>
                     </div>
                     <div className="flex justify-between items-center mt-4">

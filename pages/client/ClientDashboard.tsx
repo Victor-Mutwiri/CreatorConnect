@@ -150,13 +150,25 @@ const ClientDashboard: React.FC = () => {
     return user?.clientProfile?.savedCreatorIds?.includes(creatorId) || false;
   };
 
-  const activeContracts = contracts.filter(c => c.status === ContractStatus.ACTIVE);
+  // Contracts Filtering Logic
+  // ACCEPTED contracts are considered Active until they are Completed/Cancelled
+  const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status));
   const pendingContracts = contracts.filter(c => [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status));
   const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
 
+  // Stats Calculations
+  const totalSpent = completedContracts.reduce((sum, c) => sum + c.terms.amount, 0);
+  
+  const uniqueTalent = new Set([
+    ...activeContracts.map(c => c.creatorId),
+    ...completedContracts.map(c => c.creatorId)
+  ]);
+  const hiredTalentCount = uniqueTalent.size;
+
   const getStatusColor = (status: ContractStatus) => {
     switch(status) {
-      case ContractStatus.ACTIVE: return 'bg-green-100 text-green-700';
+      case ContractStatus.ACTIVE: 
+      case ContractStatus.ACCEPTED: return 'bg-green-100 text-green-700';
       case ContractStatus.SENT: return 'bg-blue-100 text-blue-700';
       case ContractStatus.NEGOTIATING: return 'bg-orange-100 text-orange-700';
       case ContractStatus.COMPLETED: return 'bg-slate-100 text-slate-700';
@@ -199,7 +211,7 @@ const ClientDashboard: React.FC = () => {
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Hired Talent</p>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
-              {new Set(completedContracts.map(c => c.creatorId)).size + new Set(activeContracts.map(c => c.creatorId)).size}
+              {hiredTalentCount}
             </h3>
           </div>
 
@@ -221,7 +233,7 @@ const ClientDashboard: React.FC = () => {
               </div>
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Spent</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">KES 0</h3>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">KES {totalSpent.toLocaleString()}</h3>
           </div>
       </div>
 
@@ -276,7 +288,9 @@ const ClientDashboard: React.FC = () => {
                       </div>
                       <div className="text-right">
                          <div className="text-sm font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
-                         <div className="text-xs text-green-600 dark:text-green-400 font-medium uppercase mt-1">On Track</div>
+                         <div className="text-xs text-green-600 dark:text-green-400 font-medium uppercase mt-1">
+                           {contract.status === ContractStatus.ACCEPTED ? 'Starting' : 'On Track'}
+                         </div>
                       </div>
                     </div>
                   </div>

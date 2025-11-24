@@ -15,123 +15,17 @@ const seedData = (userId: string) => {
   if (existingContracts) return;
 
   const contracts: Contract[] = [
-    {
-      id: 'c-101',
-      clientId: 'client-1',
-      clientName: 'Safaricom PLC',
-      clientAvatar: 'https://ui-avatars.com/api/?name=Safaricom&background=059b5a&color=fff',
-      creatorId: userId,
-      title: 'Summer Campaign 2024',
-      description: 'Influencer marketing campaign for the new data bundles rollout. Looking for energetic lifestyle content.',
-      status: ContractStatus.SENT,
-      terms: {
-        amount: 45000,
-        currency: 'KES',
-        deposit: 15000,
-        durationDays: 14,
-        deliverables: [
-          '2 Instagram Reels (30s)',
-          '1 TikTok Video',
-          '3 Instagram Stories with link'
-        ],
-        schedule: 'Week 1: Teaser stories. Week 2: Main reels and TikTok posts.',
-        startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-        revisionPolicy: '2 Revisions included'
-      },
-      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-      updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-      history: [
-        {
-          id: 'h-1',
-          date: new Date(Date.now() - 86400000 * 2).toISOString(),
-          action: 'created',
-          actorName: 'Safaricom PLC',
-          actionBy: 'client-1',
-          note: 'Contract drafted'
-        },
-        {
-          id: 'h-2',
-          date: new Date(Date.now() - 86400000 * 2).toISOString(),
-          action: 'sent',
-          actorName: 'Safaricom PLC',
-          actionBy: 'client-1',
-          note: 'Contract sent to creator'
-        }
-      ]
-    },
-    {
-      id: 'c-102',
-      clientId: 'client-2',
-      clientName: 'Java House',
-      clientAvatar: 'https://ui-avatars.com/api/?name=Java+House&background=ef4444&color=fff',
-      creatorId: userId,
-      title: 'New Menu Launch',
-      description: 'Photography and social posts for our new breakfast menu items.',
-      status: ContractStatus.ACTIVE,
-      terms: {
-        amount: 25000,
-        currency: 'KES',
-        durationDays: 7,
-        deliverables: [
-          '5 High-res Photos',
-          '1 Instagram Post'
-        ],
-        schedule: 'Shoot on Monday, edit by Wednesday, post on Friday.',
-        startDate: new Date(Date.now() - 86400000 * 3).toISOString()
-      },
-      createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
-      updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-      history: [
-        { id: 'h-3', date: new Date(Date.now() - 86400000 * 10).toISOString(), action: 'sent', actorName: 'Java House', actionBy: 'client-2' },
-        { id: 'h-4', date: new Date(Date.now() - 86400000 * 9).toISOString(), action: 'accepted', actorName: 'You', actionBy: userId },
-        { id: 'h-5', date: new Date(Date.now() - 86400000 * 3).toISOString(), action: 'started', actorName: 'System', actionBy: 'system', note: 'Project marked as Active' }
-      ]
-    }
   ];
 
   localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
 
   // Seed Messages
   const messages: Message[] = [
-    {
-      id: 'm-1',
-      contractId: 'c-101',
-      senderId: 'client-1',
-      senderName: 'Safaricom PLC',
-      content: "Hi there! We love your profile and think you'd be great for this campaign.",
-      timestamp: new Date(Date.now() - 86400000 * 2).toISOString()
-    },
-    {
-      id: 'm-2',
-      contractId: 'c-102',
-      senderId: 'client-2',
-      senderName: 'Java House',
-      content: "Looking forward to working with you. The shoot is at the Valley Arcade branch.",
-      timestamp: new Date(Date.now() - 86400000 * 9).toISOString()
-    },
-    {
-      id: 'm-3',
-      contractId: 'c-102',
-      senderId: userId,
-      senderName: 'Me',
-      content: "Great! I'll be there at 9 AM sharp.",
-      timestamp: new Date(Date.now() - 86400000 * 9 + 3600000).toISOString()
-    }
   ];
   localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
 
   // Seed Notifications
   const notifications: Notification[] = [
-    {
-      id: 'n-1',
-      userId: userId,
-      title: 'New Contract Offer',
-      message: 'Safaricom PLC has sent you a contract offer for "Summer Campaign 2024".',
-      type: 'success',
-      read: false,
-      date: new Date(Date.now() - 86400000 * 2).toISOString(),
-      link: '/creator/contracts/c-101'
-    }
   ];
   localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
 };

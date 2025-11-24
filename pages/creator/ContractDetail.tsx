@@ -163,7 +163,8 @@ const ContractDetail: React.FC = () => {
 
   // Logic to determine what buttons to show
   const isPending = [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(contract.status);
-  const isActive = contract.status === ContractStatus.ACTIVE;
+  // Treated as Active if ACTIVE or ACCEPTED (ready to start)
+  const isActive = [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(contract.status);
   
   const lastHistoryItem = contract.history[contract.history.length - 1];
   const isCreator = user?.id === contract.creatorId;
@@ -215,7 +216,7 @@ const ContractDetail: React.FC = () => {
                 </p>
               </div>
               <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
-                contract.status === ContractStatus.ACTIVE ? 'bg-green-100 text-green-700' : 
+                contract.status === ContractStatus.ACTIVE || contract.status === ContractStatus.ACCEPTED ? 'bg-green-100 text-green-700' : 
                 contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' :
                 contract.status === ContractStatus.COMPLETED ? 'bg-slate-100 text-slate-700' :
                 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
