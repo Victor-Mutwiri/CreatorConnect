@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -10,7 +9,8 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Button from '../../components/Button';
 import { mockAuth } from '../../services/mockAuth';
-import { User, ClientProfile } from '../../types';
+import { mockContractService } from '../../services/mockContract';
+import { User, ClientProfile, ContractStatus } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 const ClientPublicProfile: React.FC = () => {
@@ -18,12 +18,35 @@ const ClientPublicProfile: React.FC = () => {
   const [client, setClient] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth(); // Current logged in user (could be creator)
+  
+  // Dynamic Stats
+  const [contractsSent, setContractsSent] = useState(0);
+  const [hiringRate, setHiringRate] = useState("0%");
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (id) {
-        const data = await mockAuth.getClientProfile(id);
-        setClient(data);
+        const [clientData, contractsData] = await Promise.all([
+           mockAuth.getClientProfile(id),
+           mockContractService.getContracts(id)
+        ]);
+        setClient(clientData);
+
+        if (contractsData) {
+          // Calculate stats from actual contracts
+          const totalContracts = contractsData.length;
+          setContractsSent(totalContracts);
+
+          // Hiring Rate: Percentage of all proposals that ended up Accepted, Active or Completed
+          // Formula: (Accepted + Active + Completed) / Total Sent Contracts * 100
+          if (totalContracts > 0) {
+             const successfulContracts = contractsData.filter(c => 
+               [ContractStatus.ACCEPTED, ContractStatus.ACTIVE, ContractStatus.COMPLETED].includes(c.status)
+             ).length;
+             const rate = Math.round((successfulContracts / totalContracts) * 100);
+             setHiringRate(`${rate}%`);
+          }
+        }
       }
       setLoading(false);
     };
@@ -142,15 +165,16 @@ const ClientPublicProfile: React.FC = () => {
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                       <div className="bg-green-500 h-2 rounded-full" style={{ width: `${profile.stats?.reliabilityScore || 0}%` }}></div>
                     </div>
+                    <p className="text-xs text-slate-400 mt-1">Based on creator reviews</p>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 pt-2">
                     <div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white">{profile.stats?.contractsSent || 0}</div>
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white">{contractsSent}</div>
                       <div className="text-xs text-slate-500 dark:text-slate-400">Contracts Sent</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white">{profile.stats?.hiringRate || '0%'}</div>
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white">{hiringRate}</div>
                       <div className="text-xs text-slate-500 dark:text-slate-400">Hiring Rate</div>
                     </div>
                   </div>
@@ -190,10 +214,22 @@ const ClientPublicProfile: React.FC = () => {
                             <span className="font-bold text-slate-900 dark:text-white">{review.reviewerName}</span>
                             <span className="text-slate-400 text-xs">• {new Date(review.date).toLocaleDateString()}</span>
                           </div>
-                          <div className="flex text-yellow-400">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} size={14} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-slate-300 dark:text-slate-600"} />
-                            ))}
+                          <div className="flex items-center gap-4">
+                             {review.paymentRating && (
+                                <div className="hidden sm:flex items-center bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded border border-green-100 dark:border-green-800">
+                                   <span className="text-[10px] text-green-700 dark:text-green-300 font-medium mr-1">Payment:</span>
+                                   <div className="flex text-green-500">
+                                     {[...Array(5)].map((_, i) => (
+                                        <div key={i} className={`w-2 h-2 rounded-full mr-0.5 ${i < (review.paymentRating || 0) ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-600'}`} />
+                                     ))}
+                                   </div>
+                                </div>
+                             )}
+                             <div className="flex text-yellow-400">
+                               {[...Array(5)].map((_, i) => (
+                                 <Star key={i} size={14} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-slate-300 dark:text-slate-600"} />
+                               ))}
+                             </div>
                           </div>
                         </div>
                         {review.projectTitle && (

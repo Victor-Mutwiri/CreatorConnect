@@ -1,4 +1,4 @@
-import { User, UserRole, AuthResponse, CreatorProfile, ClientType, ClientProfile, Contract, ContractStatus } from '../types';
+import { User, UserRole, AuthResponse, CreatorProfile, ClientType, ClientProfile, Contract, ContractStatus, Review } from '../types';
 
 const USERS_KEY = 'ubuni_users_db';
 const SESSION_KEY = 'ubuni_session';
@@ -36,7 +36,8 @@ export const mockAuth = {
       pricing: { model: 'negotiable', currency: 'KES', packages: [] },
       verification: { isIdentityVerified: false, isSocialVerified: false, trustScore: 0 },
       averageRating: 0,
-      totalReviews: 0
+      totalReviews: 0,
+      reviews: []
     } : undefined;
 
     const initialClientProfile: Partial<ClientProfile> = role === UserRole.CLIENT ? {
@@ -46,7 +47,8 @@ export const mockAuth = {
       description: 'New client account.',
       stats: { contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', reliabilityScore: 0, avgResponseTime: '-' },
       averageRating: 0,
-      totalReviews: 0
+      totalReviews: 0,
+      reviews: []
     } : undefined;
 
     const newUser: User = {
@@ -137,35 +139,42 @@ export const mockAuth = {
     return this.updateUserProfile(userId, { hasSignedLegalAgreement: true });
   },
 
-  async addUserRating(userId: string, newRating: number): Promise<void> {
+  async addUserReview(userId: string, review: Review): Promise<void> {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const userIndex = users.findIndex((u: User) => u.id === userId);
     
     if (userIndex === -1) return;
     
     const user = users[userIndex];
-    let currentRating = 0;
-    let totalReviews = 0;
+    let profileToUpdate = user.role === UserRole.CREATOR ? user.profile : user.clientProfile;
+    
+    if (!profileToUpdate) return; // Should not happen
 
-    if (user.role === UserRole.CREATOR && user.profile) {
-        currentRating = user.profile.averageRating || 0;
-        totalReviews = user.profile.totalReviews || 0;
-        
-        // Calculate new weighted average
-        const newTotal = (currentRating * totalReviews) + newRating;
-        const newCount = totalReviews + 1;
-        user.profile.averageRating = parseFloat((newTotal / newCount).toFixed(1));
-        user.profile.totalReviews = newCount;
+    // Add review to list
+    if (!profileToUpdate.reviews) profileToUpdate.reviews = [];
+    profileToUpdate.reviews.unshift(review); // Add to top
 
-    } else if (user.role === UserRole.CLIENT && user.clientProfile) {
-        currentRating = user.clientProfile.averageRating || 0;
-        totalReviews = user.clientProfile.totalReviews || 0;
-        
-        // Calculate new weighted average
-        const newTotal = (currentRating * totalReviews) + newRating;
-        const newCount = totalReviews + 1;
-        user.clientProfile.averageRating = parseFloat((newTotal / newCount).toFixed(1));
-        user.clientProfile.totalReviews = newCount;
+    // Recalculate Average Rating
+    const totalReviews = profileToUpdate.reviews.length;
+    const sumRatings = profileToUpdate.reviews.reduce((acc: number, r: Review) => acc + r.rating, 0);
+    profileToUpdate.averageRating = parseFloat((sumRatings / totalReviews).toFixed(1));
+    profileToUpdate.totalReviews = totalReviews;
+
+    // If Client, Calculate Payment Reliability Score
+    if (user.role === UserRole.CLIENT && user.clientProfile) {
+       const reviewsWithPayment = profileToUpdate.reviews.filter((r: Review) => r.paymentRating !== undefined);
+       if (reviewsWithPayment.length > 0) {
+          const sumPayment = reviewsWithPayment.reduce((acc: number, r: Review) => acc + (r.paymentRating || 0), 0);
+          const avgPayment = sumPayment / reviewsWithPayment.length;
+          // Convert 5 star to 100% score
+          if (!user.clientProfile.stats) {
+             user.clientProfile.stats = { 
+               contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', 
+               reliabilityScore: 0, avgResponseTime: '-' 
+             };
+          }
+          user.clientProfile.stats.reliabilityScore = Math.round((avgPayment / 5) * 100);
+       }
     }
 
     users[userIndex] = user;

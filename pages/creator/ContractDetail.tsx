@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
@@ -39,6 +40,8 @@ const ContractDetail: React.FC = () => {
 
   // Rating State
   const [rating, setRating] = useState(0);
+  const [paymentRating, setPaymentRating] = useState(0); // For payment reliability
+  const [reviewComment, setReviewComment] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -185,8 +188,22 @@ const ContractDetail: React.FC = () => {
 
   const handleSubmitRating = async () => {
     if (!contract || !user || rating === 0) return;
+    
+    // Validate payment rating if reviewer is Creator
+    const isCreatorReviewing = user.id === contract.creatorId;
+    if (isCreatorReviewing && paymentRating === 0) {
+      // In a real app we'd show an error, here we'll just not submit
+      return; 
+    }
+
     try {
-      const updated = await mockContractService.leaveReview(contract.id, user.id, rating);
+      const updated = await mockContractService.leaveReview(
+        contract.id, 
+        user.id, 
+        rating, 
+        isCreatorReviewing ? paymentRating : undefined, 
+        reviewComment
+      );
       setContract(updated);
       setShowRatingModal(false);
     } catch(e) {
@@ -799,24 +816,69 @@ const ContractDetail: React.FC = () => {
                  How was working with {isCreator ? contract?.clientName : contract?.creatorName}?
                </p>
 
-               <div className="flex justify-center gap-2 mb-8">
-                 {[1, 2, 3, 4, 5].map((star) => (
-                   <button 
-                     key={star}
-                     onClick={() => setRating(star)}
-                     className="transition-transform hover:scale-110 focus:outline-none"
-                   >
-                     <Star 
-                       size={32} 
-                       className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} 
-                     />
-                   </button>
-                 ))}
+               <div className="space-y-6">
+                 {/* Overall Rating */}
+                 <div>
+                   <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Overall Rating</p>
+                   <div className="flex justify-center gap-2">
+                     {[1, 2, 3, 4, 5].map((star) => (
+                       <button 
+                         key={star}
+                         onClick={() => setRating(star)}
+                         className="transition-transform hover:scale-110 focus:outline-none"
+                       >
+                         <Star 
+                           size={32} 
+                           className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} 
+                         />
+                       </button>
+                     ))}
+                   </div>
+                 </div>
+
+                 {/* Payment Reliability Rating (Only for Creators reviewing Clients) */}
+                 {isCreator && (
+                   <div>
+                     <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Payment Reliability</p>
+                     <div className="flex justify-center gap-2">
+                       {[1, 2, 3, 4, 5].map((star) => (
+                         <button 
+                           key={star}
+                           onClick={() => setPaymentRating(star)}
+                           className="transition-transform hover:scale-110 focus:outline-none"
+                         >
+                           <DollarSign 
+                             size={28} 
+                             className={`${star <= paymentRating ? 'text-green-500 fill-green-500' : 'text-slate-300 dark:text-slate-700'}`} 
+                           />
+                         </button>
+                       ))}
+                     </div>
+                     <p className="text-xs text-slate-500 mt-2">Rate how reliable and timely the payments were.</p>
+                   </div>
+                 )}
+
+                 {/* Comment */}
+                 <div>
+                   <textarea
+                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm dark:bg-slate-800 dark:text-white"
+                     rows={3}
+                     placeholder="Share your feedback (optional)..."
+                     value={reviewComment}
+                     onChange={(e) => setReviewComment(e.target.value)}
+                   />
+                 </div>
                </div>
 
-               <div className="flex gap-3">
+               <div className="flex gap-3 mt-6">
                  <Button variant="ghost" className="flex-1" onClick={() => setShowRatingModal(false)}>Cancel</Button>
-                 <Button className="flex-1" onClick={handleSubmitRating} disabled={rating === 0}>Submit Rating</Button>
+                 <Button 
+                   className="flex-1" 
+                   onClick={handleSubmitRating} 
+                   disabled={rating === 0 || (isCreator && paymentRating === 0)}
+                 >
+                   Submit Rating
+                 </Button>
                </div>
              </div>
           </div>

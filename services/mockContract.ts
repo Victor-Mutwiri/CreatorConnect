@@ -293,20 +293,20 @@ export const mockContractService = {
     return updatedContract;
   },
 
-  leaveReview: async (contractId: string, reviewerId: string, rating: number): Promise<Contract> => {
+  leaveReview: async (contractId: string, reviewerId: string, rating: number, paymentRating?: number, comment?: string): Promise<Contract> => {
     await delay(800);
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
     const index = contracts.findIndex((c: Contract) => c.id === contractId);
     if (index === -1) throw new Error('Contract not found');
 
     const contract = contracts[index];
-    const isClient = contract.clientId === reviewerId;
+    const isClientReviewer = contract.clientId === reviewerId;
 
     if (contract.status !== ContractStatus.COMPLETED) {
       throw new Error('Can only review completed contracts');
     }
 
-    if (isClient) {
+    if (isClientReviewer) {
       if (contract.isClientReviewed) throw new Error('You have already reviewed this contract');
       contract.isClientReviewed = true;
     } else {
@@ -317,8 +317,21 @@ export const mockContractService = {
     contracts[index] = contract;
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
 
-    const targetUserId = isClient ? contract.creatorId : contract.clientId;
-    await mockAuth.addUserRating(targetUserId, rating);
+    const targetUserId = isClientReviewer ? contract.creatorId : contract.clientId;
+    const reviewerName = isClientReviewer ? contract.clientName : contract.creatorName;
+
+    const review: Review = {
+      id: `r-${Date.now()}`,
+      reviewerId,
+      reviewerName,
+      rating,
+      paymentRating, // Pass payment rating if present
+      comment: comment || '',
+      date: new Date().toISOString(),
+      projectTitle: contract.title
+    };
+
+    await mockAuth.addUserReview(targetUserId, review);
 
     return contract;
   },

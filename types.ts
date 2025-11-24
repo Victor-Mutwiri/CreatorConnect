@@ -38,6 +38,7 @@ export interface Review {
   reviewerName: string;
   reviewerAvatar?: string;
   rating: number; // 1-5
+  paymentRating?: number; // 1-5, specific for clients
   comment?: string; // Optional now
   date: string;
   projectTitle?: string;
