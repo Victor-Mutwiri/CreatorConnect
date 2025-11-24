@@ -27,10 +27,12 @@ const ContractDetail: React.FC = () => {
   const [showCounterModal, setShowCounterModal] = useState(false);
   const [showEndContractModal, setShowEndContractModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showRejectEndModal, setShowRejectEndModal] = useState(false);
   
   // End Contract State
   const [endReason, setEndReason] = useState('');
   const [endType, setEndType] = useState<'completion' | 'termination'>('completion');
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Rating State
   const [rating, setRating] = useState(0);
@@ -146,13 +148,25 @@ const ContractDetail: React.FC = () => {
 
   const handleResolveEndRequest = async (approved: boolean) => {
      if (!contract || !user) return;
+     
+     if (!approved && !rejectionReason && !showRejectEndModal) {
+       // If rejecting, we need to show the modal first
+       setShowRejectEndModal(true);
+       return;
+     }
+
      try {
        const updated = await mockContractService.resolveEndContract(
-         contract.id, approved, user.id, user.name
+         contract.id, approved, user.id, user.name, rejectionReason
        );
        setContract(updated);
+       setShowRejectEndModal(false);
+       setRejectionReason('');
        
-       const text = approved ? "End request APPROVED." : "End request REJECTED.";
+       const text = approved 
+         ? "End request APPROVED." 
+         : `End request REJECTED. Reason: ${rejectionReason}`;
+       
        const sysMsg = await mockContractService.sendMessage(
         contract.id, 'system', 'System', text
       );
@@ -210,6 +224,7 @@ const ContractDetail: React.FC = () => {
   // --- End Contract Logic ---
   const pendingEndRequest = contract.endRequest?.status === 'pending';
   const iRequestedEnd = contract.endRequest?.requesterId === user?.id;
+  const isRejectedEndRequest = contract.endRequest?.status === 'rejected';
 
   // --- Review Logic ---
   const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
@@ -393,7 +408,7 @@ const ContractDetail: React.FC = () => {
                     </div>
                     <div className="flex gap-2">
                        <button 
-                         onClick={() => handleResolveEndRequest(false)}
+                         onClick={() => setShowRejectEndModal(true)}
                          className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
                        >
                          Reject
@@ -405,6 +420,34 @@ const ContractDetail: React.FC = () => {
                  </div>
                )}
             </div>
+          )}
+          
+          {/* 5. End Request Rejected Banner */}
+          {isRejectedEndRequest && isActive && (
+             <div className="sticky bottom-4 z-10 bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-900/50 flex flex-col items-center justify-center animate-in slide-in-from-bottom-4">
+                 <div className="flex items-center text-red-700 dark:text-red-400 font-bold mb-1">
+                    <XCircle className="mr-2" size={20} />
+                    End Contract Request Rejected
+                 </div>
+                 <p className="text-red-600 dark:text-red-300 text-sm">
+                   Reason: "{contract.endRequest?.rejectionReason || 'No reason provided'}"
+                 </p>
+                 <div className="mt-3 flex gap-2">
+                    <button 
+                      onClick={() => setShowEndContractModal(true)}
+                      className="text-xs bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-lg font-medium hover:bg-red-50 dark:hover:bg-slate-700"
+                    >
+                      New Request
+                    </button>
+                    {/* Placeholder for dispute logic */}
+                    <button 
+                      disabled
+                      className="text-xs bg-transparent border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-lg font-medium opacity-50 cursor-not-allowed"
+                    >
+                      Raise Dispute (Coming Soon)
+                    </button>
+                 </div>
+             </div>
           )}
 
           {/* History / Audit Trail */}
@@ -639,6 +682,36 @@ const ContractDetail: React.FC = () => {
               <Button onClick={handleRequestEndContract} disabled={!endReason}>Send Request</Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Reject End Contract Modal */}
+      {showRejectEndModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Reject Request</h3>
+                <button onClick={() => setShowRejectEndModal(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+              <div className="p-6">
+                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                   Please provide a reason why you are declining the request to end this contract.
+                 </p>
+                 <textarea 
+                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
+                   rows={4}
+                   placeholder="e.g. Work is not yet complete according to the agreement..."
+                   value={rejectionReason}
+                   onChange={(e) => setRejectionReason(e.target.value)}
+                 />
+              </div>
+              <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+                 <Button variant="ghost" onClick={() => setShowRejectEndModal(false)}>Cancel</Button>
+                 <Button onClick={() => handleResolveEndRequest(false)} disabled={!rejectionReason}>Submit Rejection</Button>
+              </div>
+           </div>
         </div>
       )}
 

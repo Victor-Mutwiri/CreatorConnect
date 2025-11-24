@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -30,6 +31,7 @@ const Settings: React.FC = () => {
   // Deletion State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deathEffect, setDeathEffect] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<CreatorProfile>>({});
@@ -56,15 +58,19 @@ const Settings: React.FC = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    setShowDeleteModal(false);
-    // Trigger Dramatic Effect
-    setDeathEffect(true);
-
-    // Wait for effect to play out before actually deleting and redirecting
-    setTimeout(async () => {
-      await deleteAccount();
-      navigate('/');
-    }, 2500);
+    setDeleteError(null);
+    const result = await deleteAccount();
+    
+    if (result.success) {
+      setShowDeleteModal(false);
+      // Trigger Dramatic Effect
+      setDeathEffect(true);
+      setTimeout(async () => {
+        navigate('/');
+      }, 2500);
+    } else {
+      setDeleteError(result.error || "Failed to delete account.");
+    }
   };
 
   const renderProfileTab = () => (
@@ -318,10 +324,16 @@ const Settings: React.FC = () => {
                 <AlertTriangle size={32} />
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Delete your account?</h3>
-              <p className="text-slate-600 dark:text-slate-300 text-sm mb-6">
+              <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">
                 You are about to permanently delete your account and all associated data. This action <span className="font-bold text-slate-900 dark:text-white">cannot be undone</span>.
               </p>
               
+              {deleteError && (
+                 <div className="mb-6 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm rounded-lg border border-red-200 dark:border-red-800">
+                   {deleteError}
+                 </div>
+              )}
+
               <div className="flex gap-3">
                 <Button variant="ghost" className="flex-1" onClick={() => setShowDeleteModal(false)}>
                   Cancel

@@ -186,6 +186,7 @@ export interface ContractEndRequest {
   type: 'completion' | 'termination'; // Completion = happy path, Termination = cancel
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string; // Reason why the other party rejected the end request
   createdAt: string;
 }
 

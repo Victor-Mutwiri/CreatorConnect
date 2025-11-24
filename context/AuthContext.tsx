@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, UserRole } from '../types';
 import { mockAuth } from '../services/mockAuth';
@@ -10,7 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ user: User | null; error: string | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,9 +65,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteAccount = async () => {
-    if (!user) return;
-    await mockAuth.deleteAccount(user.id);
-    setUser(null);
+    if (!user) return { success: false, error: "User not found" };
+    const result = await mockAuth.deleteAccount(user.id);
+    if (result.success) {
+      setUser(null);
+    }
+    return result;
   };
 
   return (

@@ -177,7 +177,7 @@ export const mockContractService = {
     return updatedContract;
   },
 
-  resolveEndContract: async (contractId: string, approved: boolean, userId: string, userName: string): Promise<Contract> => {
+  resolveEndContract: async (contractId: string, approved: boolean, userId: string, userName: string, rejectionReason?: string): Promise<Contract> => {
     await delay(600);
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
     const index = contracts.findIndex((c: Contract) => c.id === contractId);
@@ -204,16 +204,25 @@ export const mockContractService = {
         note: `Mutual agreement to end contract: ${request.reason}`
       });
     } else {
-      updatedContract.endRequest = undefined; // Clear the request if rejected
-       // Add History
-       updatedContract.history.push({
+      updatedContract.endRequest.status = 'rejected';
+      updatedContract.endRequest.rejectionReason = rejectionReason;
+      
+      // Add History
+      updatedContract.history.push({
         id: Math.random().toString(36).substr(2, 9),
         date: new Date().toISOString(),
         action: 'end_request_rejected',
         actorName: userName,
         actionBy: userId,
-        note: `End contract request rejected`
+        note: `End contract request rejected. Reason: ${rejectionReason || 'No reason provided'}`
       });
+      
+      // Clear the request after processing rejection so it can be requested again or disputed later
+      // For now, we keep the rejected status on the endRequest object to show history in the UI if needed
+      // But typically we might want to clear it so a new request can be made. 
+      // Let's keep it but mark status as rejected, the UI can choose to show a "New Request" button.
+      // However, to allow re-request immediately, we might set endRequest to undefined after a delay or just let the user overwrite it.
+      // For simplicity in this mock, we will leave the endRequest object there with status 'rejected'.
     }
 
     contracts[index] = updatedContract;

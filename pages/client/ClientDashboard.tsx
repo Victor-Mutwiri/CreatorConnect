@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -287,7 +288,7 @@ const ClientDashboard: React.FC = () => {
                       <div className="text-right">
                          <div className="text-sm font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
                          <div className="text-xs text-green-600 dark:text-green-400 font-medium uppercase mt-1">
-                           {contract.status === ContractStatus.ACCEPTED ? 'Starting' : 'On Track'}
+                           {contract.status === ContractStatus.ACCEPTED ? 'On Track' : 'On Track'}
                          </div>
                       </div>
                     </div>

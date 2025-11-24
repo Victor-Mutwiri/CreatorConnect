@@ -1,7 +1,8 @@
-import { User, UserRole, AuthResponse, CreatorProfile, ClientType, ClientProfile } from '../types';
+import { User, UserRole, AuthResponse, CreatorProfile, ClientType, ClientProfile, Contract, ContractStatus } from '../types';
 
 const USERS_KEY = 'ubuni_users_db';
 const SESSION_KEY = 'ubuni_session';
+const CONTRACTS_KEY = 'ubuni_contracts_db';
 
 // Simulating network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -187,8 +188,23 @@ export const mockAuth = {
     return safeUser;
   },
 
-  async deleteAccount(userId: string): Promise<void> {
+  async deleteAccount(userId: string): Promise<{ success: boolean; error?: string }> {
     await delay(500);
+
+    // Check for active contracts
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    const hasActiveContracts = contracts.some((c: Contract) => 
+      (c.clientId === userId || c.creatorId === userId) && 
+      [ContractStatus.ACTIVE, ContractStatus.ACCEPTED, ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status)
+    );
+
+    if (hasActiveContracts) {
+      return { 
+        success: false, 
+        error: "Cannot delete account while you have active or ongoing contracts. Please complete or cancel them first." 
+      };
+    }
+
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const newUsers = users.filter((u: User) => u.id !== userId);
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
@@ -197,6 +213,8 @@ export const mockAuth = {
     if (currentSession && currentSession.id === userId) {
       localStorage.removeItem(SESSION_KEY);
     }
+
+    return { success: true };
   },
 
   async searchCreators(query?: string, category?: string): Promise<User[]> {
