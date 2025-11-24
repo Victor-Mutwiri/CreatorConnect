@@ -1,0 +1,675 @@
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Check, ChevronRight, ChevronLeft, Instagram, Youtube, Sparkles, 
+  DollarSign, Package, ShieldCheck, Copy, Upload
+} from 'lucide-react';
+import Navbar from '../../components/Navbar';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
+import FileUpload from '../../components/FileUpload';
+import { useAuth } from '../../context/AuthContext';
+import { CreatorProfile, ServicePackage } from '../../types';
+
+// Categories for selection
+const CATEGORIES = [
+  "Lifestyle", "Fashion", "Beauty", "Tech", "Travel", "Food", 
+  "Gaming", "Fitness", "Music", "Education", "Comedy", "Business",
+  "Art & Design", "Photography", "Parenting", "Sports"
+];
+
+const SKILLS = [
+  "Content Creation", "Video Editing", "Photography", "Live Streaming",
+  "Copywriting", "Modelling", "Voice Over", "Public Speaking"
+];
+
+const Onboarding: React.FC = () => {
+  const { user, updateProfile } = useAuth();
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form State
+  const [formData, setFormData] = useState<Partial<CreatorProfile>>({
+    displayName: user?.name || '',
+    username: '',
+    bio: '',
+    location: 'Nairobi, Kenya',
+    categories: [],
+    socials: { instagram: '', tiktok: '', youtube: '', twitter: '' },
+    portfolio: { images: [], links: [''] },
+    experience: { years: '0-1', languages: ['English', 'Swahili'], skills: [] },
+    pricing: {
+      model: 'negotiable',
+      currency: 'KES',
+      packages: []
+    },
+    verification: {
+      isIdentityVerified: false,
+      isSocialVerified: false,
+      trustScore: 20,
+      bioCode: `UBUNI-${Math.floor(1000 + Math.random() * 9000)}`
+    }
+  });
+
+  const totalSteps = 7;
+
+  const handleNext = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(prev => prev + 1);
+      window.scrollTo(0, 0);
+    } else {
+      handleFinish();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleFinish = async () => {
+    setIsSubmitting(true);
+    try {
+      // Mock stats generation for onboarding
+      const socialStats = {
+        totalFollowers: '12.5K',
+        engagementRate: '4.8%',
+        avgViews: '2.3K'
+      };
+
+      await updateProfile({
+        profile: { ...formData, socialStats } as CreatorProfile,
+        onboardingCompleted: true
+      });
+      
+      // Redirect to their new public profile
+      if (user?.id) {
+        navigate(`/profile/${user.id}`);
+      } else {
+        navigate('/');
+      }
+    } catch (error) {
+      console.error("Error saving profile", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // --- STEP COMPONENTS ---
+
+  const renderStep1 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Let's start with the basics</h2>
+        <p className="text-slate-600">Tell us a bit about who you are.</p>
+      </div>
+
+      <div className="flex justify-center mb-6">
+        <div className="relative">
+          <div className="w-24 h-24 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-2xl font-bold border-4 border-white shadow-lg overflow-hidden">
+             {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+             ) : (
+                formData.displayName?.[0] || 'U'
+             )}
+          </div>
+          <button className="absolute bottom-0 right-0 bg-white p-1.5 rounded-full shadow border border-slate-200 text-slate-600 hover:text-brand-600">
+            <Sparkles size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <Input 
+          label="Display Name" 
+          value={formData.displayName}
+          onChange={(e) => setFormData({...formData, displayName: e.target.value})}
+          placeholder="e.g. Sarah K."
+        />
+        <Input 
+          label="Username" 
+          value={formData.username}
+          onChange={(e) => setFormData({...formData, username: e.target.value})}
+          placeholder="e.g. sarah_creates" 
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Bio</label>
+        <textarea
+          rows={4}
+          className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all duration-200"
+          placeholder="Tell brands and followers what makes you unique..."
+          value={formData.bio}
+          onChange={(e) => setFormData({...formData, bio: e.target.value})}
+        />
+        <div className="text-right text-xs text-slate-400 mt-1">
+          {formData.bio?.length || 0}/200 characters
+        </div>
+      </div>
+
+      <Input 
+        label="Location" 
+        value={formData.location}
+        onChange={(e) => setFormData({...formData, location: e.target.value})}
+        placeholder="City, Country"
+      />
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">What's your niche?</h2>
+        <p className="text-slate-600">Select up to 4 categories that best describe your content.</p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {CATEGORIES.map(cat => {
+          const isSelected = formData.categories?.includes(cat);
+          return (
+            <button
+              key={cat}
+              onClick={() => {
+                const current = formData.categories || [];
+                if (isSelected) {
+                  setFormData({...formData, categories: current.filter(c => c !== cat)});
+                } else if (current.length < 4) {
+                  setFormData({...formData, categories: [...current, cat]});
+                }
+              }}
+              className={`p-3 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                isSelected 
+                  ? 'bg-brand-50 border-brand-500 text-brand-700 shadow-sm ring-1 ring-brand-500' 
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-slate-50'
+              }`}
+            >
+              {cat}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Link your socials</h2>
+        <p className="text-slate-600">Connect your accounts to verify your audience.</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Instagram className="h-5 w-5 text-pink-600" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-24 py-3 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+            placeholder="Instagram Username"
+            value={formData.socials?.instagram}
+            onChange={(e) => setFormData({
+              ...formData, 
+              socials: {...formData.socials, instagram: e.target.value}
+            })}
+          />
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="h-5 w-5 text-black" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+            </svg>
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-24 py-3 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+            placeholder="TikTok Username"
+            value={formData.socials?.tiktok}
+            onChange={(e) => setFormData({
+              ...formData, 
+              socials: {...formData.socials, tiktok: e.target.value}
+            })}
+          />
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Youtube className="h-5 w-5 text-red-600" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-24 py-3 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+            placeholder="YouTube Channel URL"
+            value={formData.socials?.youtube}
+            onChange={(e) => setFormData({
+              ...formData, 
+              socials: {...formData.socials, youtube: e.target.value}
+            })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep4 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Showcase your work</h2>
+        <p className="text-slate-600">Upload your best photos or add links to past campaigns.</p>
+      </div>
+
+      <FileUpload 
+        label="Portfolio Images (Max 5)" 
+        multiple={true}
+        onFileSelect={(files) => {
+          const urls = files.map(f => URL.createObjectURL(f));
+          setFormData({
+            ...formData, 
+            portfolio: {
+              ...formData.portfolio!, 
+              images: [...(formData.portfolio?.images || []), ...urls]
+            }
+          });
+        }} 
+      />
+
+      <div className="mt-6">
+        <label className="block text-sm font-medium text-slate-700 mb-2">External Portfolio Links</label>
+        {formData.portfolio?.links.map((link, idx) => (
+          <div key={idx} className="flex gap-2 mb-2">
+             <input
+              type="text"
+              className="block w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500"
+              placeholder="https://..."
+              value={link}
+              onChange={(e) => {
+                const newLinks = [...(formData.portfolio?.links || [])];
+                newLinks[idx] = e.target.value;
+                setFormData({
+                  ...formData,
+                  portfolio: {...formData.portfolio!, links: newLinks}
+                });
+              }}
+            />
+            {idx === (formData.portfolio?.links.length || 1) - 1 && (
+              <button 
+                onClick={() => setFormData({
+                  ...formData,
+                  portfolio: {...formData.portfolio!, links: [...(formData.portfolio?.links || []), '']}
+                })}
+                className="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
+              >
+                +
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderStep5 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Experience & Skills</h2>
+        <p className="text-slate-600">Help brands understand what you bring to the table.</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Years of Experience</label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {['0-1', '1-3', '3-5', '5+'].map(opt => (
+            <button
+              key={opt}
+              onClick={() => setFormData({...formData, experience: {...formData.experience!, years: opt}})}
+              className={`py-2 px-4 rounded-lg border text-sm font-medium ${
+                formData.experience?.years === opt
+                  ? 'bg-brand-50 border-brand-500 text-brand-700 ring-1 ring-brand-500'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {opt} Years
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Skills</label>
+        <div className="flex flex-wrap gap-2">
+          {SKILLS.map(skill => {
+            const isSelected = formData.experience?.skills.includes(skill);
+            return (
+              <button
+                key={skill}
+                onClick={() => {
+                   const current = formData.experience?.skills || [];
+                   if (isSelected) {
+                     setFormData({
+                       ...formData, 
+                       experience: {...formData.experience!, skills: current.filter(s => s !== skill)}
+                     });
+                   } else {
+                      setFormData({
+                       ...formData, 
+                       experience: {...formData.experience!, skills: [...current, skill]}
+                     });
+                   }
+                }}
+                className={`py-1.5 px-3 rounded-full text-sm border transition-colors ${
+                  isSelected
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+                }`}
+              >
+                {skill}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep6 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Pricing & Packages</h2>
+        <p className="text-slate-600">Set your rates and service options.</p>
+      </div>
+
+      {/* Pricing Model */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        {['fixed', 'range', 'negotiable'].map((m) => (
+          <button
+            key={m}
+            onClick={() => setFormData({
+              ...formData, 
+              pricing: { ...formData.pricing!, model: m as any }
+            })}
+            className={`p-4 rounded-xl border-2 text-center transition-all ${
+              formData.pricing?.model === m
+                ? 'border-brand-500 bg-brand-50'
+                : 'border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <DollarSign className={`w-6 h-6 mx-auto mb-2 ${formData.pricing?.model === m ? 'text-brand-600' : 'text-slate-400'}`} />
+            <div className="font-semibold capitalize text-slate-900">{m} Rate</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Dynamic Inputs based on Model */}
+      <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+        {formData.pricing?.model === 'fixed' && (
+          <Input 
+            label="Starting Rate (KES)" 
+            type="number"
+            placeholder="e.g. 10000"
+            value={formData.pricing.startingAt || ''}
+            onChange={(e) => setFormData({
+              ...formData, 
+              pricing: { ...formData.pricing!, startingAt: parseInt(e.target.value) }
+            })}
+          />
+        )}
+        {formData.pricing?.model === 'range' && (
+          <div className="flex gap-4">
+             <Input 
+              label="Minimum (KES)" 
+              type="number"
+              placeholder="5000"
+              value={formData.pricing.minRate || ''}
+              onChange={(e) => setFormData({
+                ...formData, 
+                pricing: { ...formData.pricing!, minRate: parseInt(e.target.value) }
+              })}
+            />
+            <Input 
+              label="Maximum (KES)" 
+              type="number"
+              placeholder="50000"
+              value={formData.pricing.maxRate || ''}
+              onChange={(e) => setFormData({
+                ...formData, 
+                pricing: { ...formData.pricing!, maxRate: parseInt(e.target.value) }
+              })}
+            />
+          </div>
+        )}
+        {formData.pricing?.model === 'negotiable' && (
+          <p className="text-slate-600 text-center italic">
+            Clients will contact you to discuss budget.
+          </p>
+        )}
+      </div>
+
+      {/* Simple Package Builder */}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <label className="text-sm font-medium text-slate-700">Packages (Optional)</label>
+          <button 
+             onClick={() => {
+               const newPkg: ServicePackage = {
+                 id: Math.random().toString(),
+                 title: 'New Package',
+                 description: 'Describe what is included...',
+                 price: 5000,
+                 deliveryTimeDays: 3,
+                 features: []
+               };
+               setFormData({
+                 ...formData,
+                 pricing: { ...formData.pricing!, packages: [...(formData.pricing?.packages || []), newPkg] }
+               });
+             }}
+             className="text-brand-600 text-sm font-medium hover:text-brand-700"
+          >
+            + Add Package
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {formData.pricing?.packages?.map((pkg, idx) => (
+            <div key={pkg.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+              <div className="flex justify-between mb-2">
+                <input 
+                  value={pkg.title}
+                  onChange={(e) => {
+                    const newPkgs = [...(formData.pricing?.packages || [])];
+                    newPkgs[idx].title = e.target.value;
+                    setFormData({...formData, pricing: {...formData.pricing!, packages: newPkgs}});
+                  }}
+                  className="font-bold text-slate-900 border-none p-0 focus:ring-0 w-full"
+                />
+                <button 
+                  onClick={() => {
+                     const newPkgs = (formData.pricing?.packages || []).filter((_, i) => i !== idx);
+                     setFormData({...formData, pricing: {...formData.pricing!, packages: newPkgs}});
+                  }}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  &times;
+                </button>
+              </div>
+              <input 
+                  value={pkg.price}
+                  type="number"
+                  onChange={(e) => {
+                    const newPkgs = [...(formData.pricing?.packages || [])];
+                    newPkgs[idx].price = parseInt(e.target.value);
+                    setFormData({...formData, pricing: {...formData.pricing!, packages: newPkgs}});
+                  }}
+                  className="text-brand-600 font-semibold mb-2 block w-full border-none p-0 focus:ring-0"
+              />
+              <textarea
+                value={pkg.description}
+                onChange={(e) => {
+                    const newPkgs = [...(formData.pricing?.packages || [])];
+                    newPkgs[idx].description = e.target.value;
+                    setFormData({...formData, pricing: {...formData.pricing!, packages: newPkgs}});
+                }}
+                className="w-full text-sm text-slate-600 border-none resize-none bg-slate-50 p-2 rounded"
+                rows={2}
+              />
+            </div>
+          ))}
+          {formData.pricing?.packages?.length === 0 && (
+             <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-lg text-slate-400">
+               <Package className="mx-auto w-8 h-8 mb-2 opacity-50" />
+               <p className="text-sm">No packages added yet.</p>
+             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep7 = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Verify your Identity</h2>
+        <p className="text-slate-600">Verified profiles get 3x more job offers.</p>
+      </div>
+
+      {/* Verification Badge Preview */}
+      <div className="bg-gradient-to-br from-brand-50 to-teal-50 p-6 rounded-xl border border-brand-100 flex items-center justify-between mb-8">
+        <div>
+          <h3 className="font-bold text-brand-900 flex items-center">
+            <ShieldCheck className="w-5 h-5 mr-2 text-brand-600" />
+            Trust Score
+          </h3>
+          <p className="text-sm text-brand-700 mt-1">
+            Complete verification to boost your trust score to 100%
+          </p>
+        </div>
+        <div className="text-2xl font-bold text-brand-600">
+          {formData.verification?.trustScore}%
+        </div>
+      </div>
+
+      {/* Bio Code Method */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h4 className="font-bold text-slate-900 mb-2">Social Verification</h4>
+        <p className="text-sm text-slate-600 mb-4">
+          To verify you own your social accounts, place this unique code in your Instagram or TikTok bio temporarily.
+        </p>
+        
+        <div className="flex items-center gap-2 mb-4">
+          <code className="flex-1 bg-slate-100 p-3 rounded-lg font-mono text-center text-lg tracking-widest text-slate-800 border border-slate-200">
+            {formData.verification?.bioCode}
+          </code>
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(formData.verification?.bioCode || '');
+              // Toast notification would go here
+            }}
+            className="p-3 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600"
+          >
+            <Copy size={20} />
+          </button>
+        </div>
+        
+        <Button 
+           variant="outline" 
+           className="w-full"
+           onClick={() => {
+             // Simulate check
+             setFormData({
+               ...formData, 
+               verification: { 
+                 ...formData.verification!, 
+                 isSocialVerified: true,
+                 trustScore: (formData.verification?.trustScore || 20) + 40
+               }
+             });
+           }}
+           disabled={formData.verification?.isSocialVerified}
+        >
+           {formData.verification?.isSocialVerified ? (
+             <span className="flex items-center justify-center text-green-600">
+               <Check size={18} className="mr-2" /> Verified
+             </span>
+           ) : 'Verify Code'}
+        </Button>
+      </div>
+
+      {/* ID Upload */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h4 className="font-bold text-slate-900 mb-2">Identity Verification</h4>
+        <p className="text-sm text-slate-600 mb-4">
+          Upload a clear photo of your National ID or Passport.
+        </p>
+        
+        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors cursor-pointer">
+          <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+          <span className="text-sm text-brand-600 font-medium">Click to upload document</span>
+        </div>
+      </div>
+
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
+      <div className="pt-24 pb-12 px-4 sm:px-6">
+        <div className="max-w-2xl mx-auto">
+          
+          {/* Progress Bar */}
+          <div className="mb-8">
+            <div className="flex justify-between text-xs font-medium text-slate-500 mb-2">
+              <span>Step {currentStep} of {totalSteps}</span>
+              <span>{Math.round((currentStep / totalSteps) * 100)}% Complete</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2">
+              <motion.div 
+                className="bg-brand-600 h-2 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
+             {currentStep === 1 && renderStep1()}
+             {currentStep === 2 && renderStep2()}
+             {currentStep === 3 && renderStep3()}
+             {currentStep === 4 && renderStep4()}
+             {currentStep === 5 && renderStep5()}
+             {currentStep === 6 && renderStep6()}
+             {currentStep === 7 && renderStep7()}
+
+             <div className="mt-10 flex justify-between pt-6 border-t border-slate-100">
+               <button
+                 onClick={handleBack}
+                 disabled={currentStep === 1}
+                 className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                   currentStep === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                 }`}
+               >
+                 <ChevronLeft size={16} className="mr-1" />
+                 Back
+               </button>
+               
+               <Button onClick={handleNext} disabled={isSubmitting}>
+                 {isSubmitting ? 'Finalizing...' : (currentStep === totalSteps ? 'Complete Profile' : 'Continue')}
+                 {!isSubmitting && currentStep !== totalSteps && <ChevronRight size={16} className="ml-1" />}
+               </Button>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Onboarding;
