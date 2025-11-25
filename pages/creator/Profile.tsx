@@ -361,6 +361,44 @@ const Profile: React.FC = () => {
                </div>
             )}
 
+            {/* NEW: Reviews Section */}
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                Client Reviews
+                <span className="ml-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-2 py-1 rounded-full">
+                  {profile.reviews?.length || 0}
+                </span>
+              </h2>
+
+              <div className="space-y-4">
+                {profile.reviews && profile.reviews.length > 0 ? (
+                  profile.reviews.map((review) => (
+                    <div key={review.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-white">{review.reviewerName}</span>
+                          <span className="text-slate-400 text-xs">• {new Date(review.date).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex text-yellow-400">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={14} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-slate-300 dark:text-slate-600"} />
+                          ))}
+                        </div>
+                      </div>
+                      {review.projectTitle && (
+                          <p className="text-xs font-medium text-brand-600 dark:text-brand-400 mb-2">Project: {review.projectTitle}</p>
+                      )}
+                      {review.comment && <p className="text-slate-600 dark:text-slate-300 text-sm italic">"{review.comment}"</p>}
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white dark:bg-slate-900 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 border-dashed">
+                    No reviews yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
