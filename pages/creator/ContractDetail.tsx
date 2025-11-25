@@ -251,6 +251,97 @@ const ContractDetail: React.FC = () => {
   // Show Payment Info only if Client Viewer, Contract is Accepted/Active, Deposit Exists, and Creator has payment methods
   const showPaymentInfo = isClientViewer && isActive && (contract.terms.deposit || 0) > 0 && creatorUser?.profile?.paymentMethods;
 
+  // Helper for rendering comparison values
+  const renderDiffValue = (
+    current: number,
+    previous: number | undefined,
+    label: string,
+    icon: React.ReactNode,
+    prefix: string = '',
+    suffix: string = ''
+  ) => {
+    // Show diff if status is negotiating and value has changed
+    const hasChange = contract.status === ContractStatus.NEGOTIATING && previous !== undefined && current !== previous;
+
+    return (
+      <div className={`bg-slate-50 dark:bg-slate-800 p-4 rounded-xl relative overflow-hidden transition-all ${hasChange ? 'ring-2 ring-yellow-400/50 dark:ring-yellow-500/50' : ''}`}>
+        <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center">{icon} {label}</div>
+        
+        {hasChange && (
+          <div className="text-sm text-slate-400 line-through mb-1 font-medium">
+            {prefix} {previous.toLocaleString()} {suffix}
+          </div>
+        )}
+        
+        <div className={`text-xl font-bold ${hasChange ? 'text-brand-600 dark:text-brand-400' : 'text-slate-900 dark:text-white'}`}>
+          {prefix} {current.toLocaleString()} {suffix}
+        </div>
+        
+        {hasChange && (
+          <div className="absolute top-0 right-0 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded-bl-lg">
+            EDITED
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper for rendering deliverables diff
+  const renderDeliverablesDiff = () => {
+    const current = contract.terms.deliverables;
+    const previous = contract.previousTerms?.deliverables || [];
+    const isNegotiating = contract.status === ContractStatus.NEGOTIATING;
+
+    // If not negotiating or no previous terms, just show current list
+    if (!isNegotiating || !contract.previousTerms) {
+       return (
+          <ul className="list-disc list-inside space-y-1 text-slate-600 dark:text-slate-300 ml-1">
+            {current.map((item, i) => <li key={i}>{item}</li>)}
+          </ul>
+       );
+    }
+
+    // Calculate Diffs
+    const removed = previous.filter(p => !current.includes(p));
+    const added = current.filter(c => !previous.includes(c));
+    const unchanged = current.filter(c => previous.includes(c));
+
+    return (
+      <div className="space-y-2 ml-1">
+         {/* Removed Items */}
+         {removed.map((item, i) => (
+           <div key={`rem-${i}`} className="flex items-start text-slate-400 text-sm group">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-500 mr-2 flex-shrink-0 mt-0.5">
+                <XCircle size={12} />
+              </span>
+              <span className="line-through decoration-red-300 decoration-2">{item}</span>
+           </div>
+         ))}
+         
+         {/* Unchanged Items */}
+         {unchanged.map((item, i) => (
+           <div key={`unch-${i}`} className="flex items-start text-slate-600 dark:text-slate-300">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 mr-2 flex-shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+              </span>
+              {item}
+           </div>
+         ))}
+
+         {/* Added Items */}
+         {added.map((item, i) => (
+           <div key={`add-${i}`} className="flex items-start text-brand-700 dark:text-brand-300 font-medium bg-brand-50 dark:bg-brand-900/20 p-2 rounded-lg border border-brand-100 dark:border-brand-800/30">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-200 text-brand-700 mr-2 flex-shrink-0 mt-0.5">
+                <CheckCircle size={12} />
+              </span>
+              <span className="flex-1">{item}</span>
+              <span className="text-[10px] font-bold bg-brand-200 text-brand-800 px-1.5 py-0.5 rounded uppercase tracking-wide ml-2">New</span>
+           </div>
+         ))}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       <Navbar />
@@ -284,6 +375,7 @@ const ContractDetail: React.FC = () => {
               <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
                 contract.status === ContractStatus.ACTIVE || contract.status === ContractStatus.ACCEPTED ? 'bg-green-100 text-green-700' : 
                 contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' :
+                contract.status === ContractStatus.NEGOTIATING ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-200' :
                 contract.status === ContractStatus.COMPLETED ? 'bg-slate-100 text-slate-700' :
                 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}>
@@ -291,6 +383,15 @@ const ContractDetail: React.FC = () => {
               </span>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{contract.description}</p>
+            
+            {contract.status === ContractStatus.NEGOTIATING && (
+               <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 flex items-start">
+                 <Info className="text-yellow-600 dark:text-yellow-500 mt-0.5 mr-2 flex-shrink-0" size={18} />
+                 <div className="text-sm text-yellow-800 dark:text-yellow-300">
+                   <span className="font-bold">Negotiation in progress:</span> Changes to the contract terms are highlighted below. Review the stricken-through values to see what has changed.
+                 </div>
+               </div>
+            )}
           </div>
 
           {/* Payment Information (Visible to Client ONLY when Active/Accepted and Deposit > 0) */}
@@ -362,22 +463,36 @@ const ContractDetail: React.FC = () => {
             </h3>
             
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
-                <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><DollarSign size={14} className="mr-1"/> Total Amount</div>
-                <div className="text-xl font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
-              </div>
-              {contract.terms.deposit !== undefined && (
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
-                  <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Shield size={14} className="mr-1"/> Deposit</div>
-                  <div className="text-xl font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.deposit.toLocaleString()}</div>
-                </div>
-              )}
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
-                <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Calendar size={14} className="mr-1"/> Duration</div>
-                <div className="text-xl font-bold text-slate-900 dark:text-white">{contract.terms.durationDays} Days</div>
-              </div>
               
-              {/* Added Offer Expiry Display */}
+              {/* Amount Diff */}
+              {renderDiffValue(
+                 contract.terms.amount, 
+                 contract.previousTerms?.amount, 
+                 "Total Amount", 
+                 <DollarSign size={14} className="mr-1"/>,
+                 contract.terms.currency
+              )}
+
+              {/* Deposit Diff */}
+              {contract.terms.deposit !== undefined && renderDiffValue(
+                 contract.terms.deposit,
+                 contract.previousTerms?.deposit,
+                 "Deposit",
+                 <Shield size={14} className="mr-1"/>,
+                 contract.terms.currency
+              )}
+
+              {/* Duration Diff */}
+              {renderDiffValue(
+                 contract.terms.durationDays,
+                 contract.previousTerms?.durationDays,
+                 "Duration",
+                 <Calendar size={14} className="mr-1"/>,
+                 "",
+                 "Days"
+              )}
+              
+              {/* Added Offer Expiry Display (No Diff needed usually) */}
               {contract.expiryDate && (
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-orange-100 dark:border-orange-900/20">
                   <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Clock size={14} className="mr-1 text-orange-500"/> Offer Expires</div>
@@ -389,11 +504,7 @@ const ContractDetail: React.FC = () => {
             <div className="space-y-4">
                <div>
                  <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Deliverables</h4>
-                 <ul className="list-disc list-inside space-y-1 text-slate-600 dark:text-slate-300 ml-1">
-                   {contract.terms.deliverables.map((item, i) => (
-                     <li key={i}>{item}</li>
-                   ))}
-                 </ul>
+                 {renderDeliverablesDiff()}
                </div>
                
                {contract.terms.revisionPolicy && (
@@ -405,7 +516,7 @@ const ContractDetail: React.FC = () => {
 
                <div>
                  <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Schedule & Milestones</h4>
-                 <p className="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                 <p className="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700 whitespace-pre-wrap">
                    {contract.terms.schedule}
                  </p>
                </div>
@@ -800,15 +911,15 @@ const ContractDetail: React.FC = () => {
                  </p>
                  <textarea 
                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
-                   rows={4}
-                   placeholder="e.g. Work is not yet complete according to the agreement..."
+                   rows={3}
+                   placeholder="e.g. We are open to discussing the deadline..."
                    value={rejectionReason}
                    onChange={(e) => setRejectionReason(e.target.value)}
                  />
               </div>
               <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
                  <Button variant="ghost" onClick={() => setShowRejectEndModal(false)}>Cancel</Button>
-                 <Button onClick={() => handleResolveEndRequest(false)} disabled={!rejectionReason}>Submit Rejection</Button>
+                 <Button onClick={() => handleResolveEndRequest(false)} disabled={!rejectionReason}>Reject Request</Button>
               </div>
            </div>
         </div>
@@ -816,80 +927,88 @@ const ContractDetail: React.FC = () => {
 
       {/* Rating Modal */}
       {showRatingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
-             <div className="p-6 text-center">
-               <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-2">Rate Your Experience</h3>
-               <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                 How was working with {isCreator ? contract?.clientName : contract?.creatorName}?
-               </p>
-
-               <div className="space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Rate Experience</h3>
+                <button onClick={() => setShowRatingModal(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+              <div className="p-8 text-center space-y-6">
+                 <p className="text-slate-600 dark:text-slate-300">
+                   How was your experience working with <span className="font-bold">{isCreator ? contract.clientName : contract.creatorName}</span>?
+                 </p>
+                 
                  {/* Overall Rating */}
                  <div>
-                   <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Overall Rating</p>
-                   <div className="flex justify-center gap-2">
-                     {[1, 2, 3, 4, 5].map((star) => (
-                       <button 
-                         key={star}
-                         onClick={() => setRating(star)}
-                         className="transition-transform hover:scale-110 focus:outline-none"
-                       >
-                         <Star 
-                           size={32} 
-                           className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300 dark:text-slate-700'}`} 
-                         />
-                       </button>
-                     ))}
-                   </div>
-                 </div>
-
-                 {/* Payment Reliability Rating (Only for Creators reviewing Clients) */}
-                 {isCreator && (
-                   <div>
-                     <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Payment Reliability</p>
-                     <div className="flex justify-center gap-2">
+                    <div className="flex justify-center gap-2 mb-2">
                        {[1, 2, 3, 4, 5].map((star) => (
                          <button 
                            key={star}
-                           onClick={() => setPaymentRating(star)}
+                           type="button"
+                           onClick={() => setRating(star)}
                            className="transition-transform hover:scale-110 focus:outline-none"
                          >
-                           <DollarSign 
-                             size={28} 
-                             className={`${star <= paymentRating ? 'text-green-500 fill-green-500' : 'text-slate-300 dark:text-slate-700'}`} 
+                           <Star 
+                             size={32} 
+                             fill={star <= rating ? "#eab308" : "none"} 
+                             className={star <= rating ? "text-yellow-500" : "text-slate-300 dark:text-slate-600"} 
                            />
                          </button>
                        ))}
-                     </div>
-                     <p className="text-xs text-slate-500 mt-2">Rate how reliable and timely the payments were.</p>
+                    </div>
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                      {rating === 0 ? 'Select a rating' : rating === 5 ? 'Excellent!' : rating >= 4 ? 'Great' : rating === 3 ? 'Good' : 'Poor'}
+                    </p>
+                 </div>
+
+                 {/* Payment Rating (Creator rating Client only) */}
+                 {isCreator && (
+                   <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800/50">
+                      <p className="font-bold text-green-800 dark:text-green-300 mb-2 flex items-center justify-center">
+                        <DollarSign size={16} className="mr-1" /> Payment Reliability
+                      </p>
+                      <div className="flex justify-center gap-2">
+                         {[1, 2, 3, 4, 5].map((star) => (
+                           <button 
+                             key={star}
+                             type="button"
+                             onClick={() => setPaymentRating(star)}
+                             className="transition-transform hover:scale-110 focus:outline-none"
+                           >
+                             <div 
+                               className={`w-4 h-4 rounded-full ${star <= paymentRating ? 'bg-green-500 shadow-sm' : 'bg-slate-200 dark:bg-slate-600'}`} 
+                             />
+                           </button>
+                         ))}
+                      </div>
+                      <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                        Was payment prompt and hassle-free?
+                      </p>
                    </div>
                  )}
 
-                 {/* Comment */}
                  <div>
-                   <textarea
-                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm dark:bg-slate-800 dark:text-white"
-                     rows={3}
-                     placeholder="Share your feedback (optional)..."
-                     value={reviewComment}
-                     onChange={(e) => setReviewComment(e.target.value)}
+                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 text-left">Comment (Optional)</label>
+                   <textarea 
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white text-sm"
+                      rows={3}
+                      placeholder="Share details about your experience..."
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
                    />
                  </div>
-               </div>
 
-               <div className="flex gap-3 mt-6">
-                 <Button variant="ghost" className="flex-1" onClick={() => setShowRatingModal(false)}>Cancel</Button>
                  <Button 
-                   className="flex-1" 
                    onClick={handleSubmitRating} 
-                   disabled={rating === 0 || (isCreator && paymentRating === 0)}
+                   disabled={rating === 0 || (isCreator && paymentRating === 0)} 
+                   className="w-full"
                  >
-                   Submit Rating
+                   Submit Review
                  </Button>
-               </div>
-             </div>
-          </div>
+              </div>
+           </div>
         </div>
       )}
 

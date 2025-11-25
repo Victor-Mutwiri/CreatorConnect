@@ -228,6 +228,7 @@ export interface Contract {
   description: string;
   status: ContractStatus;
   terms: ContractTerms;
+  previousTerms?: ContractTerms; // Stores terms prior to the current counter-offer
   expiryDate?: string;
   createdAt: string;
   updatedAt: string;

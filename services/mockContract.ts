@@ -1,4 +1,3 @@
-
 import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
@@ -162,8 +161,11 @@ export const mockContractService = {
     
     if (index === -1) throw new Error('Contract not found');
 
+    const currentContract = contracts[index];
+
     const updatedContract = { 
-      ...contracts[index], 
+      ...currentContract,
+      previousTerms: currentContract.terms, // Save previous terms before update
       terms: newTerms, 
       status: ContractStatus.NEGOTIATING,
       updatedAt: new Date().toISOString() 
