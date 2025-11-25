@@ -113,7 +113,7 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         
         {/* Header */}
         <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
