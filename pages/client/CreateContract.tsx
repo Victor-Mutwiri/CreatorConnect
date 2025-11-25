@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin, HelpCircle } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -237,13 +238,28 @@ const CreateContract: React.FC = () => {
                      <option>Unlimited Revisions</option>
                    </select>
                 </div>
-                <Input 
-                   label="Offer Valid Until"
-                   type="date"
-                   value={expiryDate}
-                   onChange={(e) => setExpiryDate(e.target.value)}
-                   required
-                />
+                
+                {/* Offer Expiry with Tooltip */}
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Offer Valid Until</label>
+                    <div className="relative group">
+                       <HelpCircle size={16} className="text-slate-400 cursor-help" />
+                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                         This is the deadline for the creator to accept this contract. If they don't accept by this date, the offer will expire.
+                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                       </div>
+                    </div>
+                  </div>
+                  <Input 
+                     label=""
+                     type="date"
+                     value={expiryDate}
+                     onChange={(e) => setExpiryDate(e.target.value)}
+                     required
+                     className="mt-0"
+                  />
+                </div>
              </div>
              
              <div>

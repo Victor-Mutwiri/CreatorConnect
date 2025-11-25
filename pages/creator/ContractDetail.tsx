@@ -376,6 +376,14 @@ const ContractDetail: React.FC = () => {
                 <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Calendar size={14} className="mr-1"/> Duration</div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white">{contract.terms.durationDays} Days</div>
               </div>
+              
+              {/* Added Offer Expiry Display */}
+              {contract.expiryDate && (
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-orange-100 dark:border-orange-900/20">
+                  <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Clock size={14} className="mr-1 text-orange-500"/> Offer Expires</div>
+                  <div className="text-xl font-bold text-slate-900 dark:text-white">{new Date(contract.expiryDate).toLocaleDateString()}</div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
