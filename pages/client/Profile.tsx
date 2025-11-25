@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -120,15 +119,15 @@ const ClientPublicProfile: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Only show "Send Proposal" if user is NOT the client themselves */}
-                {user?.id !== client.id && (
-                  <div className="flex gap-3">
+                <div className="flex gap-3">
+                  {user?.id !== client.id ? (
                      <Button variant="outline">Message</Button>
-                     {/* In a real scenario, creators typically wait for clients, but if there's a job post, they apply. 
-                         If this is a client profile, maybe creators can 'Pitch' them? 
-                         For now, let's keep it informative. */}
-                  </div>
-                )}
+                  ) : (
+                     <Link to="/client/settings">
+                       <Button variant="outline">Edit Profile</Button>
+                     </Link>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-4 mt-6">

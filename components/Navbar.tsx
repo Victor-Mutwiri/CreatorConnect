@@ -176,14 +176,24 @@ const Navbar: React.FC = () => {
                      )}
 
                      {isClient && (
-                        <Link 
-                          to="/client/dashboard"
-                          className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                          onClick={() => setUserMenuOpen(false)}
-                        >
-                          <LayoutDashboard size={16} className="mr-2 text-slate-400" />
-                          Dashboard
-                        </Link>
+                        <>
+                          <Link 
+                            to="/client/dashboard"
+                            className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <LayoutDashboard size={16} className="mr-2 text-slate-400" />
+                            Dashboard
+                          </Link>
+                          <Link 
+                            to={`/client/profile/${user.id}`}
+                            className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <UserIcon size={16} className="mr-2 text-slate-400" />
+                            Public Profile
+                          </Link>
+                        </>
                      )}
                      
                      <Link 
