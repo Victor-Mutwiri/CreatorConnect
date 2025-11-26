@@ -25,6 +25,7 @@ const CreateContract: React.FC = () => {
   const [expiryDate, setExpiryDate] = useState(''); // Offer Expiry
   const [paymentType, setPaymentType] = useState<ContractPaymentType>('MILESTONE');
   const [customSplitCount, setCustomSplitCount] = useState(6); // Default for custom split input
+  const [splitBaseAmount, setSplitBaseAmount] = useState(0); // New Input for split logic
   
   const [terms, setTerms] = useState<ContractTerms>({
     paymentType: 'MILESTONE',
@@ -117,14 +118,14 @@ const CreateContract: React.FC = () => {
 
   // --- SMART SPLIT LOGIC ---
   const handleAutoDistribute = (count: number) => {
-    if (terms.amount <= 0) {
-        // If total is 0, we can't calculate splits properly, but we can still create rows
-        // However, better to prompt user
-        alert("Please enter a Total Contract Amount first.");
+    const sourceAmount = splitBaseAmount > 0 ? splitBaseAmount : terms.amount;
+
+    if (sourceAmount <= 0) {
+        alert("Please enter a Total Project Budget to split.");
         return;
     }
 
-    const total = terms.amount;
+    const total = sourceAmount;
     const maxFirst = Math.floor(total * 0.30);
     let firstAmount = Math.floor(total / count);
     
@@ -297,7 +298,7 @@ const CreateContract: React.FC = () => {
                 <div className="mb-6 bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                    <p className="text-sm text-slate-500 mb-4 flex items-center">
                       <AlertCircle size={16} className="mr-2" /> 
-                      Payment will be held in escrow and released only when you mark the contract as complete.
+                      Payment is secure and released only when you mark the contract as complete.
                    </p>
                    <Input 
                       label="Total Contract Amount (KES)"
@@ -312,7 +313,18 @@ const CreateContract: React.FC = () => {
                 <div className="mb-6 space-y-4">
                    <div className="flex justify-between items-center">
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label>
-                      <span className="text-sm font-bold text-brand-600">Total: KES {terms.amount.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-brand-600">Total (Calculated): KES {terms.amount.toLocaleString()}</span>
+                   </div>
+
+                   {/* Project Budget Input for Split */}
+                   <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl mb-4">
+                      <Input 
+                        label="Total Project Budget (to be split)"
+                        type="number"
+                        placeholder="Enter total amount, e.g. 20000"
+                        value={splitBaseAmount || ''}
+                        onChange={(e) => setSplitBaseAmount(Number(e.target.value))}
+                      />
                    </div>
 
                    {/* Quick Split Toolbar */}

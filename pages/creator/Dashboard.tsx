@@ -32,20 +32,18 @@ const StatCard: React.FC<{
   const iconBg = colorClasses[color] || colorClasses.brand;
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-xl ${iconBg}`}>
-          <Icon size={20} />
-        </div>
+    <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
+      <div className={`p-3 rounded-full mb-3 ${iconBg}`}>
+        <Icon size={22} />
+      </div>
+      <div>
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{value}</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{title}</p>
         {trend && (
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+          <span className={`inline-block mt-2 text-xs font-bold px-2 py-0.5 rounded-full ${trendUp ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
             {trend}
           </span>
         )}
-      </div>
-      <div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">{title}</p>
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{value}</h3>
       </div>
     </div>
   );
@@ -149,7 +147,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <StatCard 
             title="Total Earnings" 
             value={`KES ${totalEarnings.toLocaleString()}`} 
@@ -190,17 +188,17 @@ const Dashboard: React.FC = () => {
               icon={Gavel} 
               color="slate"
             />
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
+              <div className="p-3 rounded-full mb-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                <CheckCircle size={22} />
+              </div>
               <div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Completion Rate</p>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
                   {completedContracts.length + cancelledContracts.length > 0 
                      ? Math.round((completedContracts.length / (completedContracts.length + cancelledContracts.length)) * 100)
                      : 0}%
                 </h3>
-              </div>
-              <div className="p-3 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                <CheckCircle size={20} />
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Completion Rate</p>
               </div>
             </div>
          </div>
