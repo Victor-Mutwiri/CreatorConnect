@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface NavItem {
@@ -187,15 +188,31 @@ export enum ContractStatus {
   DECLINED = 'DECLINED'
 }
 
-export interface ContractTerms {
+export type ContractPaymentType = 'FIXED' | 'MILESTONE';
+
+export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'PAID';
+
+export interface Milestone {
+  id: string;
+  title: string;
+  description: string;
   amount: number;
+  status: MilestoneStatus;
+}
+
+export interface ContractTerms {
+  paymentType: ContractPaymentType;
+  amount: number; // Total Contract Value
   currency: string;
-  deposit?: number; // Upfront payment
   durationDays: number;
   deliverables: string[];
-  schedule: string; // Description of milestones
+  milestones?: Milestone[]; // Only if paymentType is MILESTONE
+  schedule: string; // General description or notes
   startDate: string;
   revisionPolicy?: string; // e.g., "2 Revisions", "Unlimited"
+  
+  // Deprecated fields kept optional for backward compatibility if needed, but logic removed
+  deposit?: number; 
 }
 
 export interface ContractHistoryItem {

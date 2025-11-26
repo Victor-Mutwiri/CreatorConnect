@@ -1,4 +1,5 @@
-import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review } from '../types';
+
+import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
@@ -64,6 +65,10 @@ export const mockContractService = {
     await delay(1000);
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
     
+    // Ensure terms have a payment type
+    const terms = data.terms as ContractTerms;
+    if (!terms.paymentType) terms.paymentType = 'FIXED';
+    
     const newContract: Contract = {
       id: `c-${Date.now()}`,
       clientId,
@@ -74,7 +79,7 @@ export const mockContractService = {
       title: data.title || 'Untitled Project',
       description: data.description || '',
       status: ContractStatus.SENT,
-      terms: data.terms as ContractTerms,
+      terms: terms,
       expiryDate: data.expiryDate,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -114,7 +119,14 @@ export const mockContractService = {
     
     if (index === -1) throw new Error('Contract not found');
 
-    const updatedContract = { ...contracts[index], status, updatedAt: new Date().toISOString() };
+    let updatedContract = { ...contracts[index], status, updatedAt: new Date().toISOString() };
+    
+    // If contract is ACCEPTED and it has milestones, set the first one to IN_PROGRESS
+    if (status === ContractStatus.ACCEPTED && updatedContract.terms.milestones && updatedContract.terms.milestones.length > 0) {
+      updatedContract.terms.milestones[0].status = 'IN_PROGRESS';
+    }
+    // If contract is ACCEPTED and it is ACTIVE status logic (handled by app flow, typically accepted becomes active when work starts)
+    // For Fixed, Accepted usually means ready to start.
     
     // Add history
     updatedContract.history.push({
@@ -196,6 +208,64 @@ export const mockContractService = {
     );
 
     return updatedContract;
+  },
+
+  updateMilestoneStatus: async (contractId: string, milestoneId: string, newStatus: MilestoneStatus, userId: string, userName: string): Promise<Contract> => {
+    await delay(600);
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    const index = contracts.findIndex((c: Contract) => c.id === contractId);
+    if (index === -1) throw new Error('Contract not found');
+
+    const contract = contracts[index];
+    if (!contract.terms.milestones) throw new Error('No milestones in contract');
+
+    const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === milestoneId);
+    if (mIndex === -1) throw new Error('Milestone not found');
+
+    // Update status
+    contract.terms.milestones[mIndex].status = newStatus;
+
+    let note = `Milestone "${contract.terms.milestones[mIndex].title}" marked as ${newStatus}`;
+
+    // Logic for unlocking next milestone
+    if (newStatus === 'PAID') {
+       // If there is a next milestone, unlock it
+       if (mIndex + 1 < contract.terms.milestones.length) {
+         contract.terms.milestones[mIndex + 1].status = 'IN_PROGRESS';
+         note += ` and next milestone unlocked.`;
+       }
+    }
+
+    // Add History
+    contract.history.push({
+      id: Math.random().toString(36).substr(2, 9),
+      date: new Date().toISOString(),
+      action: 'milestone_update',
+      actorName: userName,
+      actionBy: userId,
+      note
+    });
+
+    contracts[index] = contract;
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    // Notify
+    const isCreatorAction = userId === contract.creatorId;
+    const targetUserId = isCreatorAction ? contract.clientId : contract.creatorId;
+    
+    let notifyTitle = 'Milestone Update';
+    if (newStatus === 'UNDER_REVIEW') notifyTitle = 'Work Submitted for Review';
+    if (newStatus === 'PAID') notifyTitle = 'Milestone Paid';
+
+    createNotification(
+       targetUserId,
+       notifyTitle,
+       `${userName}: ${note}`,
+       newStatus === 'PAID' ? 'success' : 'info',
+       `/creator/contracts/${contract.id}`
+    );
+
+    return contract;
   },
 
   requestEndContract: async (contractId: string, userId: string, userName: string, reason: string, type: 'completion' | 'termination'): Promise<Contract> => {

@@ -4,7 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
-  Smartphone, Building, Bitcoin, Lock
+  Smartphone, Building, Bitcoin, Lock, Flag, Loader
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -12,7 +12,7 @@ import Input from '../../components/Input';
 import { useAuth } from '../../context/AuthContext';
 import { mockContractService } from '../../services/mockContract';
 import { mockAuth } from '../../services/mockAuth';
-import { Contract, ContractStatus, Message, ContractTerms, User } from '../../types';
+import { Contract, ContractStatus, Message, ContractTerms, User, MilestoneStatus } from '../../types';
 
 const ContractDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -47,13 +47,14 @@ const ContractDetail: React.FC = () => {
 
   // Counter offer state
   const [counterTerms, setCounterTerms] = useState<ContractTerms>({
+    paymentType: 'FIXED',
     amount: 0,
     currency: 'KES',
     durationDays: 0,
     deliverables: [],
     schedule: '',
     startDate: '',
-    deposit: 0
+    milestones: []
   });
 
   const scrollToBottom = () => {
@@ -134,6 +135,18 @@ const ContractDetail: React.FC = () => {
       console.error(e);
     }
   };
+
+  const handleUpdateMilestone = async (milestoneId: string, status: MilestoneStatus) => {
+    if (!contract || !user) return;
+    try {
+      const updated = await mockContractService.updateMilestoneStatus(
+        contract.id, milestoneId, status, user.id, user.name
+      );
+      setContract(updated);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   const handleRequestEndContract = async () => {
     if (!contract || !user || !endReason) return;
@@ -248,8 +261,8 @@ const ContractDetail: React.FC = () => {
   const isRejectedEndRequest = contract.endRequest?.status === 'rejected';
   const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
 
-  // Show Payment Info only if Client Viewer, Contract is Accepted/Active, Deposit Exists, and Creator has payment methods
-  const showPaymentInfo = isClientViewer && isActive && (contract.terms.deposit || 0) > 0 && creatorUser?.profile?.paymentMethods;
+  // Show Payment Info only if Client Viewer, Contract is Accepted/Active, and Creator has payment methods
+  const showPaymentInfo = isClientViewer && isActive && creatorUser?.profile?.paymentMethods;
 
   // Helper for rendering comparison values
   const renderDiffValue = (
@@ -286,60 +299,80 @@ const ContractDetail: React.FC = () => {
     );
   };
 
-  // Helper for rendering deliverables diff
-  const renderDeliverablesDiff = () => {
-    const current = contract.terms.deliverables;
-    const previous = contract.previousTerms?.deliverables || [];
-    const isNegotiating = contract.status === ContractStatus.NEGOTIATING;
+  // Milestone Renderer
+  const renderMilestones = () => {
+     if (!contract.terms.milestones || contract.terms.milestones.length === 0) return null;
+     
+     return (
+       <div className="space-y-4 mt-6">
+         <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
+            <Flag size={20} className="mr-2 text-brand-600" /> 
+            Milestones
+         </h3>
+         <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-4 space-y-8 pl-8 py-2">
+            {contract.terms.milestones.map((ms, idx) => {
+               const isLocked = ms.status === 'PENDING';
+               const isPaid = ms.status === 'PAID';
+               const isInProgress = ms.status === 'IN_PROGRESS';
+               const isReview = ms.status === 'UNDER_REVIEW';
+               
+               return (
+                  <div key={ms.id} className={`relative p-5 rounded-xl border ${isInProgress || isReview ? 'bg-white dark:bg-slate-900 border-brand-200 dark:border-brand-900 shadow-md ring-1 ring-brand-500/30' : isPaid ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-70'}`}>
+                     {/* Timeline Node */}
+                     <div className={`absolute -left-[41px] top-6 w-6 h-6 rounded-full border-4 flex items-center justify-center ${
+                       isPaid ? 'bg-green-500 border-green-100 dark:border-green-900' : 
+                       isInProgress || isReview ? 'bg-brand-500 border-brand-100 dark:border-brand-900' : 
+                       'bg-slate-300 border-slate-100 dark:bg-slate-700 dark:border-slate-800'
+                     }`}>
+                        {isPaid && <CheckCircle size={12} className="text-white" />}
+                        {isLocked && <Lock size={10} className="text-slate-500" />}
+                        {(isInProgress || isReview) && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
+                     </div>
 
-    // If not negotiating or no previous terms, just show current list
-    if (!isNegotiating || !contract.previousTerms) {
-       return (
-          <ul className="list-disc list-inside space-y-1 text-slate-600 dark:text-slate-300 ml-1">
-            {current.map((item, i) => <li key={i}>{item}</li>)}
-          </ul>
-       );
-    }
+                     <div className="flex justify-between items-start mb-2">
+                        <div>
+                           <h4 className="font-bold text-slate-900 dark:text-white text-lg">{ms.title}</h4>
+                           <p className="text-sm text-slate-500 dark:text-slate-400">{ms.description}</p>
+                        </div>
+                        <div className="text-right">
+                           <div className="font-bold text-slate-900 dark:text-white">{contract.terms.currency} {ms.amount.toLocaleString()}</div>
+                           <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
+                              isPaid ? 'bg-green-100 text-green-700' :
+                              isReview ? 'bg-orange-100 text-orange-700' :
+                              isInProgress ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-600'
+                           }`}>
+                              {ms.status.replace('_', ' ')}
+                           </span>
+                        </div>
+                     </div>
 
-    // Calculate Diffs
-    const removed = previous.filter(p => !current.includes(p));
-    const added = current.filter(c => !previous.includes(c));
-    const unchanged = current.filter(c => previous.includes(c));
-
-    return (
-      <div className="space-y-2 ml-1">
-         {/* Removed Items */}
-         {removed.map((item, i) => (
-           <div key={`rem-${i}`} className="flex items-start text-slate-400 text-sm group">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-500 mr-2 flex-shrink-0 mt-0.5">
-                <XCircle size={12} />
-              </span>
-              <span className="line-through decoration-red-300 decoration-2">{item}</span>
-           </div>
-         ))}
-         
-         {/* Unchanged Items */}
-         {unchanged.map((item, i) => (
-           <div key={`unch-${i}`} className="flex items-start text-slate-600 dark:text-slate-300">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 mr-2 flex-shrink-0 mt-0.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-              </span>
-              {item}
-           </div>
-         ))}
-
-         {/* Added Items */}
-         {added.map((item, i) => (
-           <div key={`add-${i}`} className="flex items-start text-brand-700 dark:text-brand-300 font-medium bg-brand-50 dark:bg-brand-900/20 p-2 rounded-lg border border-brand-100 dark:border-brand-800/30">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-200 text-brand-700 mr-2 flex-shrink-0 mt-0.5">
-                <CheckCircle size={12} />
-              </span>
-              <span className="flex-1">{item}</span>
-              <span className="text-[10px] font-bold bg-brand-200 text-brand-800 px-1.5 py-0.5 rounded uppercase tracking-wide ml-2">New</span>
-           </div>
-         ))}
-      </div>
-    );
+                     {/* Actions */}
+                     {isActive && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex justify-end">
+                           {isCreator && isInProgress && (
+                              <Button size="sm" onClick={() => handleUpdateMilestone(ms.id, 'UNDER_REVIEW')}>
+                                 Submit Work
+                              </Button>
+                           )}
+                           {isClientViewer && isReview && (
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => {}}>Request Revision</Button>
+                                <Button size="sm" onClick={() => handleUpdateMilestone(ms.id, 'PAID')}>
+                                   Approve & Release Payment
+                                </Button>
+                              </div>
+                           )}
+                           {isLocked && <span className="text-xs text-slate-400 italic flex items-center"><Lock size={12} className="mr-1"/> Locked until previous milestone is paid</span>}
+                           {isCreator && isReview && <span className="text-xs text-orange-600 flex items-center"><Clock size={12} className="mr-1"/> Waiting for client approval</span>}
+                           {isClientViewer && isInProgress && <span className="text-xs text-brand-600 flex items-center"><Loader size={12} className="mr-1 animate-spin"/> Creator is working on this</span>}
+                        </div>
+                     )}
+                  </div>
+               )
+            })}
+         </div>
+       </div>
+     );
   };
 
   return (
@@ -372,15 +405,20 @@ const ContractDetail: React.FC = () => {
                 )}
 
               </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
-                contract.status === ContractStatus.ACTIVE || contract.status === ContractStatus.ACCEPTED ? 'bg-green-100 text-green-700' : 
-                contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' :
-                contract.status === ContractStatus.NEGOTIATING ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-200' :
-                contract.status === ContractStatus.COMPLETED ? 'bg-slate-100 text-slate-700' :
-                'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-              }`}>
-                {contract.status.replace('_', ' ')}
-              </span>
+              <div className="text-right">
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold uppercase mb-2 ${
+                  contract.status === ContractStatus.ACTIVE || contract.status === ContractStatus.ACCEPTED ? 'bg-green-100 text-green-700' : 
+                  contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' :
+                  contract.status === ContractStatus.NEGOTIATING ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-200' :
+                  contract.status === ContractStatus.COMPLETED ? 'bg-slate-100 text-slate-700' :
+                  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                }`}>
+                  {contract.status.replace('_', ' ')}
+                </span>
+                {contract.terms.paymentType && (
+                  <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold">{contract.terms.paymentType} Contract</div>
+                )}
+              </div>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{contract.description}</p>
             
@@ -394,7 +432,7 @@ const ContractDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Payment Information (Visible to Client ONLY when Active/Accepted and Deposit > 0) */}
+          {/* Payment Information (Visible to Client ONLY when Active/Accepted) */}
           {showPaymentInfo && (
             <div className="bg-brand-50 dark:bg-brand-900/20 rounded-2xl shadow-sm border border-brand-200 dark:border-brand-800 p-6">
               <div className="flex items-center mb-4">
@@ -402,7 +440,10 @@ const ContractDetail: React.FC = () => {
                  <h3 className="font-bold text-lg text-brand-900 dark:text-brand-300">Creator Payment Details</h3>
               </div>
               <p className="text-sm text-brand-700 dark:text-brand-400 mb-6">
-                 Please make the deposit payment of <span className="font-bold">{contract.terms.currency} {contract.terms.deposit?.toLocaleString()}</span> using one of the methods below.
+                 {contract.terms.paymentType === 'MILESTONE' 
+                   ? "Payments are released per milestone. Please use one of these methods when a milestone is approved."
+                   : "Payment is due upon completion of the project."
+                 }
               </p>
               
               <div className="grid gap-4 md:grid-cols-2">
@@ -473,15 +514,6 @@ const ContractDetail: React.FC = () => {
                  contract.terms.currency
               )}
 
-              {/* Deposit Diff */}
-              {contract.terms.deposit !== undefined && renderDiffValue(
-                 contract.terms.deposit,
-                 contract.previousTerms?.deposit,
-                 "Deposit",
-                 <Shield size={14} className="mr-1"/>,
-                 contract.terms.currency
-              )}
-
               {/* Duration Diff */}
               {renderDiffValue(
                  contract.terms.durationDays,
@@ -492,7 +524,7 @@ const ContractDetail: React.FC = () => {
                  "Days"
               )}
               
-              {/* Added Offer Expiry Display (No Diff needed usually) */}
+              {/* Added Offer Expiry Display */}
               {contract.expiryDate && (
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-orange-100 dark:border-orange-900/20">
                   <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Clock size={14} className="mr-1 text-orange-500"/> Offer Expires</div>
@@ -501,12 +533,19 @@ const ContractDetail: React.FC = () => {
               )}
             </div>
 
-            <div className="space-y-4">
-               <div>
-                 <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Deliverables</h4>
-                 {renderDeliverablesDiff()}
+            {contract.terms.paymentType === 'MILESTONE' && renderMilestones()}
+
+            {contract.terms.paymentType === 'FIXED' && isActive && (
+               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800 mb-6 flex items-start gap-3">
+                 <Shield className="text-blue-600 mt-1" size={20} />
+                 <div>
+                   <h4 className="font-bold text-blue-900 dark:text-blue-300">End-of-Project Payment</h4>
+                   <p className="text-sm text-blue-700 dark:text-blue-400">This is a fixed contract. Payment is released in full only upon successful completion of all work.</p>
+                 </div>
                </div>
-               
+            )}
+
+            <div className="space-y-4 mt-6">
                {contract.terms.revisionPolicy && (
                   <div>
                     <h4 className="font-semibold text-slate-900 dark:text-white mb-1">Revision Policy</h4>
@@ -674,6 +713,7 @@ const ContractDetail: React.FC = () => {
                       {item.action === 'started' && 'Contract Started'}
                       {item.action === 'completed' && 'Contract Completed'}
                       {item.action === 'cancelled' && 'Contract Cancelled'}
+                      {item.action === 'milestone_update' && 'Milestone Updated'}
                       {item.action === 'end_request_rejected' && 'End Request Rejected'}
                     </span>
                     <span className="text-sm text-slate-500 dark:text-slate-400">
@@ -766,12 +806,7 @@ const ContractDetail: React.FC = () => {
                 value={counterTerms.amount}
                 onChange={(e) => setCounterTerms({...counterTerms, amount: parseInt(e.target.value)})}
               />
-              <Input 
-                label="Deposit (KES)"
-                type="number"
-                value={counterTerms.deposit || 0}
-                onChange={(e) => setCounterTerms({...counterTerms, deposit: parseInt(e.target.value)})}
-              />
+              {/* Removed Deposit Input here as per specification */}
               <Input 
                 label="Duration (Days)"
                 type="number"
@@ -779,40 +814,6 @@ const ContractDetail: React.FC = () => {
                 onChange={(e) => setCounterTerms({...counterTerms, durationDays: parseInt(e.target.value)})}
               />
               
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Deliverables</label>
-                <div className="space-y-2">
-                  {counterTerms.deliverables.map((item, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input 
-                        className="flex-1 px-3 py-2 border rounded-lg text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                        value={item}
-                        onChange={(e) => {
-                          const newD = [...counterTerms.deliverables];
-                          newD[i] = e.target.value;
-                          setCounterTerms({...counterTerms, deliverables: newD});
-                        }}
-                      />
-                      <button 
-                        onClick={() => {
-                          const newD = counterTerms.deliverables.filter((_, idx) => idx !== i);
-                          setCounterTerms({...counterTerms, deliverables: newD});
-                        }}
-                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  ))}
-                  <button 
-                    onClick={() => setCounterTerms({...counterTerms, deliverables: [...counterTerms.deliverables, '']})}
-                    className="text-sm text-brand-600 font-medium hover:text-brand-700"
-                  >
-                    + Add Deliverable
-                  </button>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Schedule / Notes</label>
                 <textarea 

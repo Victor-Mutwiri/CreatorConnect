@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin, HelpCircle, Target, ShieldCheck, Flag } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { useAuth } from '../../context/AuthContext';
 import { mockContractService } from '../../services/mockContract';
 import { mockAuth } from '../../services/mockAuth';
-import { User, ContractTerms } from '../../types';
+import { User, ContractTerms, ContractPaymentType, Milestone } from '../../types';
 
 const CreateContract: React.FC = () => {
   const { creatorId } = useParams<{ creatorId: string }>();
@@ -23,16 +23,26 @@ const CreateContract: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [expiryDate, setExpiryDate] = useState(''); // Offer Expiry
+  const [paymentType, setPaymentType] = useState<ContractPaymentType>('MILESTONE');
+  
   const [terms, setTerms] = useState<ContractTerms>({
+    paymentType: 'MILESTONE',
     amount: 0,
     currency: 'KES',
-    deposit: 0,
-    durationDays: 7,
+    durationDays: 14,
     deliverables: [''],
     schedule: '',
     startDate: '',
-    revisionPolicy: '1 Revision'
+    revisionPolicy: '1 Revision',
+    milestones: []
   });
+
+  // Milestone Builder State
+  const [milestones, setMilestones] = useState<Partial<Milestone>[]>([
+    { title: 'Milestone 1', amount: 0, description: '' },
+    { title: 'Milestone 2', amount: 0, description: '' },
+    { title: 'Milestone 3', amount: 0, description: '' }
+  ]);
 
   useEffect(() => {
     const fetchCreator = async () => {
@@ -45,11 +55,34 @@ const CreateContract: React.FC = () => {
     fetchCreator();
   }, [creatorId]);
 
+  // Recalculate total amount when milestones change in milestone mode
+  useEffect(() => {
+    if (paymentType === 'MILESTONE') {
+      const total = milestones.reduce((sum, m) => sum + (m.amount || 0), 0);
+      setTerms(prev => ({ ...prev, amount: total }));
+    }
+  }, [milestones, paymentType]);
+
   const handleCreate = async () => {
     if (!user || !creator || !title || !terms.amount) return;
     
     setIsSubmitting(true);
     try {
+      const finalTerms = { ...terms, paymentType };
+      
+      if (paymentType === 'MILESTONE') {
+        finalTerms.milestones = milestones.map((m, idx) => ({
+          id: `ms-${Date.now()}-${idx}`,
+          title: m.title || `Milestone ${idx + 1}`,
+          description: m.description || '',
+          amount: m.amount || 0,
+          status: 'PENDING'
+        })) as Milestone[];
+      } else {
+        // Clear milestones if fixed
+        finalTerms.milestones = [];
+      }
+
       const contract = await mockContractService.createContract(
         user.id,
         user.clientProfile?.businessName || user.name,
@@ -59,7 +92,7 @@ const CreateContract: React.FC = () => {
         {
           title,
           description,
-          terms,
+          terms: finalTerms,
           expiryDate
         }
       );
@@ -87,7 +120,8 @@ const CreateContract: React.FC = () => {
     terms.amount > 0 &&
     terms.durationDays > 0 &&
     terms.startDate !== '' &&
-    expiryDate !== '';
+    expiryDate !== '' &&
+    (paymentType === 'FIXED' || (paymentType === 'MILESTONE' && milestones.length > 0 && milestones.every(m => (m.amount || 0) > 0 && m.title)));
 
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!creator) return <div className="p-20 text-center dark:text-white">Creator not found</div>;
@@ -137,43 +171,47 @@ const CreateContract: React.FC = () => {
              </div>
            </div>
 
+           {/* Contract Type Selection */}
            <div className="border-t border-slate-100 dark:border-slate-800 pt-6">
-             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center">
-               <Calendar size={20} className="mr-2 text-brand-600" /> Deliverables
-             </h3>
-             <div className="space-y-3">
-               {terms.deliverables.map((item, idx) => (
-                 <div key={idx} className="flex gap-2">
-                    <input 
-                      className="flex-1 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
-                      placeholder="e.g. 1 x 60s Reel Video"
-                      value={item}
-                      onChange={(e) => {
-                        const newD = [...terms.deliverables];
-                        newD[idx] = e.target.value;
-                        setTerms({...terms, deliverables: newD});
-                      }}
-                    />
-                    <button 
-                      onClick={() => {
-                        if (terms.deliverables.length > 1) {
-                           const newD = terms.deliverables.filter((_, i) => i !== idx);
-                           setTerms({...terms, deliverables: newD});
-                        }
-                      }}
-                      className="text-slate-400 hover:text-red-500 p-2"
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                 </div>
-               ))}
-               <button 
-                 onClick={() => setTerms({...terms, deliverables: [...terms.deliverables, '']})}
-                 className="flex items-center text-sm font-bold text-brand-600 hover:text-brand-700"
-               >
-                 <Plus size={16} className="mr-1" /> Add Deliverable
-               </button>
-             </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                 <Target size={20} className="mr-2 text-brand-600" /> Contract Type
+              </h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                 <button
+                   onClick={() => setPaymentType('MILESTONE')}
+                   className={`p-6 rounded-xl border-2 text-left transition-all relative ${
+                     paymentType === 'MILESTONE'
+                       ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500'
+                       : 'border-slate-200 dark:border-slate-800 hover:border-brand-200 dark:hover:border-brand-800'
+                   }`}
+                 >
+                    <div className="flex items-center gap-3 mb-2">
+                       <Flag className={`w-6 h-6 ${paymentType === 'MILESTONE' ? 'text-brand-600' : 'text-slate-400'}`} />
+                       <span className="font-bold text-slate-900 dark:text-white">Milestone Contract</span>
+                       {paymentType === 'MILESTONE' && <span className="text-xs font-bold bg-brand-200 text-brand-800 px-2 py-0.5 rounded ml-auto">Recommended</span>}
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                       Best for most projects. Break the work into phases (Deliver → Verify → Pay). Safe for both parties.
+                    </p>
+                 </button>
+
+                 <button
+                   onClick={() => setPaymentType('FIXED')}
+                   className={`p-6 rounded-xl border-2 text-left transition-all ${
+                     paymentType === 'FIXED'
+                       ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500'
+                       : 'border-slate-200 dark:border-slate-800 hover:border-brand-200 dark:hover:border-brand-800'
+                   }`}
+                 >
+                    <div className="flex items-center gap-3 mb-2">
+                       <DollarSign className={`w-6 h-6 ${paymentType === 'FIXED' ? 'text-brand-600' : 'text-slate-400'}`} />
+                       <span className="font-bold text-slate-900 dark:text-white">Fixed Contract</span>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                       Best for small, quick jobs with returning creators. Payment released fully at the end. High risk for new relationships.
+                    </p>
+                 </button>
+              </div>
            </div>
 
            {/* Terms */}
@@ -181,20 +219,100 @@ const CreateContract: React.FC = () => {
              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center">
                <DollarSign size={20} className="mr-2 text-brand-600" /> Payment & Schedule
              </h3>
+
+             {paymentType === 'FIXED' ? (
+                // FIXED CONTRACT INPUTS
+                <div className="mb-6 bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                   <p className="text-sm text-slate-500 mb-4 flex items-center">
+                      <AlertCircle size={16} className="mr-2" /> 
+                      Payment will be held in escrow and released only when you mark the contract as complete.
+                   </p>
+                   <Input 
+                      label="Total Contract Amount (KES)"
+                      type="number"
+                      value={terms.amount || ''}
+                      onChange={(e) => setTerms({...terms, amount: Number(e.target.value)})}
+                      required
+                   />
+                </div>
+             ) : (
+                // MILESTONE CONTRACT INPUTS
+                <div className="mb-6 space-y-4">
+                   <div className="flex justify-between items-center">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label>
+                      <span className="text-sm font-bold text-brand-600">Total: KES {terms.amount.toLocaleString()}</span>
+                   </div>
+                   
+                   {milestones.map((ms, idx) => (
+                      <div key={idx} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-start">
+                         <div className="flex items-center justify-center bg-white dark:bg-slate-900 w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600 font-bold text-slate-500 text-sm flex-shrink-0 mt-2">
+                           {idx + 1}
+                         </div>
+                         <div className="flex-1 w-full space-y-3">
+                            <div className="flex flex-col md:flex-row gap-4">
+                               <Input 
+                                 label="Milestone Title"
+                                 placeholder={`Phase ${idx + 1}`}
+                                 value={ms.title}
+                                 onChange={(e) => {
+                                    const newM = [...milestones];
+                                    newM[idx].title = e.target.value;
+                                    setMilestones(newM);
+                                 }}
+                               />
+                               <Input 
+                                 label="Amount (KES)"
+                                 type="number"
+                                 placeholder="0"
+                                 value={ms.amount || ''}
+                                 onChange={(e) => {
+                                    const newM = [...milestones];
+                                    newM[idx].amount = Number(e.target.value);
+                                    setMilestones(newM);
+                                 }}
+                               />
+                            </div>
+                            <Input 
+                               label="Description / Deliverable"
+                               placeholder="What is being delivered in this phase?"
+                               value={ms.description}
+                               onChange={(e) => {
+                                  const newM = [...milestones];
+                                  newM[idx].description = e.target.value;
+                                  setMilestones(newM);
+                               }}
+                            />
+                         </div>
+                         <button 
+                            onClick={() => {
+                               if (milestones.length > 1) {
+                                  setMilestones(milestones.filter((_, i) => i !== idx));
+                               }
+                            }}
+                            className="text-slate-400 hover:text-red-500 p-2 mt-2"
+                            disabled={milestones.length <= 1}
+                         >
+                            <Trash2 size={20} />
+                         </button>
+                      </div>
+                   ))}
+                   
+                   <button 
+                      onClick={() => setMilestones([...milestones, { title: '', amount: 0, description: '' }])}
+                      className="flex items-center text-sm font-bold text-brand-600 hover:text-brand-700 mt-2"
+                   >
+                      <Plus size={16} className="mr-1" /> Add Milestone
+                   </button>
+                   
+                   {milestones.length < 3 && (
+                      <p className="text-xs text-orange-500 flex items-center mt-2">
+                         <AlertCircle size={12} className="mr-1" /> Recommendation: Break projects into 3-10 milestones for better security.
+                      </p>
+                   )}
+                </div>
+             )}
+
              <div className="grid md:grid-cols-2 gap-6 mb-6">
-                <Input 
-                   label="Total Amount (KES)"
-                   type="number"
-                   value={terms.amount || ''}
-                   onChange={(e) => setTerms({...terms, amount: Number(e.target.value)})}
-                   required
-                />
-                <Input 
-                   label="Upfront Deposit (KES)"
-                   type="number"
-                   value={terms.deposit || 0}
-                   onChange={(e) => setTerms({...terms, deposit: Number(e.target.value)})}
-                />
                 <Input 
                    label="Duration (Days)"
                    type="number"
@@ -263,11 +381,11 @@ const CreateContract: React.FC = () => {
              </div>
              
              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Schedule / Milestones Description</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Additional Notes</label>
                 <textarea 
                     className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
                     rows={3}
-                    placeholder="e.g. 50% Deposit on Start, 50% on Final Approval..."
+                    placeholder="Any specific instructions..."
                     value={terms.schedule}
                     onChange={(e) => setTerms({...terms, schedule: e.target.value})}
                 />
@@ -305,7 +423,7 @@ const CreateContract: React.FC = () => {
            {!isValid && (
              <div className="flex items-center text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg text-sm">
                <AlertCircle size={18} className="mr-2" />
-               Please fill in all required fields (Title, Amount, Duration, Start Date, Offer Expiry) to send.
+               Please fill in all required fields to send.
              </div>
            )}
 
