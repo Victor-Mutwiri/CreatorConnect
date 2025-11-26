@@ -32,12 +32,12 @@ const StatCard: React.FC<{
 
   return (
     <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-row items-center gap-3 transition-transform hover:scale-[1.02]">
-      <div className={`p-2 rounded-lg ${iconBg}`}>
+      <div className={`p-2 rounded-lg ${iconBg} flex-shrink-0`}>
         <Icon size={18} />
       </div>
-      <div>
-        <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">{title}</p>
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">{value}</h3>
+      <div className="min-w-0">
+        <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5 truncate">{title}</p>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none truncate">{value}</h3>
         {trend && (
           <span className={`inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${trendUp ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
             {trend}
@@ -71,7 +71,6 @@ const Dashboard: React.FC = () => {
   }, [user]);
 
   // Updated filtering logic to be more precise
-  // Active jobs include ACCEPTED (agreed upon) and ACTIVE (in progress)
   const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status));
   const pendingContracts = contracts.filter(c => [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status));
   const rejectedContracts = contracts.filter(c => c.status === ContractStatus.DECLINED);
@@ -87,20 +86,7 @@ const Dashboard: React.FC = () => {
     (c.endRequest?.status === 'pending' && c.endRequest.type === 'termination')
   ).length;
 
-  // Closed Disputes (Creator): Contracts that had a dispute interaction but are currently not disputed
-  const closedDisputesCount = contracts.reduce((acc, c) => {
-    const hasHistoryOfDispute = c.history.some(h => 
-        (h.action === 'milestone_update' && h.note?.includes('Dispute')) ||
-        (h.action === 'milestone_update' && h.note?.includes('DISPUTED'))
-    );
-    const isCurrentlyDisputed = c.terms.milestones?.some(m => m.status === 'DISPUTED');
-    
-    if (hasHistoryOfDispute && !isCurrentlyDisputed) return acc + 1;
-    return acc;
-  }, 0);
-
   // Calculated stats (mocked earnings for now as we don't have completed payment history)
-  // UPDATED: Calculate earnings based on PAID milestones + Completed Fixed Contracts
   const calculateTotalEarnings = (userContracts: Contract[]) => {
     return userContracts.reduce((total, contract) => {
       // Case 1: Milestone Contract
@@ -162,11 +148,11 @@ const Dashboard: React.FC = () => {
           </Link>
         </div>
 
-        {/* Stats Grid - Updated to be more compact via StatCard redesign */}
+        {/* Stats Grid - Updated to be more compact */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
           <StatCard 
             title="Earnings" 
-            value={`KES ${totalEarnings.toLocaleString()}`} 
+            value={`KES ${totalEarnings >= 1000 ? (totalEarnings/1000).toFixed(1) + 'k' : totalEarnings}`} 
             icon={DollarSign} 
             color="brand"
           />
@@ -195,7 +181,7 @@ const Dashboard: React.FC = () => {
               color={activeDisputesCount > 0 ? "red" : "slate"}
             />
             <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-row items-center gap-3 transition-transform hover:scale-[1.02]">
-              <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+              <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 flex-shrink-0">
                 <CheckCircle size={18} />
               </div>
               <div>

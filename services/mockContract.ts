@@ -1,4 +1,3 @@
-
 import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof, Milestone } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
@@ -552,6 +551,30 @@ export const mockContractService = {
         'success',
         `/creator/contracts/${updatedContract.id}`
       );
+
+      // --- NEW: Mutual Review Notification Trigger ---
+      if (newStatus === ContractStatus.COMPLETED) {
+        const clientNotificationMsg = `Leave a Review for ${updatedContract.creatorName}`;
+        const creatorNotificationMsg = `Leave a Review for ${updatedContract.clientName}`;
+        
+        // Notify Client
+        createNotification(
+          updatedContract.clientId,
+          'Contract Completed!',
+          clientNotificationMsg,
+          'success',
+          `/creator/contracts/${updatedContract.id}`
+        );
+
+        // Notify Creator
+        createNotification(
+          updatedContract.creatorId,
+          'Contract Completed!',
+          creatorNotificationMsg,
+          'success',
+          `/creator/contracts/${updatedContract.id}`
+        );
+      }
 
     } else {
       updatedContract.endRequest.status = 'rejected';

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   PlusCircle, Search, Briefcase, 
-  TrendingUp, Bell, CheckCircle, Clock,
+  TrendingUp, Bell, Clock,
   CreditCard, User as UserIcon, Send,
-  AlertTriangle, Gavel, Users, Heart, Star
+  AlertTriangle, Gavel, Users, Heart, Star, CheckCircle
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -27,7 +27,6 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
   const profile = creator.profile;
   if (!profile) return null;
 
-  // Handle case where user just signed up and has no images/data
   const coverImage = profile.portfolio?.images?.[0];
   const categories = profile.categories || [];
   const trustScore = profile.verification?.trustScore || 0;
@@ -111,6 +110,7 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
   );
 };
 
+// New Compact Widget
 const StatWidget: React.FC<{
   label: string;
   value: string | number;
@@ -119,12 +119,12 @@ const StatWidget: React.FC<{
   iconColorClass: string;
 }> = ({ label, value, icon: Icon, colorClass, iconColorClass }) => (
   <div className={`bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-3 hover:border-brand-200 dark:hover:border-brand-800 transition-colors ${colorClass}`}>
-    <div className={`p-2 rounded-lg ${iconColorClass}`}>
+    <div className={`p-2 rounded-lg ${iconColorClass} flex-shrink-0`}>
       <Icon size={18} />
     </div>
-    <div>
-      <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">{label}</p>
-      <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">{value}</h3>
+    <div className="min-w-0">
+      <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5 truncate">{label}</p>
+      <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none truncate">{value}</h3>
     </div>
   </div>
 );
@@ -239,7 +239,7 @@ const ClientDashboard: React.FC = () => {
 
   const renderOverview = () => (
     <div className="space-y-6 animate-in fade-in">
-      {/* Stats Grid - Compact */}
+      {/* Stats Grid - Compact Layout */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatWidget 
             label="Active Jobs"
@@ -263,8 +263,8 @@ const ClientDashboard: React.FC = () => {
             iconColorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
           />
           <StatWidget 
-            label="Spent"
-            value={`KES ${totalSpent.toLocaleString()}`}
+            label="Total Spent"
+            value={`KES ${totalSpent >= 1000 ? (totalSpent/1000).toFixed(1) + 'k' : totalSpent}`}
             icon={TrendingUp}
             colorClass=""
             iconColorClass="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
@@ -337,7 +337,7 @@ const ClientDashboard: React.FC = () => {
                       <div className="text-right">
                          <div className="text-sm font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
                          <div className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase mt-0.5">
-                           {contract.status === ContractStatus.ACCEPTED ? 'On Track' : 'On Track'}
+                           On Track
                          </div>
                       </div>
                     </div>
