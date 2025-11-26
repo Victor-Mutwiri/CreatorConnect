@@ -5,7 +5,8 @@ import {
   PlusCircle, Search, Users, Briefcase, 
   TrendingUp, Bell, MapPin, 
   Instagram, Star, Heart, CheckCircle, Clock, Filter,
-  CreditCard, ChevronRight, User as UserIcon, Send, FileText
+  CreditCard, ChevronRight, User as UserIcon, Send, FileText,
+  AlertTriangle, Gavel
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -89,16 +90,23 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
             )}
           </div>
 
-          <div className="mt-auto flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-4">
-            <div className="text-sm">
-              <span className="text-slate-500 dark:text-slate-400 block text-xs">Starting at</span>
-              <span className="font-bold text-slate-900 dark:text-white">
-                {profile.pricing?.currency || 'KES'} {profile.pricing?.startingAt?.toLocaleString() || profile.pricing?.minRate?.toLocaleString() || 'Negotiable'}
-              </span>
+          <div className="mt-auto border-t border-slate-100 dark:border-slate-800 pt-4">
+            <div className="flex justify-between items-center mb-3">
+                <div className="text-sm">
+                  <span className="text-slate-500 dark:text-slate-400 block text-xs">Starting at</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {profile.pricing?.currency || 'KES'} {profile.pricing?.startingAt?.toLocaleString() || profile.pricing?.minRate?.toLocaleString() || 'Negotiable'}
+                  </span>
+                </div>
             </div>
-            <Link to={`/profile/${creator.id}`}>
-              <Button size="sm" variant="outline">View Profile</Button>
-            </Link>
+            <div className="grid grid-cols-2 gap-2">
+                <Link to={`/client/create-contract/${creator.id}`}>
+                  <Button size="sm" className="w-full">Hire</Button>
+                </Link>
+                <Link to={`/profile/${creator.id}`}>
+                  <Button size="sm" variant="outline" className="w-full">Profile</Button>
+                </Link>
+            </div>
           </div>
       </div>
     </div>
@@ -162,6 +170,14 @@ const ClientDashboard: React.FC = () => {
     ...completedContracts.map(c => c.creatorId)
   ]);
   const hiredTalentCount = uniqueTalent.size;
+
+  // Dispute Metrics
+  const activeDisputesCount = contracts.filter(c => 
+    c.terms.milestones?.some(m => m.status === 'DISPUTED') || 
+    (c.endRequest?.status === 'pending' && c.endRequest.type === 'termination')
+  ).length;
+
+  const closedDisputesCount = (user?.clientProfile?.stats?.disputesWon || 0) + (user?.clientProfile?.stats?.disputesLost || 0);
 
   const getStatusColor = (status: ContractStatus) => {
     switch(status) {
@@ -232,6 +248,29 @@ const ClientDashboard: React.FC = () => {
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Spent</p>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white">KES {totalSpent.toLocaleString()}</h3>
+          </div>
+      </div>
+
+      {/* Dispute Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Active Disputes</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{activeDisputesCount}</h3>
+            </div>
+            <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+              <AlertTriangle size={20} />
+            </div>
+          </div>
+          
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Closed Disputes</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{closedDisputesCount}</h3>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              <Gavel size={20} />
+            </div>
           </div>
       </div>
 

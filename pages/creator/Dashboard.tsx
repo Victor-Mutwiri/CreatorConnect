@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   BarChart3, CheckCircle, Clock, DollarSign, Bell, ArrowRight,
-  TrendingUp, Activity, Briefcase, XCircle, CheckSquare
+  TrendingUp, Activity, Briefcase, XCircle, CheckSquare, AlertTriangle, Gavel
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/AuthContext';
@@ -24,7 +24,8 @@ const StatCard: React.FC<{
     purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
     orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
     red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
-    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
   };
   
   // @ts-ignore
@@ -82,6 +83,24 @@ const Dashboard: React.FC = () => {
   
   // Calculate total closed (Completed + Cancelled)
   const closedCount = completedContracts.length + cancelledContracts.length;
+
+  // Dispute Metrics
+  const activeDisputesCount = contracts.filter(c => 
+    c.terms.milestones?.some(m => m.status === 'DISPUTED') || 
+    (c.endRequest?.status === 'pending' && c.endRequest.type === 'termination')
+  ).length;
+
+  // Closed Disputes (Creator): Contracts that had a dispute interaction but are currently not disputed
+  const closedDisputesCount = contracts.reduce((acc, c) => {
+    const hasHistoryOfDispute = c.history.some(h => 
+        (h.action === 'milestone_update' && h.note?.includes('Dispute')) ||
+        (h.action === 'milestone_update' && h.note?.includes('DISPUTED'))
+    );
+    const isCurrentlyDisputed = c.terms.milestones?.some(m => m.status === 'DISPUTED');
+    
+    if (hasHistoryOfDispute && !isCurrentlyDisputed) return acc + 1;
+    return acc;
+  }, 0);
 
   // Calculated stats (mocked earnings for now as we don't have completed payment history)
   const totalEarnings = completedContracts.reduce((sum, c) => sum + c.terms.amount, 0); 
@@ -159,24 +178,18 @@ const Dashboard: React.FC = () => {
 
          {/* Additional Stats Row */}
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Offers Rejected</p>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{rejectedContracts.length}</h3>
-              </div>
-              <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                <XCircle size={20} />
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Profile Views</p>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{profileViews}</h3>
-              </div>
-              <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-                <TrendingUp size={20} />
-              </div>
-            </div>
+            <StatCard 
+              title="Active Disputes" 
+              value={activeDisputesCount} 
+              icon={AlertTriangle} 
+              color="red"
+            />
+            <StatCard 
+              title="Closed Disputes" 
+              value={closedDisputesCount} 
+              icon={Gavel} 
+              color="slate"
+            />
              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Completion Rate</p>
