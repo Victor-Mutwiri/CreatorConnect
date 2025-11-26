@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Briefcase, User, Building, ChevronRight, ChevronLeft, 
-  Globe, MapPin, Target, Layout
+  Globe, MapPin, Target, Layout, AlertCircle
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -17,6 +16,7 @@ const ClientOnboarding: React.FC = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<ClientProfile>>({
     clientType: ClientType.INDIVIDUAL,
@@ -31,6 +31,23 @@ const ClientOnboarding: React.FC = () => {
   const totalSteps = 3;
 
   const handleNext = () => {
+    setError(null);
+
+    // Validation
+    if (currentStep === 2) {
+      if (!formData.businessName?.trim() || !formData.location?.trim() || !formData.industry?.trim()) {
+        setError("Please fill in all required fields (Business Name, Location, Industry).");
+        return;
+      }
+    }
+
+    if (currentStep === 3) {
+      if (!formData.description?.trim()) {
+        setError("Please provide a brief description about your business/profile.");
+        return;
+      }
+    }
+
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
       window.scrollTo(0, 0);
@@ -40,6 +57,7 @@ const ClientOnboarding: React.FC = () => {
   };
 
   const handleBack = () => {
+    setError(null);
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
       window.scrollTo(0, 0);
@@ -137,14 +155,14 @@ const ClientOnboarding: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-        {formData.clientType !== ClientType.INDIVIDUAL && (
-          <Input 
-            label="Business Name" 
-            placeholder={formData.clientType === ClientType.COMPANY ? "e.g. Acme Corp Ltd." : "e.g. Sarah's Boutique"}
-            value={formData.businessName}
-            onChange={(e) => setFormData({...formData, businessName: e.target.value})}
-          />
-        )}
+        
+        <Input 
+          label={formData.clientType === ClientType.INDIVIDUAL ? "Display Name / Brand Name" : "Business Name"} 
+          placeholder={formData.clientType === ClientType.COMPANY ? "e.g. Acme Corp Ltd." : "e.g. Sarah's Boutique"}
+          value={formData.businessName}
+          onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+          required
+        />
         
         <div className="relative">
            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Website (Optional)</label>
@@ -163,7 +181,7 @@ const ClientOnboarding: React.FC = () => {
         </div>
 
         <div className="relative">
-           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location</label>
+           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location <span className="text-red-500">*</span></label>
            <div className="relative">
              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <MapPin className="h-5 w-5 text-slate-400" />
@@ -174,6 +192,7 @@ const ClientOnboarding: React.FC = () => {
                 className="block w-full pl-10 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
                 value={formData.location}
                 onChange={(e) => setFormData({...formData, location: e.target.value})}
+                required
              />
            </div>
         </div>
@@ -183,6 +202,7 @@ const ClientOnboarding: React.FC = () => {
           placeholder="e.g. Fashion, Technology, Food & Beverage"
           value={formData.industry}
           onChange={(e) => setFormData({...formData, industry: e.target.value})}
+          required
         />
       </div>
     </div>
@@ -196,13 +216,14 @@ const ClientOnboarding: React.FC = () => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">About Your Business</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">About Your Business <span className="text-red-500">*</span></label>
         <textarea
           rows={4}
           className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white transition-all duration-200"
           placeholder="Describe your brand, products, or services. What is your mission?"
           value={formData.description}
           onChange={(e) => setFormData({...formData, description: e.target.value})}
+          required
         />
         <div className="text-right text-xs text-slate-400 mt-1">
           {formData.description?.length || 0}/500 characters
@@ -256,6 +277,13 @@ const ClientOnboarding: React.FC = () => {
              {currentStep === 1 && renderStep1()}
              {currentStep === 2 && renderStep2()}
              {currentStep === 3 && renderStep3()}
+
+             {error && (
+                <div className="mt-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2 text-red-600 dark:text-red-400 text-sm animate-in slide-in-from-top-2">
+                   <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                   {error}
+                </div>
+             )}
 
              <div className="mt-10 flex justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
                <button

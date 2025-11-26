@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin, HelpCircle, Target, ShieldCheck, Flag, ShieldAlert } from 'lucide-react';
@@ -40,11 +39,11 @@ const CreateContract: React.FC = () => {
   });
 
   // Milestone Builder State
-  // Default to 3 milestones to start safely
+  // Default to 3 milestones to start safely, descriptions empty to show placeholder
   const [milestones, setMilestones] = useState<Partial<Milestone>[]>([
-    { title: 'Phase 1: Initial Concept', amount: 0, description: 'Outline and initial draft' },
-    { title: 'Phase 2: Development', amount: 0, description: 'Main content creation' },
-    { title: 'Phase 3: Final Polish', amount: 0, description: 'Edits and final delivery' }
+    { title: 'Phase 1: Initial Concept', amount: 0, description: '' },
+    { title: 'Phase 2: Development', amount: 0, description: '' },
+    { title: 'Phase 3: Final Polish', amount: 0, description: '' }
   ]);
 
   useEffect(() => {
@@ -149,7 +148,7 @@ const CreateContract: React.FC = () => {
 
       newMilestones.push({
         title: `Phase ${i + 1}`,
-        description: i === 0 ? 'Initial deliverable / Concept' : 'Work in progress',
+        description: '', // Empty description to show placeholder
         amount: amount
       });
     }

@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, ChevronRight, ChevronLeft, Instagram, Youtube, Sparkles, 
-  DollarSign, Package, ShieldCheck, Copy, Upload
+  DollarSign, Package, ShieldCheck, Copy, Upload, AlertCircle
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -37,6 +36,7 @@ const Onboarding: React.FC = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<CreatorProfile>>({
@@ -64,9 +64,25 @@ const Onboarding: React.FC = () => {
   const totalSteps = 7;
 
   const handleNext = () => {
-    // Validation for Step 2
+    setError(null);
+
+    // Step 1 Validation: Basic Info
+    if (currentStep === 1) {
+      if (!formData.displayName?.trim() || !formData.username?.trim() || !formData.bio?.trim() || !formData.location?.trim()) {
+        setError("Please fill in all required fields (Display Name, Username, Bio, Location).");
+        return;
+      }
+    }
+
+    // Step 2 Validation: Categories
     if (currentStep === 2 && (formData.categories?.length || 0) === 0) {
-      alert("Please select at least one niche to continue.");
+      setError("Please select at least one niche to continue.");
+      return;
+    }
+
+    // Step 5 Validation: Skills
+    if (currentStep === 5 && (formData.experience?.skills?.length || 0) === 0) {
+      setError("Please select at least one skill.");
       return;
     }
 
@@ -79,6 +95,7 @@ const Onboarding: React.FC = () => {
   };
 
   const handleBack = () => {
+    setError(null);
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
       window.scrollTo(0, 0);
@@ -143,23 +160,26 @@ const Onboarding: React.FC = () => {
           value={formData.displayName}
           onChange={(e) => setFormData({...formData, displayName: e.target.value})}
           placeholder="e.g. Sarah K."
+          required
         />
         <Input 
           label="Username" 
           value={formData.username}
           onChange={(e) => setFormData({...formData, username: e.target.value})}
-          placeholder="e.g. sarah_creates" 
+          placeholder="e.g. sarah_creates"
+          required
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bio</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bio <span className="text-red-500">*</span></label>
         <textarea
           rows={4}
           className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white transition-all duration-200"
           placeholder="Tell brands and followers what makes you unique..."
           value={formData.bio}
           onChange={(e) => setFormData({...formData, bio: e.target.value})}
+          required
         />
         <div className="text-right text-xs text-slate-400 mt-1">
           {formData.bio?.length || 0}/200 characters
@@ -171,6 +191,7 @@ const Onboarding: React.FC = () => {
         value={formData.location}
         onChange={(e) => setFormData({...formData, location: e.target.value})}
         placeholder="City, Country"
+        required
       />
     </div>
   );
@@ -358,7 +379,7 @@ const Onboarding: React.FC = () => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Skills</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Skills (Required)</label>
         <div className="flex flex-wrap gap-2">
           {SKILLS.map(skill => {
             const isSelected = formData.experience?.skills.includes(skill);
@@ -664,6 +685,13 @@ const Onboarding: React.FC = () => {
              {currentStep === 6 && renderStep6()}
              {currentStep === 7 && renderStep7()}
 
+             {error && (
+                <div className="mt-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2 text-red-600 dark:text-red-400 text-sm animate-in slide-in-from-top-2">
+                   <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                   {error}
+                </div>
+             )}
+
              <div className="mt-10 flex justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
                <button
                  onClick={handleBack}
@@ -676,7 +704,7 @@ const Onboarding: React.FC = () => {
                  Back
                </button>
                
-               <Button onClick={handleNext} disabled={isSubmitting || (currentStep === 2 && (formData.categories?.length || 0) === 0)}>
+               <Button onClick={handleNext} disabled={isSubmitting}>
                  {isSubmitting ? 'Finalizing...' : (currentStep === totalSteps ? 'Complete Profile' : 'Continue')}
                  {!isSubmitting && currentStep !== totalSteps && <ChevronRight size={16} className="ml-1" />}
                </Button>

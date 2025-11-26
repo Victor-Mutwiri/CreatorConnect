@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -32,18 +31,18 @@ const StatCard: React.FC<{
   const iconBg = colorClasses[color] || colorClasses.brand;
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between text-left transition-transform hover:scale-[1.02]">
+    <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-row items-center gap-3 transition-transform hover:scale-[1.02]">
+      <div className={`p-2 rounded-lg ${iconBg}`}>
+        <Icon size={18} />
+      </div>
       <div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">{title}</p>
-        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-0">{value}</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">{title}</p>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">{value}</h3>
         {trend && (
-          <span className={`inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full ${trendUp ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+          <span className={`inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${trendUp ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
             {trend}
           </span>
         )}
-      </div>
-      <div className={`p-3 rounded-xl ${iconBg}`}>
-        <Icon size={20} />
       </div>
     </div>
   );
@@ -150,7 +149,7 @@ const Dashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         
         {/* Header */}
-        <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
             <p className="text-slate-600 dark:text-slate-400">Welcome back, {user?.name.split(' ')[0]}! Here's what's happening.</p>
@@ -164,9 +163,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Stats Grid - Updated to be more compact via StatCard redesign */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
           <StatCard 
-            title="Total Earnings" 
+            title="Earnings" 
             value={`KES ${totalEarnings.toLocaleString()}`} 
             icon={DollarSign} 
             color="brand"
@@ -178,47 +177,37 @@ const Dashboard: React.FC = () => {
             color="blue"
           />
            <StatCard 
-            title="Pending Offers" 
+            title="Pending" 
             value={pendingContracts.length} 
             icon={Clock} 
             color="orange"
           />
           <StatCard 
-            title="Closed Jobs" 
+            title="Closed" 
             value={closedCount} 
             icon={CheckSquare} 
             color="green"
           />
-        </div>
-
-         {/* Additional Stats Row */}
-         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-10">
-            <StatCard 
+           <StatCard 
               title="Active Disputes" 
               value={activeDisputesCount} 
               icon={AlertTriangle} 
-              color="red"
+              color={activeDisputesCount > 0 ? "red" : "slate"}
             />
-            <StatCard 
-              title="Closed Disputes" 
-              value={closedDisputesCount} 
-              icon={Gavel} 
-              color="slate"
-            />
-             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between text-left transition-transform hover:scale-[1.02]">
+            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-row items-center gap-3 transition-transform hover:scale-[1.02]">
+              <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                <CheckCircle size={18} />
+              </div>
               <div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Completion Rate</p>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-0">
+                <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">Completion</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">
                   {completedContracts.length + cancelledContracts.length > 0 
                      ? Math.round((completedContracts.length / (completedContracts.length + cancelledContracts.length)) * 100)
                      : 0}%
                 </h3>
               </div>
-              <div className="p-3 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                <CheckCircle size={20} />
-              </div>
             </div>
-         </div>
+        </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           

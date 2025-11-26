@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -34,8 +33,8 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
   const trustScore = profile.verification?.trustScore || 0;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
-      <div className="relative h-48 bg-slate-100 dark:bg-slate-800">
+    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
+      <div className="relative h-40 bg-slate-100 dark:bg-slate-800">
         {coverImage ? (
           <img 
             src={coverImage} 
@@ -44,55 +43,55 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-400">
-              <UserIcon size={48} />
+              <UserIcon size={40} />
           </div>
         )}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-2 right-2">
             <button 
               onClick={(e) => {
                 e.preventDefault();
                 onToggleSave(creator.id);
               }}
-              className={`p-2 rounded-full backdrop-blur-md transition-all ${
+              className={`p-1.5 rounded-full backdrop-blur-md transition-all ${
                 saved ? 'bg-brand-500 text-white' : 'bg-white/80 text-slate-600 hover:text-red-500'
               }`}
             >
-              <Heart size={18} fill={saved ? "currentColor" : "none"} />
+              <Heart size={16} fill={saved ? "currentColor" : "none"} />
             </button>
         </div>
       </div>
       
-      <div className="p-5 flex-1 flex flex-col">
+      <div className="p-4 flex-1 flex flex-col">
           <div className="flex justify-between items-start mb-2">
             <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center">
                 {creator.name}
-                {profile.verification?.isIdentityVerified && <CheckCircle size={16} className="text-brand-500 ml-1" />}
+                {profile.verification?.isIdentityVerified && <CheckCircle size={14} className="text-brand-500 ml-1" />}
               </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">@{profile.username}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">@{profile.username}</p>
             </div>
-            <div className="flex items-center bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs font-bold text-slate-700 dark:text-slate-300">
-                <Star size={12} className="text-yellow-500 mr-1" fill="currentColor" />
+            <div className="flex items-center bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                <Star size={10} className="text-yellow-500 mr-1" fill="currentColor" />
                 {(trustScore / 20).toFixed(1)}
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1 mb-4">
-            {categories.length > 0 ? categories.slice(0, 3).map(cat => (
-              <span key={cat} className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
+          <div className="flex flex-wrap gap-1 mb-3">
+            {categories.length > 0 ? categories.slice(0, 2).map(cat => (
+              <span key={cat} className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
                 {cat}
               </span>
             )) : (
-              <span className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-1 rounded">
+              <span className="text-[10px] uppercase tracking-wide bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
                 New Creator
               </span>
             )}
           </div>
 
-          <div className="mt-auto border-t border-slate-100 dark:border-slate-800 pt-4">
-            <div className="flex justify-between items-center mb-3">
-                <div className="text-sm">
-                  <span className="text-slate-500 dark:text-slate-400 block text-xs">Starting at</span>
+          <div className="mt-auto border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="flex justify-between items-center mb-2">
+                <div className="text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Starting at</span>
                   <span className="font-bold text-slate-900 dark:text-white">
                     {profile.pricing?.currency || 'KES'} {profile.pricing?.startingAt?.toLocaleString() || profile.pricing?.minRate?.toLocaleString() || 'Negotiable'}
                   </span>
@@ -100,10 +99,10 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
             </div>
             <div className="grid grid-cols-2 gap-2">
                 <Link to={`/client/create-contract/${creator.id}`}>
-                  <Button size="sm" className="w-full">Hire</Button>
+                  <Button size="sm" className="w-full h-8 text-xs">Hire</Button>
                 </Link>
                 <Link to={`/profile/${creator.id}`}>
-                  <Button size="sm" variant="outline" className="w-full">Profile</Button>
+                  <Button size="sm" variant="outline" className="w-full h-8 text-xs">Profile</Button>
                 </Link>
             </div>
           </div>
@@ -111,6 +110,24 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
     </div>
   );
 };
+
+const StatWidget: React.FC<{
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  colorClass: string;
+  iconColorClass: string;
+}> = ({ label, value, icon: Icon, colorClass, iconColorClass }) => (
+  <div className={`bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-3 hover:border-brand-200 dark:hover:border-brand-800 transition-colors ${colorClass}`}>
+    <div className={`p-2 rounded-lg ${iconColorClass}`}>
+      <Icon size={18} />
+    </div>
+    <div>
+      <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">{label}</p>
+      <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">{value}</h3>
+    </div>
+  </div>
+);
 
 const ClientDashboard: React.FC = () => {
   const { user, updateProfile } = useAuth();
@@ -144,6 +161,8 @@ const ClientDashboard: React.FC = () => {
         } finally {
           setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     };
     fetchData();
@@ -208,7 +227,7 @@ const ClientDashboard: React.FC = () => {
     }
   };
 
-  if (loading && contracts.length === 0 && creators.length === 0) {
+  if (loading) {
     return (
        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
@@ -219,104 +238,80 @@ const ClientDashboard: React.FC = () => {
   // --- Render Sections ---
 
   const renderOverview = () => (
-    <div className="space-y-8 animate-in fade-in">
-      {/* Stats Grid - Redesigned to be compact */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Active Jobs */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-brand-200 dark:hover:border-brand-800 transition-colors">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Active Jobs</p>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{activeContracts.length}</h3>
-            </div>
-            <div className="p-3 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-xl">
-              <Briefcase size={20} />
-            </div>
-          </div>
-
-          {/* Hired Talent */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Hired Talent</p>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{hiredTalentCount}</h3>
-            </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl">
-              <Users size={20} />
-            </div>
-          </div>
-
-          {/* Pending Offers */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Pending Offers</p>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{pendingContracts.length}</h3>
-            </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-              <Send size={20} />
-            </div>
-          </div>
-
-          {/* Total Spent */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-orange-200 dark:hover:border-orange-800 transition-colors">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Total Spent</p>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">KES {totalSpent.toLocaleString()}</h3>
-            </div>
-            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl">
-              <TrendingUp size={20} />
-            </div>
-          </div>
+    <div className="space-y-6 animate-in fade-in">
+      {/* Stats Grid - Compact */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatWidget 
+            label="Active Jobs"
+            value={activeContracts.length}
+            icon={Briefcase}
+            colorClass=""
+            iconColorClass="bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400"
+          />
+          <StatWidget 
+            label="Hired Talent"
+            value={hiredTalentCount}
+            icon={Users}
+            colorClass=""
+            iconColorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+          />
+          <StatWidget 
+            label="Pending"
+            value={pendingContracts.length}
+            icon={Send}
+            colorClass=""
+            iconColorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+          />
+          <StatWidget 
+            label="Spent"
+            value={`KES ${totalSpent.toLocaleString()}`}
+            icon={TrendingUp}
+            colorClass=""
+            iconColorClass="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
+          />
+          <StatWidget 
+            label="Active Disputes"
+            value={activeDisputesCount}
+            icon={AlertTriangle}
+            colorClass={activeDisputesCount > 0 ? "border-red-200 bg-red-50 dark:bg-red-900/10" : ""}
+            iconColorClass="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+          />
+          <StatWidget 
+            label="Closed Disputes"
+            value={closedDisputesCount}
+            icon={Gavel}
+            colorClass=""
+            iconColorClass="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+          />
       </div>
 
-      {/* Dispute Metrics Row - Compact */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Active Disputes</p>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{activeDisputesCount}</h3>
-            </div>
-            <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-              <AlertTriangle size={20} />
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Closed Disputes</p>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{closedDisputesCount}</h3>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-              <Gavel size={20} />
-            </div>
-          </div>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
             {/* Action Items / Pending */}
             {pendingContracts.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-orange-50 dark:bg-orange-900/10">
-                  <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
-                    <Clock size={20} className="mr-2 text-orange-600" /> Pending Actions
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-orange-50 dark:bg-orange-900/10">
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center">
+                    <Clock size={18} className="mr-2 text-orange-600" /> Pending Actions
                   </h3>
                 </div>
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {pendingContracts.map(contract => (
-                    <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                    <div key={contract.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                              {contract.creatorName ? (
                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(contract.creatorName)}&background=random`} alt={contract.creatorName} />
                              ) : <div className="w-full h-full bg-brand-500" />}
                            </div>
                            <div>
-                             <h4 className="font-bold text-slate-900 dark:text-white">{contract.title}</h4>
-                             <p className="text-sm text-slate-500 dark:text-slate-400">Proposal to {contract.creatorName || 'Creator'}</p>
+                             <h4 className="font-bold text-sm text-slate-900 dark:text-white">{contract.title}</h4>
+                             <p className="text-xs text-slate-500 dark:text-slate-400">Proposal to {contract.creatorName || 'Creator'}</p>
                            </div>
                         </div>
                         <Link to={`/creator/contracts/${contract.id}`}>
-                           <Button size="sm" variant="outline">View Status</Button>
+                           <Button size="sm" variant="outline" className="h-8 text-xs">View Status</Button>
                         </Link>
                       </div>
                     </div>
@@ -326,29 +321,29 @@ const ClientDashboard: React.FC = () => {
             )}
 
             {/* Recent Activity / Active */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Active Campaigns</h3>
-                <button onClick={() => setActiveTab('contracts')} className="text-sm font-medium text-brand-600 hover:text-brand-500">View All</button>
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">Active Campaigns</h3>
+                <button onClick={() => setActiveTab('contracts')} className="text-xs font-medium text-brand-600 hover:text-brand-500">View All</button>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {activeContracts.length > 0 ? activeContracts.map(contract => (
-                  <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <div key={contract.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <div className="flex justify-between items-center">
                       <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Hired: {contract.creatorName}</p>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-0.5">{contract.title}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Hired: {contract.creatorName}</p>
                       </div>
                       <div className="text-right">
                          <div className="text-sm font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
-                         <div className="text-xs text-green-600 dark:text-green-400 font-medium uppercase mt-1">
+                         <div className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase mt-0.5">
                            {contract.status === ContractStatus.ACCEPTED ? 'On Track' : 'On Track'}
                          </div>
                       </div>
                     </div>
                   </div>
                 )) : (
-                  <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+                  <div className="p-8 text-center text-slate-500 dark:text-slate-400 text-sm">
                     No active campaigns. Post a job to get started!
                   </div>
                 )}
@@ -356,47 +351,47 @@ const ClientDashboard: React.FC = () => {
             </div>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
             {/* Notifications */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-slate-900 dark:text-white">Notifications</h3>
-                <Bell size={18} className="text-slate-400" />
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">Notifications</h3>
+                <Bell size={16} className="text-slate-400" />
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {notifications.length > 0 ? notifications.slice(0, 4).map(note => (
-                  <div key={note.id} className="flex gap-3 items-start">
-                    <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${note.read ? 'bg-slate-300 dark:bg-slate-600' : 'bg-brand-500'}`} />
+                  <div key={note.id} className="flex gap-2 items-start">
+                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${note.read ? 'bg-slate-300 dark:bg-slate-600' : 'bg-brand-500'}`} />
                     <div>
-                      <p className="text-sm text-slate-800 dark:text-slate-200 leading-snug">{note.message}</p>
-                      <span className="text-xs text-slate-400 mt-1 block">
+                      <p className="text-xs text-slate-800 dark:text-slate-200 leading-snug">{note.message}</p>
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">
                         {new Date(note.date).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
                 )) : (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No new notifications.</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">No new notifications.</p>
                 )}
               </div>
             </div>
 
             {/* Payment Info */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
-                <div className="flex justify-between items-start mb-6">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-lg p-5 text-white relative overflow-hidden">
+                <div className="flex justify-between items-start mb-4">
                    <div>
-                     <p className="text-slate-400 text-sm mb-1">Payment Method</p>
-                     <p className="font-mono text-lg flex items-center">
-                       <CreditCard size={18} className="mr-2" /> •••• 4242
+                     <p className="text-slate-400 text-xs mb-1">Payment Method</p>
+                     <p className="font-mono text-sm flex items-center">
+                       <CreditCard size={16} className="mr-2" /> •••• 4242
                      </p>
                    </div>
-                   <div className="bg-white/10 px-2 py-1 rounded text-xs">Primary</div>
+                   <div className="bg-white/10 px-2 py-0.5 rounded text-[10px]">Primary</div>
                 </div>
-                <div className="pt-4 border-t border-white/10">
-                   <div className="flex justify-between text-sm mb-2">
+                <div className="pt-3 border-t border-white/10">
+                   <div className="flex justify-between text-xs mb-2">
                      <span className="text-slate-400">Next Billing</span>
                      <span>Aug 1, 2024</span>
                    </div>
-                   <button className="w-full mt-2 py-2 bg-white text-slate-900 rounded-lg text-sm font-bold hover:bg-brand-50 transition-colors">
+                   <button className="w-full mt-1 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-bold hover:bg-brand-50 transition-colors">
                      Manage Billing
                    </button>
                 </div>
@@ -463,10 +458,10 @@ const ClientDashboard: React.FC = () => {
 
   const renderContracts = () => (
     <div className="space-y-6 animate-in fade-in">
-       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {contracts.length > 0 ? contracts.map(contract => (
-               <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+               <div key={contract.id} className="p-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <div className="flex justify-between items-center">
                     <div>
                       <h4 className="font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h4>
@@ -512,12 +507,12 @@ const ClientDashboard: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-1 mb-8 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
+        <div className="flex space-x-1 mb-8 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit overflow-x-auto">
            {(['overview', 'search', 'contracts'] as Tab[]).map(tab => (
              <button
                key={tab}
                onClick={() => setActiveTab(tab)}
-               className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+               className={`px-6 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                  activeTab === tab
                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
