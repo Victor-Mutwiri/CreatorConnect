@@ -583,6 +583,27 @@ const ContractDetail: React.FC = () => {
 
   // Check if any milestone is currently disputed
   const hasActiveDispute = contract.terms.milestones?.some(m => m.status === 'DISPUTED');
+  const pendingEndRequest = contract.endRequest?.status === 'pending';
+
+  // --- NEW: Client Termination Rules ---
+  let clientEndRestriction = "";
+  if (isClientViewer && isActive) {
+    // Rule 2: Prevent if first milestone is unpaid (Milestone Contracts only)
+    if (contract.terms.paymentType === 'MILESTONE') {
+        const m1 = contract.terms.milestones?.[0];
+        if (m1 && m1.status !== 'PAID' && m1.status !== 'CANCELLED') {
+            clientEndRestriction = "Action blocked: Milestone 1 must be paid to ensure commitment.";
+        }
+    }
+    
+    // Rule 3: Prevent if creator has submitted work (Review pending)
+    const hasPendingWork = contract.terms.milestones?.some(m => 
+        ['UNDER_REVIEW', 'PAYMENT_VERIFY'].includes(m.status)
+    );
+    if (hasPendingWork) {
+        clientEndRestriction = "Action blocked: Please review submitted work first.";
+    }
+  }
 
   // Proposal/Negotiation Logic
   let canTakeAction = false;
@@ -605,7 +626,6 @@ const ContractDetail: React.FC = () => {
     }
   }
 
-  const pendingEndRequest = contract.endRequest?.status === 'pending';
   const iRequestedEnd = contract.endRequest?.requesterId === user?.id;
   const isRejectedEndRequest = contract.endRequest?.status === 'rejected';
   const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
@@ -735,9 +755,16 @@ const ContractDetail: React.FC = () => {
                            {isCreator && (
                               <div className="flex justify-end gap-2">
                                  {isInProgress && (
-                                    <Button size="sm" onClick={() => setShowSubmitWorkModal(ms.id)}>
-                                       <Upload size={16} className="mr-2" /> Submit Work
-                                    </Button>
+                                    // Rule 1: Prevent submission if active end request
+                                    pendingEndRequest ? (
+                                      <span className="text-xs text-red-600 dark:text-red-400 flex items-center bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded font-medium border border-red-200 dark:border-red-800">
+                                        <AlertTriangle size={12} className="mr-1" /> Action Blocked: End Request Pending
+                                      </span>
+                                    ) : (
+                                      <Button size="sm" onClick={() => setShowSubmitWorkModal(ms.id)}>
+                                         <Upload size={16} className="mr-2" /> Submit Work
+                                      </Button>
+                                    )
                                  )}
                                  {isPaymentVerify && (
                                     <div className="flex flex-col items-end w-full">
@@ -1182,19 +1209,23 @@ const ContractDetail: React.FC = () => {
 
           {/* 2. Active Contract Actions (End Contract) */}
           {isActive && !pendingEndRequest && (
-            <div className={`sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border ${hasActiveDispute ? 'border-red-200 dark:border-red-800 ring-2 ring-red-100 dark:ring-red-900/20' : 'border-slate-200 dark:border-slate-800'} flex items-center justify-between animate-in slide-in-from-bottom-4`}>
+            <div className={`sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border ${hasActiveDispute || clientEndRestriction ? 'border-red-200 dark:border-red-800 ring-2 ring-red-100 dark:ring-red-900/20' : 'border-slate-200 dark:border-slate-800'} flex items-center justify-between animate-in slide-in-from-bottom-4`}>
               <div>
                 <p className="font-bold text-slate-900 dark:text-white">Active Contract</p>
                 {hasActiveDispute ? (
                    <p className="text-xs text-red-500 font-medium flex items-center mt-1">
                      <AlertTriangle size={12} className="mr-1" /> Action blocked: Active dispute detected.
                    </p>
+                ) : clientEndRestriction ? (
+                   <p className="text-xs text-red-500 font-medium flex items-center mt-1">
+                     <Lock size={12} className="mr-1" /> {clientEndRestriction}
+                   </p>
                 ) : (
                    <p className="text-xs text-slate-500 dark:text-slate-400">Project is currently in progress.</p>
                 )}
               </div>
               
-              {hasActiveDispute ? (
+              {hasActiveDispute || clientEndRestriction ? (
                 <button 
                   disabled
                   className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 font-medium rounded-lg cursor-not-allowed flex items-center"
