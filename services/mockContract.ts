@@ -364,6 +364,92 @@ export const mockContractService = {
     return contract;
   },
 
+  proposeDisputeResolution: async (contractId: string, milestoneId: string, type: 'RESUME_WORK' | 'RETRY_PAYMENT', message: string, userId: string, userName: string): Promise<Contract> => {
+    await delay(600);
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    const index = contracts.findIndex((c: Contract) => c.id === contractId);
+    if (index === -1) throw new Error('Contract not found');
+
+    const contract = contracts[index];
+    if (!contract.terms.milestones) throw new Error('No milestones');
+    
+    const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === milestoneId);
+    if (mIndex === -1) throw new Error('Milestone not found');
+
+    contract.terms.milestones[mIndex].disputeResolution = {
+      requestedBy: userId,
+      requestedByName: userName,
+      type,
+      message
+    };
+
+    contracts[index] = contract;
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    // Notify other party
+    const isCreatorAction = userId === contract.creatorId;
+    const targetUserId = isCreatorAction ? contract.clientId : contract.creatorId;
+
+    createNotification(
+       targetUserId,
+       'Dispute Resolution Proposed',
+       `${userName} wants to resolve the dispute amicably.`,
+       'info',
+       `/creator/contracts/${contract.id}`
+    );
+
+    return contract;
+  },
+
+  acceptDisputeResolution: async (contractId: string, milestoneId: string, userId: string, userName: string): Promise<Contract> => {
+    await delay(600);
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    const index = contracts.findIndex((c: Contract) => c.id === contractId);
+    if (index === -1) throw new Error('Contract not found');
+
+    const contract = contracts[index];
+    if (!contract.terms.milestones) throw new Error('No milestones');
+    
+    const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === milestoneId);
+    if (mIndex === -1) throw new Error('Milestone not found');
+
+    const resolution = contract.terms.milestones[mIndex].disputeResolution;
+    if (!resolution) throw new Error('No pending resolution');
+
+    // Apply logic
+    let newStatus: MilestoneStatus = 'DISPUTED';
+    if (resolution.type === 'RESUME_WORK') newStatus = 'IN_PROGRESS';
+    if (resolution.type === 'RETRY_PAYMENT') newStatus = 'PAYMENT_VERIFY'; // Or just back to pending if they need to resend
+
+    contract.terms.milestones[mIndex].status = newStatus;
+    // Clear the resolution request
+    delete contract.terms.milestones[mIndex].disputeResolution;
+    // Can optionally clear dispute reason or keep it for history
+    
+    contract.history.push({
+      id: Math.random().toString(36).substr(2, 9),
+      date: new Date().toISOString(),
+      action: 'dispute_resolved_amicably',
+      actorName: userName,
+      actionBy: userId,
+      note: `Dispute resolved amicably. Status reverted to ${newStatus}.`
+    });
+
+    contracts[index] = contract;
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
+
+    const targetUserId = resolution.requestedBy;
+    createNotification(
+       targetUserId,
+       'Resolution Accepted',
+       `${userName} accepted your resolution proposal.`,
+       'success',
+       `/creator/contracts/${contract.id}`
+    );
+
+    return contract;
+  },
+
   requestEndContract: async (contractId: string, userId: string, userName: string, reason: string, type: 'completion' | 'termination'): Promise<Contract> => {
     await delay(600);
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');

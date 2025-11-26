@@ -220,6 +220,14 @@ export interface Milestone {
   paymentProof?: MilestonePaymentProof;
   revisionNotes?: string;
   disputeReason?: string;
+  
+  // Mutual Dispute Resolution
+  disputeResolution?: {
+    requestedBy: string; // User ID
+    requestedByName: string;
+    type: 'RESUME_WORK' | 'RETRY_PAYMENT'; // RESUME -> IN_PROGRESS, RETRY -> PAYMENT_VERIFY
+    message: string;
+  };
 }
 
 export interface ContractTerms {

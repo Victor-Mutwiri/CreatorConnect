@@ -5,7 +5,7 @@ import {
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
   Smartphone, Building, Bitcoin, Lock, Flag, Loader, Upload, Eye, ExternalLink, HelpCircle,
-  Plus, Trash2, Calculator, ChevronDown, ChevronUp, ShieldAlert, Wand2, Divide
+  Plus, Trash2, Calculator, ChevronDown, ChevronUp, ShieldAlert, Wand2, Divide, Handshake
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -39,6 +39,7 @@ const ContractDetail: React.FC = () => {
   const [showPaymentProofModal, setShowPaymentProofModal] = useState<string | null>(null); // holds milestone ID
   const [showReviewWorkModal, setShowReviewWorkModal] = useState<Milestone | null>(null);
   const [showDisputeModal, setShowDisputeModal] = useState<string | null>(null); // holds milestone ID
+  const [showResolveDisputeModal, setShowResolveDisputeModal] = useState<string | null>(null); // holds milestone ID for mutual resolution
   
   // Stress Test / Warning Modals
   const [showSubmitWarning, setShowSubmitWarning] = useState(false);
@@ -62,6 +63,8 @@ const ContractDetail: React.FC = () => {
 
   // Dispute State
   const [disputeReason, setDisputeReason] = useState('');
+  const [resolutionType, setResolutionType] = useState<'RESUME_WORK' | 'RETRY_PAYMENT'>('RESUME_WORK');
+  const [resolutionMessage, setResolutionMessage] = useState('');
 
   // End Contract State
   const [endReason, setEndReason] = useState('');
@@ -425,6 +428,41 @@ const ContractDetail: React.FC = () => {
     }
   };
 
+  // Mutual Dispute Resolution Handlers
+  const handleProposeResolution = async () => {
+    if (!contract || !user || !showResolveDisputeModal) return;
+    try {
+      const updated = await mockContractService.proposeDisputeResolution(
+        contract.id,
+        showResolveDisputeModal,
+        resolutionType,
+        resolutionMessage,
+        user.id,
+        user.name
+      );
+      setContract(updated);
+      setShowResolveDisputeModal(null);
+      setResolutionMessage('');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAcceptResolution = async (milestoneId: string) => {
+    if (!contract || !user) return;
+    try {
+      const updated = await mockContractService.acceptDisputeResolution(
+        contract.id,
+        milestoneId,
+        user.id,
+        user.name
+      );
+      setContract(updated);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // --- End Trust Handlers ---
 
   const handleRequestEndContract = async () => {
@@ -626,6 +664,10 @@ const ContractDetail: React.FC = () => {
                const isPaymentVerify = ms.status === 'PAYMENT_VERIFY';
                const isDisputed = ms.status === 'DISPUTED';
                
+               // Mutual Dispute Resolution State
+               const hasPendingResolution = !!ms.disputeResolution;
+               const iProposedResolution = ms.disputeResolution?.requestedBy === user?.id;
+
                return (
                   <div key={ms.id} className={`relative p-5 rounded-xl border ${
                      isInProgress || isReview || isPaymentVerify
@@ -750,16 +792,52 @@ const ContractDetail: React.FC = () => {
                               </div>
                            )}
                            
-                           {/* COMMON */}
+                           {/* COMMON: Disputed Status Logic */}
                            {isDisputed && (
-                              <div className="w-full bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
-                                 <p className="font-bold text-red-800 dark:text-red-400 text-sm flex items-center">
-                                    <AlertTriangle size={16} className="mr-2" /> Dispute Raised
-                                 </p>
+                              <div className="w-full bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                                 <div className="flex justify-between items-start mb-2">
+                                    <p className="font-bold text-red-800 dark:text-red-400 text-sm flex items-center">
+                                       <AlertTriangle size={16} className="mr-2" /> Dispute Raised
+                                    </p>
+                                    {!hasPendingResolution && (
+                                      <button 
+                                        onClick={() => setShowResolveDisputeModal(ms.id)}
+                                        className="text-xs flex items-center text-blue-600 dark:text-blue-400 hover:underline font-bold"
+                                      >
+                                        <Handshake size={14} className="mr-1" /> Resolve Amicably
+                                      </button>
+                                    )}
+                                 </div>
                                  <p className="text-xs text-red-700 dark:text-red-300 mt-1">
                                     Reason: {ms.disputeReason}
                                  </p>
-                                 <p className="text-xs text-slate-500 mt-2">Support team has been notified and will intervene shortly.</p>
+                                 
+                                 {/* Resolution Status Banner */}
+                                 {hasPendingResolution && (
+                                    <div className="mt-4 p-3 bg-white dark:bg-slate-800 rounded border border-blue-200 dark:border-blue-900/50 animate-in fade-in">
+                                       <p className="text-sm font-bold text-slate-800 dark:text-white mb-1">Proposed Resolution</p>
+                                       <p className="text-xs text-slate-600 dark:text-slate-300 mb-2">
+                                          <span className="font-bold">{ms.disputeResolution?.requestedByName}</span> suggests: 
+                                          <span className="italic"> "{ms.disputeResolution?.message}"</span>
+                                       </p>
+                                       <div className="flex items-center justify-between">
+                                          <span className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                                             Action: {ms.disputeResolution?.type === 'RESUME_WORK' ? 'Resume Work' : 'Retry Payment'}
+                                          </span>
+                                          {iProposedResolution ? (
+                                             <span className="text-xs text-slate-500 italic flex items-center"><Clock size={12} className="mr-1"/> Waiting for response</span>
+                                          ) : (
+                                             <Button size="sm" className="bg-green-600 hover:bg-green-700 h-8 text-xs" onClick={() => handleAcceptResolution(ms.id)}>
+                                                Accept Resolution
+                                             </Button>
+                                          )}
+                                       </div>
+                                    </div>
+                                 )}
+
+                                 {!hasPendingResolution && (
+                                    <p className="text-xs text-slate-500 mt-2">Support team has been notified. Try resolving amicably to avoid penalties.</p>
+                                 )}
                               </div>
                            )}
 
@@ -1213,6 +1291,7 @@ const ContractDetail: React.FC = () => {
                       {item.action === 'cancelled' && 'Contract Cancelled'}
                       {item.action === 'milestone_update' && 'Milestone Updated'}
                       {item.action === 'end_request_rejected' && 'End Request Rejected'}
+                      {item.action === 'dispute_resolved_amicably' && 'Dispute Resolved Amicably'}
                     </span>
                     <span className="text-sm text-slate-500 dark:text-slate-400">
                       by {item.actorName}
@@ -1445,6 +1524,63 @@ const ContractDetail: React.FC = () => {
                  <Button variant="ghost" onClick={() => setShowDisputeModal(null)}>Cancel</Button>
                  {/* Change: Open Warning Modal instead of direct submit */}
                  <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => setShowDisputeWarning(true)} disabled={!disputeReason}>Submit Dispute</Button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* 5. Mutual Dispute Resolution Modal */}
+      {showResolveDisputeModal && (
+         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-blue-200 dark:border-blue-800">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-blue-50 dark:bg-blue-900/20">
+                <h3 className="font-bold text-lg text-blue-900 dark:text-blue-300 flex items-center">
+                   <Handshake className="mr-2" size={20}/> Resolve Amicably
+                </h3>
+                <button onClick={() => setShowResolveDisputeModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-5">
+                 {/* Strategic Warning */}
+                 <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                    <div className="flex items-start">
+                       <HelpCircle className="text-blue-600 dark:text-blue-400 mr-2 mt-0.5 flex-shrink-0" size={18} />
+                       <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+                          It is in your best interest to resolve this dispute together. If Support intervenes, the liable party may face <strong>Trust Score penalties</strong> or <strong>account suspension</strong>.
+                       </p>
+                    </div>
+                 </div>
+
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Proposed Solution</label>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                       <button
+                          className={`p-3 rounded-lg border text-sm font-medium transition-all ${resolutionType === 'RESUME_WORK' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'}`}
+                          onClick={() => setResolutionType('RESUME_WORK')}
+                       >
+                          Resume Work / Fixes
+                       </button>
+                       <button
+                          className={`p-3 rounded-lg border text-sm font-medium transition-all ${resolutionType === 'RETRY_PAYMENT' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'}`}
+                          onClick={() => setResolutionType('RETRY_PAYMENT')}
+                       >
+                          Retry Payment
+                       </button>
+                    </div>
+                    <textarea 
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white text-sm"
+                      rows={3}
+                      placeholder="e.g. I will edit the video as requested, please accept to unlock status..."
+                      value={resolutionMessage}
+                      onChange={(e) => setResolutionMessage(e.target.value)}
+                    />
+                 </div>
+              </div>
+              <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+                 <Button variant="ghost" onClick={() => setShowResolveDisputeModal(null)}>Cancel</Button>
+                 <Button onClick={handleProposeResolution} disabled={!resolutionMessage}>Send Proposal</Button>
               </div>
            </div>
         </div>
