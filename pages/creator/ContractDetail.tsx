@@ -581,6 +581,9 @@ const ContractDetail: React.FC = () => {
   const isCreator = user?.id === contract.creatorId;
   const isClientViewer = user?.id === contract.clientId;
 
+  // Check if any milestone is currently disputed
+  const hasActiveDispute = contract.terms.milestones?.some(m => m.status === 'DISPUTED');
+
   // Proposal/Negotiation Logic
   let canTakeAction = false;
   let statusMessage = "";
@@ -1172,17 +1175,33 @@ const ContractDetail: React.FC = () => {
 
           {/* 2. Active Contract Actions (End Contract) */}
           {isActive && !pendingEndRequest && (
-            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between animate-in slide-in-from-bottom-4">
+            <div className={`sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border ${hasActiveDispute ? 'border-red-200 dark:border-red-800 ring-2 ring-red-100 dark:ring-red-900/20' : 'border-slate-200 dark:border-slate-800'} flex items-center justify-between animate-in slide-in-from-bottom-4`}>
               <div>
                 <p className="font-bold text-slate-900 dark:text-white">Active Contract</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Project is currently in progress.</p>
+                {hasActiveDispute ? (
+                   <p className="text-xs text-red-500 font-medium flex items-center mt-1">
+                     <AlertTriangle size={12} className="mr-1" /> Action blocked: Active dispute detected.
+                   </p>
+                ) : (
+                   <p className="text-xs text-slate-500 dark:text-slate-400">Project is currently in progress.</p>
+                )}
               </div>
-              <button 
-                onClick={() => setShowEndContractModal(true)}
-                className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-              >
-                End Contract
-              </button>
+              
+              {hasActiveDispute ? (
+                <button 
+                  disabled
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 font-medium rounded-lg cursor-not-allowed flex items-center"
+                >
+                  <Lock size={16} className="mr-2" /> End Contract
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setShowEndContractModal(true)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                >
+                  End Contract
+                </button>
+              )}
             </div>
           )}
 
