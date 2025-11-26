@@ -6,7 +6,7 @@ import {
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
   Smartphone, Building, Bitcoin, Lock, Flag, Loader, Upload, Eye, ExternalLink, HelpCircle,
-  Plus, Trash2, Target, ShieldAlert
+  Plus, Trash2, Calculator, ChevronDown, ChevronUp, ShieldAlert
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -41,6 +41,10 @@ const ContractDetail: React.FC = () => {
   const [showReviewWorkModal, setShowReviewWorkModal] = useState<Milestone | null>(null);
   const [showDisputeModal, setShowDisputeModal] = useState<string | null>(null); // holds milestone ID
   
+  // Tax Module State
+  const [taxResidency, setTaxResidency] = useState<'resident' | 'non-resident'>('resident');
+  const [showTaxDetails, setShowTaxDetails] = useState(true);
+
   // Work Submission State
   const [workLink, setWorkLink] = useState('');
   const [workNote, setWorkNote] = useState('');
@@ -421,6 +425,35 @@ const ContractDetail: React.FC = () => {
     }
   };
 
+  // --- TAX LOGIC ---
+  const handleGrossUp = () => {
+    if (!contract) return;
+    
+    const rate = taxResidency === 'resident' ? 0.05 : 0.20;
+    const multiplier = 1 / (1 - rate);
+    
+    // Calculate new Gross Amount
+    const currentAmount = contract.terms.amount;
+    const newGrossAmount = Math.ceil(currentAmount * multiplier);
+    
+    // Create a deep copy for counter terms
+    const newTerms = JSON.parse(JSON.stringify(contract.terms));
+    newTerms.amount = newGrossAmount;
+
+    // If Milestone, gross up EACH milestone
+    if (newTerms.paymentType === 'MILESTONE' && newTerms.milestones) {
+       newTerms.milestones = newTerms.milestones.map((m: Milestone) => ({
+         ...m,
+         amount: Math.ceil(m.amount * multiplier)
+       }));
+       // Recalculate total from milestones to be precise
+       newTerms.amount = newTerms.milestones.reduce((sum: number, m: Milestone) => sum + m.amount, 0);
+    }
+
+    setCounterTerms(newTerms);
+    setShowCounterModal(true);
+  };
+
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!contract) return <div className="p-20 text-center dark:text-white">Contract not found</div>;
 
@@ -663,6 +696,102 @@ const ContractDetail: React.FC = () => {
      );
   };
 
+  // Render Tax Module
+  const renderTaxModule = () => {
+    if (!contract || !isCreator || !isPending) return null;
+
+    const grossAmount = contract.terms.amount;
+    const taxRate = taxResidency === 'resident' ? 0.05 : 0.20;
+    const estimatedTax = grossAmount * taxRate;
+    const estimatedTakeHome = grossAmount - estimatedTax;
+
+    return (
+      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-6">
+        <div 
+          className="p-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center cursor-pointer"
+          onClick={() => setShowTaxDetails(!showTaxDetails)}
+        >
+          <h3 className="font-bold text-slate-800 dark:text-white flex items-center">
+            <Calculator size={20} className="mr-2 text-blue-600 dark:text-blue-400" />
+            Tax Awareness & Planning
+          </h3>
+          <button className="text-slate-500 dark:text-slate-400">
+            {showTaxDetails ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
+        </div>
+
+        {showTaxDetails && (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Residency Status:</span>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                <button
+                  onClick={() => setTaxResidency('resident')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                    taxResidency === 'resident'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  Resident (5%)
+                </button>
+                <button
+                  onClick={() => setTaxResidency('non-resident')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                    taxResidency === 'non-resident'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  Non-Resident (20%)
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-6 text-center">
+              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Offer Amount</p>
+                <p className="font-bold text-slate-900 dark:text-white">{contract.terms.currency} {grossAmount.toLocaleString()}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Est. Withholding Tax</p>
+                <p className="font-bold text-slate-600 dark:text-slate-400">{contract.terms.currency} {estimatedTax.toLocaleString()}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                <p className="text-xs text-green-700 dark:text-green-300 mb-1">Est. Take-home</p>
+                <p className="font-bold text-green-800 dark:text-green-400">{contract.terms.currency} {estimatedTakeHome.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 mb-6 flex items-start">
+              <Info size={16} className="text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" />
+              <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                <strong>Disclaimer:</strong> Ubuni Connect does not deduct or remit taxes. This tool is for your personal financial planning only. You are responsible for filing your own taxes with KRA.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white px-3 py-2"
+                onClick={() => setShowTaxDetails(false)}
+              >
+                Accept Estimate
+              </button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="bg-white dark:bg-slate-900"
+                onClick={handleGrossUp}
+              >
+                Adjust Price to Maintain Take-home
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       <Navbar />
@@ -849,6 +978,9 @@ const ContractDetail: React.FC = () => {
                </div>
             </div>
           </div>
+
+          {/* --- TAX AWARENESS MODULE --- */}
+          {renderTaxModule()}
 
           {/* --- ACTION BARS --- */}
 
