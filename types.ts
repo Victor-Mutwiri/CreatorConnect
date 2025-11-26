@@ -135,8 +135,11 @@ export interface ClientStats {
   contractsSent: number;
   contractsCompleted: number;
   hiringRate: string; // e.g. "85%"
-  reliabilityScore: number; // 0-100 (Payment reliability)
+  reliabilityScore: number; // 0-100 (Payment reliability based on reviews)
   avgResponseTime: string; // e.g. "2 hours"
+  disputesWon: number; // New
+  disputesLost: number; // New
+  trustScore: number; // 0-100 (Calculated aggregate)
 }
 
 export interface ClientProfile {
@@ -232,6 +235,9 @@ export interface ContractTerms {
   
   // Deprecated fields kept optional for backward compatibility if needed, but logic removed
   deposit?: number; 
+  
+  // Previous terms for negotiation tracking
+  previousTerms?: ContractTerms;
 }
 
 export interface ContractHistoryItem {

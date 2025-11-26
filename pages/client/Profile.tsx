@@ -1,15 +1,16 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
-  MapPin, Globe, CheckCircle, ShieldCheck, Star, 
-  Briefcase, MessageSquare, Clock
+  Globe, CheckCircle, ShieldCheck, Star, 
+  Clock, Award, AlertTriangle, UserCheck
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Button from '../../components/Button';
 import { mockAuth } from '../../services/mockAuth';
 import { mockContractService } from '../../services/mockContract';
-import { User, ClientProfile, ContractStatus } from '../../types';
+import { User, ContractStatus } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 const ClientPublicProfile: React.FC = () => {
@@ -37,7 +38,6 @@ const ClientPublicProfile: React.FC = () => {
           setContractsSent(totalContracts);
 
           // Hiring Rate: Percentage of all proposals that ended up Accepted, Active or Completed
-          // Formula: (Accepted + Active + Completed) / Total Sent Contracts * 100
           if (totalContracts > 0) {
              const successfulContracts = contractsData.filter(c => 
                [ContractStatus.ACCEPTED, ContractStatus.ACTIVE, ContractStatus.COMPLETED].includes(c.status)
@@ -72,6 +72,12 @@ const ClientPublicProfile: React.FC = () => {
   }
 
   const profile = client.clientProfile;
+  const trustScore = profile.stats?.trustScore || 0;
+  
+  // Calculate specific trust breakdown values for display
+  const reliabilityPoints = Math.round(((profile.stats?.reliabilityScore || 0) / 100) * 15);
+  const ratingPoints = Math.round(((profile.averageRating || 0) / 5) * 15);
+  const disputeCount = profile.stats?.disputesLost || 0;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -147,40 +153,87 @@ const ClientPublicProfile: React.FC = () => {
 
           <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 grid lg:grid-cols-3 gap-8">
             
-            {/* Left Column: Stats */}
+            {/* Left Column: Stats & Trust Score */}
             <div className="space-y-6">
+              
+              {/* Trust Score Card */}
+              <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4 relative z-10">
+                   <h3 className="font-bold text-slate-900 dark:text-white flex items-center">
+                    <ShieldCheck size={20} className="mr-2 text-brand-600" />
+                    Trust Score
+                   </h3>
+                   <span className={`text-2xl font-black ${trustScore >= 80 ? 'text-green-600' : trustScore >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>
+                     {trustScore}
+                   </span>
+                </div>
+
+                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 mb-6 relative z-10">
+                  <div 
+                    className={`h-3 rounded-full transition-all duration-1000 ${trustScore >= 80 ? 'bg-green-500' : trustScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                    style={{ width: `${trustScore}%` }}
+                  ></div>
+                </div>
+
+                {/* Breakdown */}
+                <div className="space-y-3 relative z-10">
+                  <div className="flex justify-between items-center text-sm">
+                     <div className="flex items-center text-slate-600 dark:text-slate-300">
+                        <UserCheck size={14} className="mr-2 text-slate-400" /> Verified Identity
+                     </div>
+                     <span className={`font-bold ${profile.isVerified ? 'text-green-600' : 'text-slate-400'}`}>
+                       {profile.isVerified ? '+20' : '0'} pts
+                     </span>
+                  </div>
+                   <div className="flex justify-between items-center text-sm">
+                     <div className="flex items-center text-slate-600 dark:text-slate-300">
+                        <Star size={14} className="mr-2 text-slate-400" /> Ratings & Reliability
+                     </div>
+                     <span className="font-bold text-slate-900 dark:text-white">
+                       +{reliabilityPoints + ratingPoints} pts
+                     </span>
+                  </div>
+                   <div className="flex justify-between items-center text-sm">
+                     <div className="flex items-center text-slate-600 dark:text-slate-300">
+                        <Award size={14} className="mr-2 text-slate-400" /> Completed Jobs
+                     </div>
+                     <span className="font-bold text-slate-900 dark:text-white">
+                       {profile.stats?.contractsCompleted ? `+${profile.stats.contractsCompleted >= 10 ? 30 : profile.stats.contractsCompleted >= 5 ? 20 : 10}` : '0'} pts
+                     </span>
+                  </div>
+                   <div className="flex justify-between items-center text-sm">
+                     <div className="flex items-center text-slate-600 dark:text-slate-300">
+                        <AlertTriangle size={14} className="mr-2 text-slate-400" /> Dispute History
+                     </div>
+                     <span className={`font-bold ${disputeCount > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                       {disputeCount > 0 ? `-${disputeCount * 10}` : '+20'} pts
+                     </span>
+                  </div>
+                </div>
+
+                {/* Decorative BG */}
+                <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-500/5 rounded-full blur-2xl z-0"></div>
+              </div>
+
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700">
-                <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
-                  <ShieldCheck size={18} className="mr-2 text-brand-600" />
-                  Client Reliability
+                <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm uppercase tracking-wide">
+                  Activity Stats
                 </h3>
                 
-                <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-slate-600 dark:text-slate-400">Payment Reliability</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{profile.stats?.reliabilityScore || 0}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div className="bg-green-500 h-2 rounded-full" style={{ width: `${profile.stats?.reliabilityScore || 0}%` }}></div>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">Based on creator reviews</p>
+                    <div className="text-2xl font-bold text-slate-900 dark:text-white">{contractsSent}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Contracts Sent</div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white">{contractsSent}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">Contracts Sent</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white">{hiringRate}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">Hiring Rate</div>
-                    </div>
+                  <div>
+                    <div className="text-2xl font-bold text-slate-900 dark:text-white">{hiringRate}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Hiring Rate</div>
                   </div>
-                  
-                  <div className="flex items-center text-sm text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-700 mt-2">
-                    <Clock size={14} className="mr-2" />
-                    Avg. Response: <span className="font-semibold ml-1 text-slate-900 dark:text-white">{profile.stats?.avgResponseTime || 'N/A'}</span>
+                  <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                     <div className="flex items-center text-sm text-slate-600 dark:text-slate-400 mt-2">
+                      <Clock size={14} className="mr-2" />
+                      Avg. Response: <span className="font-semibold ml-1 text-slate-900 dark:text-white">{profile.stats?.avgResponseTime || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               </div>

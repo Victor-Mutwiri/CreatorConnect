@@ -1,4 +1,5 @@
-import { User, UserRole, AuthResponse, CreatorProfile, ClientType, ClientProfile, Contract, ContractStatus, Review } from '../types';
+
+import { User, UserRole, AuthResponse, CreatorProfile, ClientType, ClientProfile, Contract, ContractStatus, Review, ClientStats } from '../types';
 
 const USERS_KEY = 'ubuni_users_db';
 const SESSION_KEY = 'ubuni_session';
@@ -6,6 +7,41 @@ const CONTRACTS_KEY = 'ubuni_contracts_db';
 
 // Simulating network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper: Calculate Trust Score for Client
+const calculateClientTrustScore = (profile: ClientProfile): number => {
+  let score = 0;
+
+  // 1. Identity Verification (20 pts)
+  if (profile.isVerified) {
+    score += 20;
+  }
+
+  // 2. Ratings & Reliability (30 pts)
+  // Based on Average Rating (Max 15) and Payment Reliability (Max 15)
+  if (profile.averageRating) {
+    score += (profile.averageRating / 5) * 15;
+  }
+  if (profile.stats?.reliabilityScore) {
+    score += (profile.stats.reliabilityScore / 100) * 15;
+  }
+
+  // 3. Payment/Work History (30 pts)
+  const completed = profile.stats?.contractsCompleted || 0;
+  if (completed >= 1) score += 10;
+  if (completed >= 5) score += 10;
+  if (completed >= 10) score += 10;
+
+  // 4. Dispute History (20 pts)
+  // Start with 20, deduct 10 for every lost dispute
+  let disputeScore = 20;
+  const lost = profile.stats?.disputesLost || 0;
+  disputeScore -= (lost * 10);
+  if (disputeScore < 0) disputeScore = 0;
+  score += disputeScore;
+
+  return Math.round(score);
+};
 
 export const mockAuth = {
   async signUp(email: string, password: string, name: string, role: UserRole): Promise<AuthResponse> {
@@ -45,7 +81,16 @@ export const mockAuth = {
       businessName: name,
       location: 'Kenya',
       description: 'New client account.',
-      stats: { contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', reliabilityScore: 0, avgResponseTime: '-' },
+      stats: { 
+        contractsSent: 0, 
+        contractsCompleted: 0, 
+        hiringRate: '0%', 
+        reliabilityScore: 0, 
+        avgResponseTime: '-',
+        disputesWon: 0,
+        disputesLost: 0,
+        trustScore: 20 // Base score for no disputes
+      },
       averageRating: 0,
       totalReviews: 0,
       reviews: []
@@ -119,6 +164,14 @@ export const mockAuth = {
     
     if (updates.clientProfile) {
        updatedUser.clientProfile = { ...(users[userIndex].clientProfile || {}), ...updates.clientProfile };
+       
+       // Recalculate Trust Score if client profile updated
+       if (updatedUser.role === UserRole.CLIENT) {
+         if (!updatedUser.clientProfile.stats) {
+           updatedUser.clientProfile.stats = { contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', reliabilityScore: 0, avgResponseTime: '-', disputesWon: 0, disputesLost: 0, trustScore: 20 };
+         }
+         updatedUser.clientProfile.stats.trustScore = calculateClientTrustScore(updatedUser.clientProfile);
+       }
     }
 
     users[userIndex] = updatedUser;
@@ -160,7 +213,7 @@ export const mockAuth = {
     profileToUpdate.averageRating = parseFloat((sumRatings / totalReviews).toFixed(1));
     profileToUpdate.totalReviews = totalReviews;
 
-    // If Client, Calculate Payment Reliability Score
+    // If Client, Calculate Payment Reliability Score and Trust Score
     if (user.role === UserRole.CLIENT && user.clientProfile) {
        const reviewsWithPayment = profileToUpdate.reviews.filter((r: Review) => r.paymentRating !== undefined);
        if (reviewsWithPayment.length > 0) {
@@ -170,10 +223,13 @@ export const mockAuth = {
           if (!user.clientProfile.stats) {
              user.clientProfile.stats = { 
                contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', 
-               reliabilityScore: 0, avgResponseTime: '-' 
+               reliabilityScore: 0, avgResponseTime: '-', disputesWon: 0, disputesLost: 0, trustScore: 20
              };
           }
           user.clientProfile.stats.reliabilityScore = Math.round((avgPayment / 5) * 100);
+          
+          // Recalc Trust Score
+          user.clientProfile.stats.trustScore = calculateClientTrustScore(user.clientProfile);
        }
     }
 
@@ -210,6 +266,17 @@ export const mockAuth = {
     const user = users.find((u: User) => u.id === userId);
     
     if (!user) return null;
+
+    // Recalculate stats on the fly to ensure freshness if needed (mock specific)
+    if (user.role === UserRole.CLIENT && user.clientProfile) {
+       if (!user.clientProfile.stats) {
+         user.clientProfile.stats = { 
+           contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', 
+           reliabilityScore: 0, avgResponseTime: '-', disputesWon: 0, disputesLost: 0, trustScore: 20 
+         };
+       }
+       user.clientProfile.stats.trustScore = calculateClientTrustScore(user.clientProfile);
+    }
     
     const { password: _, ...safeUser } = user;
     return safeUser;

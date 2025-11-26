@@ -1,11 +1,11 @@
 
-
 import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
 const MESSAGES_KEY = 'ubuni_messages_db';
 const NOTIFICATIONS_KEY = 'ubuni_notifications_db';
+const USERS_KEY = 'ubuni_users_db'; // Direct access to users db for stat updates
 
 // Helper to delay response
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -24,6 +24,32 @@ const createNotification = (userId: string, title: string, message: string, type
     link
   });
   localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+};
+
+// Helper: Update Client Stats
+const updateClientStats = (clientId: string, updates: { incrementCompleted?: boolean, disputeResult?: 'won' | 'lost' }) => {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const userIndex = users.findIndex((u: User) => u.id === clientId);
+  
+  if (userIndex !== -1 && users[userIndex].clientProfile) {
+    const stats = users[userIndex].clientProfile.stats || {
+       contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', 
+       reliabilityScore: 0, avgResponseTime: '-', disputesWon: 0, disputesLost: 0, trustScore: 20
+    };
+
+    if (updates.incrementCompleted) {
+      stats.contractsCompleted = (stats.contractsCompleted || 0) + 1;
+    }
+    
+    if (updates.disputeResult === 'won') {
+      stats.disputesWon = (stats.disputesWon || 0) + 1;
+    } else if (updates.disputeResult === 'lost') {
+      stats.disputesLost = (stats.disputesLost || 0) + 1;
+    }
+
+    users[userIndex].clientProfile.stats = stats;
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
 };
 
 // Seed data generator
@@ -101,6 +127,16 @@ export const mockContractService = {
     contracts.push(newContract);
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
 
+    // Update Client Stats (Contracts Sent)
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const userIndex = users.findIndex((u: User) => u.id === clientId);
+    if (userIndex !== -1 && users[userIndex].clientProfile) {
+       const stats = users[userIndex].clientProfile.stats || { contractsSent: 0 };
+       stats.contractsSent = (stats.contractsSent || 0) + 1;
+       users[userIndex].clientProfile.stats = stats;
+       localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+
     // Notify Creator
     createNotification(
       creatorId,
@@ -126,9 +162,12 @@ export const mockContractService = {
     if (status === ContractStatus.ACCEPTED && updatedContract.terms.milestones && updatedContract.terms.milestones.length > 0) {
       updatedContract.terms.milestones[0].status = 'IN_PROGRESS';
     }
-    // If contract is ACCEPTED and it is ACTIVE status logic (handled by app flow, typically accepted becomes active when work starts)
-    // For Fixed, Accepted usually means ready to start.
     
+    // If contract is completed, update stats
+    if (status === ContractStatus.COMPLETED) {
+       updateClientStats(updatedContract.clientId, { incrementCompleted: true });
+    }
+
     // Add history
     updatedContract.history.push({
       id: Math.random().toString(36).substr(2, 9),
@@ -272,7 +311,7 @@ export const mockContractService = {
          contract.terms.milestones[mIndex + 1].status = 'IN_PROGRESS';
          note += ` and next milestone unlocked.`;
        } else {
-         // If last milestone, maybe mark contract as pending completion or notify
+         // If last milestone, we could technically mark contract as pending completion or notify
        }
     }
 
@@ -378,6 +417,22 @@ export const mockContractService = {
       updatedContract.status = newStatus;
       updatedContract.endRequest.status = 'approved';
       
+      // Update Stats
+      if (newStatus === ContractStatus.COMPLETED) {
+         updateClientStats(updatedContract.clientId, { incrementCompleted: true });
+      }
+
+      // If it was a 'termination', assume it was a dispute won by the requester if approved
+      if (request.type === 'termination') {
+        // If Requester = Creator -> Client "Lost" dispute
+        // If Requester = Client -> Client "Won" dispute
+        if (requesterId === updatedContract.clientId) {
+           updateClientStats(updatedContract.clientId, { disputeResult: 'won' });
+        } else {
+           updateClientStats(updatedContract.clientId, { disputeResult: 'lost' });
+        }
+      }
+
       updatedContract.history.push({
         id: Math.random().toString(36).substr(2, 9),
         date: new Date().toISOString(),
