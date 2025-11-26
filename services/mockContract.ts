@@ -1,5 +1,5 @@
 
-import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof } from '../types';
+import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof, Milestone } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
@@ -502,6 +502,18 @@ export const mockContractService = {
       const newStatus = request.type === 'completion' ? ContractStatus.COMPLETED : ContractStatus.CANCELLED;
       updatedContract.status = newStatus;
       updatedContract.endRequest.status = 'approved';
+      updatedContract.updatedAt = new Date().toISOString();
+
+      // HANDLE MILESTONES: Cancel any remaining non-paid milestones to void them
+      if (updatedContract.terms.paymentType === 'MILESTONE' && updatedContract.terms.milestones) {
+        updatedContract.terms.milestones = updatedContract.terms.milestones.map((m: Milestone) => {
+          // If milestone is not paid, mark it as CANCELLED
+          if (['PENDING', 'IN_PROGRESS', 'UNDER_REVIEW', 'PAYMENT_VERIFY', 'DISPUTED'].includes(m.status)) {
+            return { ...m, status: 'CANCELLED' };
+          }
+          return m;
+        });
+      }
       
       // Update Stats
       if (newStatus === ContractStatus.COMPLETED) {

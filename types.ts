@@ -193,7 +193,7 @@ export enum ContractStatus {
 
 export type ContractPaymentType = 'FIXED' | 'MILESTONE';
 
-export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'PAYMENT_VERIFY' | 'PAID' | 'DISPUTED';
+export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'PAYMENT_VERIFY' | 'PAID' | 'DISPUTED' | 'CANCELLED';
 
 export interface MilestoneSubmission {
   type: 'link' | 'file';

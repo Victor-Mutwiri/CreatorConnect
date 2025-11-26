@@ -163,7 +163,20 @@ const ClientDashboard: React.FC = () => {
   const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
 
   // Stats Calculations
-  const totalSpent = completedContracts.reduce((sum, c) => sum + c.terms.amount, 0);
+  // UPDATED: Calculate spent based on PAID milestones + Completed Fixed Contracts
+  const calculateTotalSpent = (clientContracts: Contract[]) => {
+    return clientContracts.reduce((total, contract) => {
+      if (contract.terms.paymentType === 'MILESTONE' && contract.terms.milestones) {
+        const paidMilestones = contract.terms.milestones.filter(m => m.status === 'PAID');
+        return total + paidMilestones.reduce((sum, m) => sum + m.amount, 0);
+      } else if (contract.terms.paymentType === 'FIXED' && contract.status === ContractStatus.COMPLETED) {
+        return total + contract.terms.amount;
+      }
+      return total;
+    }, 0);
+  };
+
+  const totalSpent = calculateTotalSpent(contracts);
   
   const uniqueTalent = new Set([
     ...activeContracts.map(c => c.creatorId),
@@ -369,246 +382,6 @@ const ClientDashboard: React.FC = () => {
                    </button>
                 </div>
             </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderContracts = () => (
-    <div className="space-y-6 animate-in fade-in">
-       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-         {contracts.length > 0 ? (
-           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-             {contracts.map(contract => (
-               <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-                   <div className="flex items-center gap-4 w-full md:w-auto">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold">
-                        {contract.creatorName ? contract.creatorName.charAt(0) : 'C'}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white text-lg">{contract.title}</h4>
-                        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 gap-3">
-                           <span>{contract.creatorName}</span>
-                           <span>•</span>
-                           <span>{new Date(contract.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                   </div>
-                   
-                   <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                      <div className="text-right mr-4">
-                        <div className="font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">{contract.terms.deliverables.length} deliverables</div>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusColor(contract.status)}`}>
-                        {contract.status.replace('_', ' ')}
-                      </span>
-                      <Link to={`/creator/contracts/${contract.id}`}>
-                        <button className="p-2 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
-                          <ChevronRight size={20} />
-                        </button>
-                      </Link>
-                   </div>
-                 </div>
-               </div>
-             ))}
-           </div>
-         ) : (
-           <div className="p-12 text-center">
-             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-               <FileText size={24} />
-             </div>
-             <h3 className="text-lg font-medium text-slate-900 dark:text-white">No contracts found</h3>
-             <p className="text-slate-500 dark:text-slate-400 mt-1">Create a contract to get started.</p>
-           </div>
-         )}
-       </div>
-    </div>
-  );
-
-  const renderSearch = () => (
-     <div className="space-y-8 animate-in fade-in">
-        {/* Search Bar & Filters */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-           <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input 
-                  type="text" 
-                  placeholder="Search by name, category, or keywords..." 
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 dark:text-white transition-all"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-                 {CATEGORIES.map(cat => (
-                   <button
-                     key={cat}
-                     onClick={() => setSelectedCategory(cat)}
-                     className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                       selectedCategory === cat
-                         ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30'
-                         : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                     }`}
-                   >
-                     {cat}
-                   </button>
-                 ))}
-              </div>
-           </div>
-           
-           <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <span className="flex items-center"><Filter size={16} className="mr-1" /> Filters:</span>
-              <button className="hover:text-brand-600">Price Range</button>
-              <button className="hover:text-brand-600">Location</button>
-              <button className="hover:text-brand-600">Engagement Rate</button>
-              <div className="ml-auto">
-                 {creators.length} Creators found
-              </div>
-           </div>
-        </div>
-
-        {/* Results Grid */}
-        {creators.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-             {creators.map(creator => (
-               <CreatorCard 
-                 key={creator.id} 
-                 creator={creator} 
-                 saved={!!isCreatorSaved(creator.id)} 
-                 onToggleSave={toggleSaveCreator} 
-               />
-             ))}
-          </div>
-        ) : (
-          <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-               <Search size={24} />
-             </div>
-             <h3 className="text-lg font-medium text-slate-900 dark:text-white">No creators found</h3>
-             <p className="text-slate-500 dark:text-slate-400 mt-1 mb-6">
-                Try adjusting your search terms or ask a friend to sign up as a Creator!
-             </p>
-          </div>
-        )}
-     </div>
-  );
-
-  const renderSaved = () => {
-    const savedCreators = creators.filter(c => isCreatorSaved(c.id));
-    
-    return (
-      <div className="space-y-6 animate-in fade-in">
-        {savedCreators.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {savedCreators.map(creator => (
-              <CreatorCard 
-                 key={creator.id} 
-                 creator={creator} 
-                 saved={!!isCreatorSaved(creator.id)} 
-                 onToggleSave={toggleSaveCreator} 
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-               <Heart size={24} />
-             </div>
-             <h3 className="text-lg font-medium text-slate-900 dark:text-white">No saved creators</h3>
-             <p className="text-slate-500 dark:text-slate-400 mt-1 mb-6">Bookmark talent to find them easily later.</p>
-             <button onClick={() => setActiveTab('search')} className="text-brand-600 font-bold hover:underline">
-               Find Talent
-             </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Navbar />
-      
-      {/* Added pt-24 here to ensure content clears fixed navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-              {activeTab === 'overview' && `Welcome, ${user?.clientProfile?.businessName || user?.name}`}
-              {activeTab === 'contracts' && 'My Contracts'}
-              {activeTab === 'search' && 'Find Talent'}
-              {activeTab === 'saved' && 'Saved Creators'}
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">
-              {activeTab === 'overview' && 'Manage your campaigns and find the perfect talent.'}
-              {activeTab === 'contracts' && 'Track and manage your ongoing collaborations.'}
-              {activeTab === 'search' && 'Discover Kenya\'s top influencers and creators.'}
-              {activeTab === 'saved' && 'Your shortlisted talent.'}
-            </p>
-          </div>
-          <div className="flex gap-4">
-             {activeTab !== 'search' && (
-                <Button variant="outline" className="flex items-center" onClick={() => setActiveTab('search')}>
-                   <Search size={18} className="mr-2" /> Find Creators
-                </Button>
-             )}
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex space-x-2 overflow-x-auto pb-4 mb-6">
-           <button
-             onClick={() => setActiveTab('overview')}
-             className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
-               activeTab === 'overview'
-                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-             }`}
-           >
-             Overview
-           </button>
-           <button
-             onClick={() => setActiveTab('contracts')}
-             className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
-               activeTab === 'contracts'
-                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-             }`}
-           >
-             Contracts
-           </button>
-           <button
-             onClick={() => setActiveTab('search')}
-             className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
-               activeTab === 'search'
-                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-             }`}
-           >
-             Find Talent
-           </button>
-           <button
-             onClick={() => setActiveTab('saved')}
-             className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
-               activeTab === 'saved'
-                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-             }`}
-           >
-             Saved
-           </button>
-        </div>
-
-        {/* Main Content */}
-        <div>
-           {activeTab === 'overview' && renderOverview()}
-           {activeTab === 'contracts' && renderContracts()}
-           {activeTab === 'search' && renderSearch()}
-           {activeTab === 'saved' && renderSaved()}
         </div>
       </div>
     </div>

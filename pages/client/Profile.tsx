@@ -38,9 +38,10 @@ const ClientPublicProfile: React.FC = () => {
           setContractsSent(totalContracts);
 
           // Hiring Rate: Percentage of all proposals that ended up Accepted, Active or Completed
+          // Also include CANCELLED because it means they were hired but terminated later.
           if (totalContracts > 0) {
              const successfulContracts = contractsData.filter(c => 
-               [ContractStatus.ACCEPTED, ContractStatus.ACTIVE, ContractStatus.COMPLETED].includes(c.status)
+               [ContractStatus.ACCEPTED, ContractStatus.ACTIVE, ContractStatus.COMPLETED, ContractStatus.CANCELLED].includes(c.status)
              ).length;
              const rate = Math.round((successfulContracts / totalContracts) * 100);
              setHiringRate(`${rate}%`);

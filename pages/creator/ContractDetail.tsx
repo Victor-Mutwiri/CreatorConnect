@@ -666,6 +666,7 @@ const ContractDetail: React.FC = () => {
                const isReview = ms.status === 'UNDER_REVIEW';
                const isPaymentVerify = ms.status === 'PAYMENT_VERIFY';
                const isDisputed = ms.status === 'DISPUTED';
+               const isCancelled = ms.status === 'CANCELLED';
                
                // Mutual Dispute Resolution State
                const hasPendingResolution = !!ms.disputeResolution;
@@ -679,34 +680,39 @@ const ContractDetail: React.FC = () => {
                            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
                            : isDisputed
                               ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-70'
+                              : isCancelled 
+                                ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-50 grayscale'
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-70'
                   }`}>
                      {/* Timeline Node */}
                      <div className={`absolute -left-[41px] top-6 w-6 h-6 rounded-full border-4 flex items-center justify-center ${
                        isPaid ? 'bg-green-500 border-green-100 dark:border-green-900' : 
                        isDisputed ? 'bg-red-500 border-red-100 dark:border-red-900' :
+                       isCancelled ? 'bg-slate-200 border-slate-100 dark:bg-slate-800 dark:border-slate-700' :
                        (isInProgress || isReview || isPaymentVerify) ? 'bg-brand-500 border-brand-100 dark:border-brand-900' : 
                        'bg-slate-300 border-slate-100 dark:bg-slate-700 dark:border-slate-800'
                      }`}>
                         {isPaid && <CheckCircle size={12} className="text-white" />}
                         {isLocked && <Lock size={10} className="text-slate-500" />}
                         {isDisputed && <XCircle size={12} className="text-white" />}
+                        {isCancelled && <XCircle size={12} className="text-slate-400" />}
                         {(isInProgress || isReview || isPaymentVerify) && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
                      </div>
 
                      <div className="flex justify-between items-start mb-2">
                         <div>
-                           <h4 className="font-bold text-slate-900 dark:text-white text-lg">{ms.title}</h4>
+                           <h4 className={`font-bold text-lg ${isCancelled ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>{ms.title}</h4>
                            <p className="text-sm text-slate-500 dark:text-slate-400">{ms.description}</p>
                         </div>
                         <div className="text-right">
-                           <div className="font-bold text-slate-900 dark:text-white">{contract.terms.currency} {ms.amount.toLocaleString()}</div>
+                           <div className={`font-bold ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-white'}`}>{contract.terms.currency} {ms.amount.toLocaleString()}</div>
                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
                               isPaid ? 'bg-green-100 text-green-700' :
                               isReview ? 'bg-orange-100 text-orange-700' :
                               isPaymentVerify ? 'bg-purple-100 text-purple-700' :
                               isDisputed ? 'bg-red-100 text-red-700' :
-                              isInProgress ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-600'
+                              isInProgress ? 'bg-brand-100 text-brand-700' : 
+                              isCancelled ? 'bg-slate-200 text-slate-500' : 'bg-slate-200 text-slate-600'
                            }`}>
                               {ms.status.replace('_', ' ')}
                            </span>
@@ -722,7 +728,7 @@ const ContractDetail: React.FC = () => {
                      )}
 
                      {/* Actions */}
-                     {isActive && (
+                     {isActive && !isCancelled && (
                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
                            
                            {/* CREATOR ACTIONS */}
@@ -987,6 +993,7 @@ const ContractDetail: React.FC = () => {
                   contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' :
                   contract.status === ContractStatus.NEGOTIATING ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-200' :
                   contract.status === ContractStatus.COMPLETED ? 'bg-slate-100 text-slate-700' :
+                  contract.status === ContractStatus.CANCELLED ? 'bg-red-100 text-red-700' :
                   'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}>
                   {contract.status.replace('_', ' ')}

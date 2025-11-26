@@ -101,9 +101,26 @@ const Dashboard: React.FC = () => {
   }, 0);
 
   // Calculated stats (mocked earnings for now as we don't have completed payment history)
-  const totalEarnings = completedContracts.reduce((sum, c) => sum + c.terms.amount, 0); 
-  const profileViews = 342;
+  // UPDATED: Calculate earnings based on PAID milestones + Completed Fixed Contracts
+  const calculateTotalEarnings = (userContracts: Contract[]) => {
+    return userContracts.reduce((total, contract) => {
+      // Case 1: Milestone Contract
+      if (contract.terms.paymentType === 'MILESTONE' && contract.terms.milestones) {
+        const paidMilestones = contract.terms.milestones.filter(m => m.status === 'PAID');
+        const contractEarnings = paidMilestones.reduce((sum, m) => sum + m.amount, 0);
+        return total + contractEarnings;
+      }
+      // Case 2: Fixed Contract
+      // Only count if contract is COMPLETED (funds released)
+      else if (contract.terms.paymentType === 'FIXED' && contract.status === ContractStatus.COMPLETED) {
+        return total + contract.terms.amount;
+      }
+      return total;
+    }, 0);
+  };
 
+  const totalEarnings = calculateTotalEarnings(contracts);
+  
   // Profile completion calc
   const calculateCompletion = () => {
     if (!user?.profile) return 0;
