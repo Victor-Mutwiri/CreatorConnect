@@ -2,11 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  PlusCircle, Search, Users, Briefcase, 
-  TrendingUp, Bell, MapPin, 
-  Instagram, Star, Heart, CheckCircle, Clock, Filter,
-  CreditCard, ChevronRight, User as UserIcon, Send, FileText,
-  AlertTriangle, Gavel
+  PlusCircle, Search, Briefcase, 
+  TrendingUp, Bell, CheckCircle, Clock,
+  CreditCard, User as UserIcon, Send,
+  AlertTriangle, Gavel, Users, Heart, Star
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -130,16 +129,21 @@ const ClientDashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
-        setLoading(true);
-        const [myContracts, myNotes, allCreators] = await Promise.all([
-          mockContractService.getContracts(user.id),
-          mockContractService.getNotifications(user.id),
-          mockAuth.searchCreators(searchQuery, selectedCategory)
-        ]);
-        setContracts(myContracts);
-        setNotifications(myNotes);
-        setCreators(allCreators);
-        setLoading(false);
+        try {
+          setLoading(true);
+          const [myContracts, myNotes, allCreators] = await Promise.all([
+            mockContractService.getContracts(user.id),
+            mockContractService.getNotifications(user.id),
+            mockAuth.searchCreators(searchQuery, selectedCategory)
+          ]);
+          setContracts(myContracts);
+          setNotifications(myNotes);
+          setCreators(allCreators);
+        } catch (error) {
+          console.error("Failed to fetch dashboard data:", error);
+        } finally {
+          setLoading(false);
+        }
       }
     };
     fetchData();
@@ -216,57 +220,73 @@ const ClientDashboard: React.FC = () => {
 
   const renderOverview = () => (
     <div className="space-y-8 animate-in fade-in">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
-            <div className="p-3 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-full mb-3">
-              <Briefcase size={22} />
+      {/* Stats Grid - Redesigned to be compact */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Active Jobs */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-brand-200 dark:hover:border-brand-800 transition-colors">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Active Jobs</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{activeContracts.length}</h3>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{activeContracts.length}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Active Jobs</p>
+            <div className="p-3 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-xl">
+              <Briefcase size={20} />
+            </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full mb-3">
-              <Users size={22} />
+          {/* Hired Talent */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Hired Talent</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{hiredTalentCount}</h3>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{hiredTalentCount}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Hired Talent</p>
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl">
+              <Users size={20} />
+            </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full mb-3">
-              <Send size={22} />
+          {/* Pending Offers */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Pending Offers</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{pendingContracts.length}</h3>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{pendingContracts.length}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Pending Offers</p>
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
+              <Send size={20} />
+            </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
-            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full mb-3">
-              <TrendingUp size={22} />
+          {/* Total Spent */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-orange-200 dark:hover:border-orange-800 transition-colors">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Total Spent</p>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">KES {totalSpent.toLocaleString()}</h3>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">KES {totalSpent.toLocaleString()}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Spent</p>
+            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl">
+              <TrendingUp size={20} />
+            </div>
           </div>
       </div>
 
-      {/* Dispute Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
-            <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 mb-3">
-              <AlertTriangle size={22} />
+      {/* Dispute Metrics Row - Compact */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Active Disputes</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{activeDisputesCount}</h3>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{activeDisputesCount}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Active Disputes</p>
+            <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+              <AlertTriangle size={20} />
+            </div>
           </div>
           
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center transition-transform hover:scale-[1.02]">
-            <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 mb-3">
-              <Gavel size={22} />
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Closed Disputes</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{closedDisputesCount}</h3>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{closedDisputesCount}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Closed Disputes</p>
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              <Gavel size={20} />
+            </div>
           </div>
       </div>
 
