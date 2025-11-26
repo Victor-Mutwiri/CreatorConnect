@@ -163,7 +163,6 @@ const ClientDashboard: React.FC = () => {
   const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
 
   // Stats Calculations
-  // UPDATED: Calculate spent based on PAID milestones + Completed Fixed Contracts
   const calculateTotalSpent = (clientContracts: Contract[]) => {
     return clientContracts.reduce((total, contract) => {
       if (contract.terms.paymentType === 'MILESTONE' && contract.terms.milestones) {
@@ -195,13 +194,13 @@ const ClientDashboard: React.FC = () => {
   const getStatusColor = (status: ContractStatus) => {
     switch(status) {
       case ContractStatus.ACTIVE: 
-      case ContractStatus.ACCEPTED: return 'bg-green-100 text-green-700';
-      case ContractStatus.SENT: return 'bg-blue-100 text-blue-700';
-      case ContractStatus.NEGOTIATING: return 'bg-orange-100 text-orange-700';
-      case ContractStatus.COMPLETED: return 'bg-slate-100 text-slate-700';
-      case ContractStatus.CANCELLED: return 'bg-red-100 text-red-700';
-      case ContractStatus.DECLINED: return 'bg-red-100 text-red-700';
-      default: return 'bg-slate-100 text-slate-600';
+      case ContractStatus.ACCEPTED: return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case ContractStatus.SENT: return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case ContractStatus.NEGOTIATING: return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+      case ContractStatus.COMPLETED: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+      case ContractStatus.CANCELLED: return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case ContractStatus.DECLINED: return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      default: return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
     }
   };
 
@@ -383,6 +382,136 @@ const ClientDashboard: React.FC = () => {
                 </div>
             </div>
         </div>
+      </div>
+    </div>
+  );
+
+  const renderSearch = () => (
+    <div className="space-y-6 animate-in fade-in">
+      {/* Search Bar & Filters */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input 
+            type="text" 
+            placeholder="Search creators by name, bio, or skill..." 
+            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-white"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex overflow-x-auto pb-2 md:pb-0 gap-2">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors border ${
+                selectedCategory === cat
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-brand-300'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Results */}
+      {creators.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {creators.map(creator => (
+            <CreatorCard 
+              key={creator.id} 
+              creator={creator} 
+              saved={isCreatorSaved(creator.id)}
+              onToggleSave={toggleSaveCreator}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20">
+          <div className="inline-flex p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
+            <Search size={32} className="text-slate-400" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">No creators found</h3>
+          <p className="text-slate-500 dark:text-slate-400">Try adjusting your search terms or category.</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderContracts = () => (
+    <div className="space-y-6 animate-in fade-in">
+       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {contracts.length > 0 ? contracts.map(contract => (
+               <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h4>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Creator: {contract.creatorName}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(contract.status)}`}>
+                         {contract.status.replace('_', ' ')}
+                       </span>
+                       <Link to={`/creator/contracts/${contract.id}`}>
+                         <Button size="sm" variant="outline">Manage</Button>
+                       </Link>
+                    </div>
+                  </div>
+               </div>
+            )) : (
+               <div className="p-12 text-center text-slate-500">No contracts found.</div>
+            )}
+          </div>
+       </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <Navbar />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+        
+        {/* Header */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your projects and find top talent.</p>
+          </div>
+          <button 
+            onClick={() => setActiveTab('search')}
+            className="bg-brand-600 text-white px-5 py-2.5 rounded-full font-medium hover:bg-brand-700 transition-colors shadow-lg shadow-brand-500/20 flex items-center"
+          >
+            <PlusCircle size={18} className="mr-2" />
+            Hire Talent
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-1 mb-8 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
+           {(['overview', 'search', 'contracts'] as Tab[]).map(tab => (
+             <button
+               key={tab}
+               onClick={() => setActiveTab(tab)}
+               className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                 activeTab === tab
+                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+               }`}
+             >
+               {tab.charAt(0).toUpperCase() + tab.slice(1)}
+             </button>
+           ))}
+        </div>
+
+        {activeTab === 'overview' && renderOverview()}
+        {activeTab === 'search' && renderSearch()}
+        {activeTab === 'contracts' && renderContracts()}
+
       </div>
     </div>
   );
