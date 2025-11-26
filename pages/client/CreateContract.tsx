@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin, HelpCircle, Target, ShieldCheck, Flag } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin, HelpCircle, Target, ShieldCheck, Flag, ShieldAlert } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -113,6 +113,17 @@ const CreateContract: React.FC = () => {
     return end.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
+  // --- FRAUD PREVENTION RULES ---
+  // Rule: Milestone 1 must not exceed 30% of Total Contract Value
+  const firstMilestoneAmount = milestones[0]?.amount || 0;
+  const thirtyPercentLimit = terms.amount * 0.30;
+  
+  // We only enforce this if there are multiple milestones (if strictly 1 milestone, it acts like fixed, but we encourage splitting)
+  // However, specifically for preventing fraud, we want the first chunk to be small.
+  // If user has 1 milestone of 10k, limit is 3k. This forces them to add a second milestone to balance the total.
+  // So validation applies if paymentType is Milestone.
+  const isFirstMilestoneTooHigh = paymentType === 'MILESTONE' && terms.amount > 0 && firstMilestoneAmount > thirtyPercentLimit;
+
   // Validation
   const isValid = 
     title.trim() !== '' &&
@@ -121,6 +132,7 @@ const CreateContract: React.FC = () => {
     terms.durationDays > 0 &&
     terms.startDate !== '' &&
     expiryDate !== '' &&
+    !isFirstMilestoneTooHigh && // Block if rule violated
     (paymentType === 'FIXED' || (paymentType === 'MILESTONE' && milestones.length > 0 && milestones.every(m => (m.amount || 0) > 0 && m.title)));
 
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
@@ -243,59 +255,70 @@ const CreateContract: React.FC = () => {
                       <span className="text-sm font-bold text-brand-600">Total: KES {terms.amount.toLocaleString()}</span>
                    </div>
                    
-                   {milestones.map((ms, idx) => (
-                      <div key={idx} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-start">
-                         <div className="flex items-center justify-center bg-white dark:bg-slate-900 w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600 font-bold text-slate-500 text-sm flex-shrink-0 mt-2">
-                           {idx + 1}
-                         </div>
-                         <div className="flex-1 w-full space-y-3">
-                            <div className="flex flex-col md:flex-row gap-4">
-                               <Input 
-                                 label="Milestone Title"
-                                 placeholder={`Phase ${idx + 1}`}
-                                 value={ms.title}
+                   {milestones.map((ms, idx) => {
+                      // Highlight the first milestone if it violates the 30% rule
+                      const isViolation = idx === 0 && isFirstMilestoneTooHigh;
+                      
+                      return (
+                        <div key={idx} className={`bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border flex flex-col md:flex-row gap-4 items-start ${isViolation ? 'border-amber-400 ring-1 ring-amber-400 bg-amber-50 dark:bg-amber-900/10' : 'border-slate-200 dark:border-slate-700'}`}>
+                           <div className="flex items-center justify-center bg-white dark:bg-slate-900 w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600 font-bold text-slate-500 text-sm flex-shrink-0 mt-2">
+                             {idx + 1}
+                           </div>
+                           <div className="flex-1 w-full space-y-3">
+                              <div className="flex flex-col md:flex-row gap-4">
+                                 <Input 
+                                   label="Milestone Title"
+                                   placeholder={`Phase ${idx + 1}`}
+                                   value={ms.title}
+                                   onChange={(e) => {
+                                      const newM = [...milestones];
+                                      newM[idx].title = e.target.value;
+                                      setMilestones(newM);
+                                   }}
+                                 />
+                                 <Input 
+                                   label="Amount (KES)"
+                                   type="number"
+                                   placeholder="0"
+                                   value={ms.amount || ''}
+                                   onChange={(e) => {
+                                      const newM = [...milestones];
+                                      newM[idx].amount = Number(e.target.value);
+                                      setMilestones(newM);
+                                   }}
+                                   className={isViolation ? "border-amber-400 focus:ring-amber-500" : ""}
+                                 />
+                              </div>
+                              <Input 
+                                 label="Description / Deliverable"
+                                 placeholder="What is being delivered in this phase?"
+                                 value={ms.description}
                                  onChange={(e) => {
                                     const newM = [...milestones];
-                                    newM[idx].title = e.target.value;
+                                    newM[idx].description = e.target.value;
                                     setMilestones(newM);
                                  }}
-                               />
-                               <Input 
-                                 label="Amount (KES)"
-                                 type="number"
-                                 placeholder="0"
-                                 value={ms.amount || ''}
-                                 onChange={(e) => {
-                                    const newM = [...milestones];
-                                    newM[idx].amount = Number(e.target.value);
-                                    setMilestones(newM);
-                                 }}
-                               />
-                            </div>
-                            <Input 
-                               label="Description / Deliverable"
-                               placeholder="What is being delivered in this phase?"
-                               value={ms.description}
-                               onChange={(e) => {
-                                  const newM = [...milestones];
-                                  newM[idx].description = e.target.value;
-                                  setMilestones(newM);
-                               }}
-                            />
-                         </div>
-                         <button 
-                            onClick={() => {
-                               if (milestones.length > 1) {
-                                  setMilestones(milestones.filter((_, i) => i !== idx));
-                               }
-                            }}
-                            className="text-slate-400 hover:text-red-500 p-2 mt-2"
-                            disabled={milestones.length <= 1}
-                         >
-                            <Trash2 size={20} />
-                         </button>
-                      </div>
-                   ))}
+                              />
+                              {isViolation && (
+                                <p className="text-xs text-amber-600 font-bold">
+                                  Amount exceeds 30% limit for the first milestone. Max allowed: KES {thirtyPercentLimit.toLocaleString()}
+                                </p>
+                              )}
+                           </div>
+                           <button 
+                              onClick={() => {
+                                 if (milestones.length > 1) {
+                                    setMilestones(milestones.filter((_, i) => i !== idx));
+                                 }
+                              }}
+                              className="text-slate-400 hover:text-red-500 p-2 mt-2"
+                              disabled={milestones.length <= 1}
+                           >
+                              <Trash2 size={20} />
+                           </button>
+                        </div>
+                      );
+                   })}
                    
                    <button 
                       onClick={() => setMilestones([...milestones, { title: '', amount: 0, description: '' }])}
@@ -304,11 +327,27 @@ const CreateContract: React.FC = () => {
                       <Plus size={16} className="mr-1" /> Add Milestone
                    </button>
                    
-                   {milestones.length < 3 && (
-                      <p className="text-xs text-orange-500 flex items-center mt-2">
-                         <AlertCircle size={12} className="mr-1" /> Recommendation: Break projects into 3-10 milestones for better security.
-                      </p>
-                   )}
+                   {/* Rule Explanation / Warning */}
+                   <div className={`mt-4 p-4 rounded-lg border ${isFirstMilestoneTooHigh ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'}`}>
+                      <div className="flex items-start">
+                         <ShieldAlert className={`mr-2 mt-0.5 ${isFirstMilestoneTooHigh ? 'text-amber-600' : 'text-blue-600'}`} size={20} />
+                         <div>
+                            <p className={`text-sm font-bold ${isFirstMilestoneTooHigh ? 'text-amber-800 dark:text-amber-400' : 'text-blue-800 dark:text-blue-400'}`}>
+                               Fair Play Protection: 30% Rule
+                            </p>
+                            <p className={`text-sm mt-1 ${isFirstMilestoneTooHigh ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                               Work on Milestone 1 must not exceed <span className="font-bold">30%</span> of the total contract value.
+                               This ensures low-risk initial deliverables (e.g. Intro content, outlines) before larger payments are unlocked.
+                            </p>
+                            {isFirstMilestoneTooHigh && (
+                               <p className="text-sm font-bold text-amber-800 dark:text-amber-400 mt-2">
+                                  Current Milestone 1: KES {firstMilestoneAmount.toLocaleString()} ({Math.round((firstMilestoneAmount/terms.amount)*100)}%) <br/>
+                                  Limit: KES {thirtyPercentLimit.toLocaleString()} (30%)
+                               </p>
+                            )}
+                         </div>
+                      </div>
+                   </div>
                 </div>
              )}
 
@@ -420,7 +459,7 @@ const CreateContract: React.FC = () => {
 
            </div>
 
-           {!isValid && (
+           {!isValid && !isFirstMilestoneTooHigh && (
              <div className="flex items-center text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg text-sm">
                <AlertCircle size={18} className="mr-2" />
                Please fill in all required fields to send.
