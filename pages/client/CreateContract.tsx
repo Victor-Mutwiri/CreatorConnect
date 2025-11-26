@@ -38,10 +38,11 @@ const CreateContract: React.FC = () => {
   });
 
   // Milestone Builder State
+  // Default to 3 milestones to start safely
   const [milestones, setMilestones] = useState<Partial<Milestone>[]>([
-    { title: 'Milestone 1', amount: 0, description: '' },
-    { title: 'Milestone 2', amount: 0, description: '' },
-    { title: 'Milestone 3', amount: 0, description: '' }
+    { title: 'Phase 1: Initial Concept', amount: 0, description: 'Outline and initial draft' },
+    { title: 'Phase 2: Development', amount: 0, description: 'Main content creation' },
+    { title: 'Phase 3: Final Polish', amount: 0, description: 'Edits and final delivery' }
   ]);
 
   useEffect(() => {
@@ -113,15 +114,61 @@ const CreateContract: React.FC = () => {
     return end.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
+  // --- SMART SPLIT LOGIC ---
+  const handleAutoDistribute = (count: number) => {
+    if (terms.amount <= 0) return;
+
+    const total = terms.amount;
+    const maxFirst = Math.floor(total * 0.30);
+    const evenSplit = Math.floor(total / count);
+    
+    let firstAmount = evenSplit;
+    
+    // If even split violates 30% rule, cap first amount and distribute remainder
+    if (firstAmount > maxFirst) {
+      firstAmount = maxFirst;
+    }
+
+    const remainder = total - firstAmount;
+    const otherAmount = Math.floor(remainder / (count - 1));
+    const lastAmount = remainder - (otherAmount * (count - 2)); // Adjust last to catch rounding
+
+    const newMilestones: Partial<Milestone>[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      let amount = otherAmount;
+      if (i === 0) amount = firstAmount;
+      if (i === count - 1) amount = lastAmount;
+
+      newMilestones.push({
+        title: `Phase ${i + 1}`,
+        description: i === 0 ? 'Initial deliverable / Concept' : 'Work in progress',
+        amount: amount
+      });
+    }
+
+    setMilestones(newMilestones);
+  };
+
+  const handlePaymentTypeChange = (type: ContractPaymentType) => {
+    setPaymentType(type);
+    if (type === 'MILESTONE') {
+       // Pre-fill with 3 milestones if converting back
+       if (milestones.length === 0) {
+          setMilestones([
+            { title: 'Phase 1', amount: 0, description: '' },
+            { title: 'Phase 2', amount: 0, description: '' },
+            { title: 'Phase 3', amount: 0, description: '' }
+          ]);
+       }
+    }
+  };
+
   // --- FRAUD PREVENTION RULES ---
   // Rule: Milestone 1 must not exceed 30% of Total Contract Value
   const firstMilestoneAmount = milestones[0]?.amount || 0;
   const thirtyPercentLimit = terms.amount * 0.30;
   
-  // We only enforce this if there are multiple milestones (if strictly 1 milestone, it acts like fixed, but we encourage splitting)
-  // However, specifically for preventing fraud, we want the first chunk to be small.
-  // If user has 1 milestone of 10k, limit is 3k. This forces them to add a second milestone to balance the total.
-  // So validation applies if paymentType is Milestone.
   const isFirstMilestoneTooHigh = paymentType === 'MILESTONE' && terms.amount > 0 && firstMilestoneAmount > thirtyPercentLimit;
 
   // Validation
@@ -190,7 +237,7 @@ const CreateContract: React.FC = () => {
               </h3>
               <div className="grid md:grid-cols-2 gap-4">
                  <button
-                   onClick={() => setPaymentType('MILESTONE')}
+                   onClick={() => handlePaymentTypeChange('MILESTONE')}
                    className={`p-6 rounded-xl border-2 text-left transition-all relative ${
                      paymentType === 'MILESTONE'
                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500'
@@ -208,7 +255,7 @@ const CreateContract: React.FC = () => {
                  </button>
 
                  <button
-                   onClick={() => setPaymentType('FIXED')}
+                   onClick={() => handlePaymentTypeChange('FIXED')}
                    className={`p-6 rounded-xl border-2 text-left transition-all ${
                      paymentType === 'FIXED'
                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500'
@@ -253,6 +300,20 @@ const CreateContract: React.FC = () => {
                    <div className="flex justify-between items-center">
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label>
                       <span className="text-sm font-bold text-brand-600">Total: KES {terms.amount.toLocaleString()}</span>
+                   </div>
+
+                   {/* Quick Split Toolbar */}
+                   <div className="flex items-center gap-2 mb-2 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-2">Quick Split:</span>
+                     <button onClick={() => handleAutoDistribute(3)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        3 Phases (Safe)
+                     </button>
+                     <button onClick={() => handleAutoDistribute(4)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        4 Phases
+                     </button>
+                     <button onClick={() => handleAutoDistribute(5)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        5 Phases
+                     </button>
                    </div>
                    
                    {milestones.map((ms, idx) => {

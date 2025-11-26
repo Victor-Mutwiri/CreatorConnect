@@ -1,12 +1,11 @@
 
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
   Smartphone, Building, Bitcoin, Lock, Flag, Loader, Upload, Eye, ExternalLink, HelpCircle,
-  Plus, Trash2, Calculator, ChevronDown, ChevronUp, ShieldAlert
+  Plus, Trash2, Calculator, ChevronDown, ChevronUp, ShieldAlert, Wand2, Divide
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -41,6 +40,11 @@ const ContractDetail: React.FC = () => {
   const [showReviewWorkModal, setShowReviewWorkModal] = useState<Milestone | null>(null);
   const [showDisputeModal, setShowDisputeModal] = useState<string | null>(null); // holds milestone ID
   
+  // Stress Test / Warning Modals
+  const [showSubmitWarning, setShowSubmitWarning] = useState(false);
+  const [showPaymentWarning, setShowPaymentWarning] = useState(false);
+  const [showDisputeWarning, setShowDisputeWarning] = useState(false);
+
   // Tax Module State
   const [taxResidency, setTaxResidency] = useState<'resident' | 'non-resident'>('resident');
   const [showTaxDetails, setShowTaxDetails] = useState(true);
@@ -192,14 +196,80 @@ const ContractDetail: React.FC = () => {
 
   // --- Counter Offer Helper Functions ---
   
+  // SMART SPLIT LOGIC
+  const handleAutoDistribute = (count: number) => {
+    if (counterTerms.amount <= 0) return;
+
+    const total = counterTerms.amount;
+    const maxFirst = Math.floor(total * 0.30);
+    const evenSplit = Math.floor(total / count);
+    
+    let firstAmount = evenSplit;
+    
+    // If even split violates 30% rule, cap first amount and distribute remainder
+    if (firstAmount > maxFirst) {
+      firstAmount = maxFirst;
+    }
+
+    const remainder = total - firstAmount;
+    const otherAmount = Math.floor(remainder / (count - 1));
+    const lastAmount = remainder - (otherAmount * (count - 2)); // Adjust last to catch rounding
+
+    const newMilestones: Milestone[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      let amount = otherAmount;
+      if (i === 0) amount = firstAmount;
+      if (i === count - 1) amount = lastAmount;
+
+      newMilestones.push({
+        id: `temp-${Date.now()}-${i}`,
+        title: `Phase ${i + 1}`,
+        description: i === 0 ? 'Initial deliverable / Concept' : 'Work in progress',
+        amount: amount,
+        status: 'PENDING'
+      });
+    }
+
+    setCounterTerms(prev => ({ ...prev, milestones: newMilestones }));
+  };
+
   const toggleCounterPaymentType = (type: ContractPaymentType) => {
-     setCounterTerms(prev => ({
-        ...prev,
-        paymentType: type,
-        milestones: type === 'MILESTONE' && (!prev.milestones || prev.milestones.length === 0) 
-           ? [{ id: `temp-${Date.now()}`, title: 'Phase 1', amount: prev.amount, description: '', status: 'PENDING' }] 
-           : prev.milestones
-     }));
+     if (type === 'MILESTONE') {
+       // If switching TO Milestone, pre-populate with 3 milestones using smart split
+       // This prevents the user from seeing a 100% Milestone 1 error immediately.
+       
+       const total = counterTerms.amount;
+       if (total > 0) {
+         // Manual Smart Split for 3
+         const m1 = Math.floor(total * 0.30);
+         const remainder = total - m1;
+         const m2 = Math.floor(remainder / 2);
+         const m3 = remainder - m2;
+
+         setCounterTerms(prev => ({
+            ...prev,
+            paymentType: type,
+            milestones: [
+              { id: `temp-1`, title: 'Phase 1', amount: m1, description: 'Initial Phase', status: 'PENDING' },
+              { id: `temp-2`, title: 'Phase 2', amount: m2, description: 'Mid Phase', status: 'PENDING' },
+              { id: `temp-3`, title: 'Phase 3', amount: m3, description: 'Final Phase', status: 'PENDING' }
+            ]
+         }));
+       } else {
+         setCounterTerms(prev => ({
+            ...prev,
+            paymentType: type,
+            milestones: []
+         }));
+       }
+     } else {
+       setCounterTerms(prev => ({
+          ...prev,
+          paymentType: type,
+          milestones: []
+       }));
+     }
   };
 
   const updateCounterMilestone = (index: number, field: keyof Milestone, value: any) => {
@@ -257,6 +327,7 @@ const ContractDetail: React.FC = () => {
         }
       );
       setContract(updated);
+      setShowSubmitWarning(false);
       setShowSubmitWorkModal(null);
       setWorkLink('');
       setWorkNote('');
@@ -305,6 +376,7 @@ const ContractDetail: React.FC = () => {
           }
        );
        setContract(updated);
+       setShowPaymentWarning(false);
        setShowPaymentProofModal(null);
        if(showReviewWorkModal) setShowReviewWorkModal(null); // Close review modal if opened from there
     } catch (e) {
@@ -340,6 +412,7 @@ const ContractDetail: React.FC = () => {
           { disputeReason }
        );
        setContract(updated);
+       setShowDisputeWarning(false);
        setShowDisputeModal(null);
        setDisputeReason('');
     } catch (e) {
@@ -1243,12 +1316,13 @@ const ContractDetail: React.FC = () => {
                       placeholder="I've completed the video edits..."
                       value={workNote}
                       onChange={(e) => setWorkNote(e.target.value)}
-                    />
+                   />
                  </div>
               </div>
               <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
                  <Button variant="ghost" onClick={() => setShowSubmitWorkModal(null)}>Cancel</Button>
-                 <Button onClick={handleSubmitWork} disabled={!workLink && !workNote}>Submit Work</Button>
+                 {/* Change: Open Warning Modal instead of direct submit */}
+                 <Button onClick={() => setShowSubmitWarning(true)} disabled={!workLink && !workNote}>Submit Work</Button>
               </div>
            </div>
         </div>
@@ -1331,7 +1405,8 @@ const ContractDetail: React.FC = () => {
               </div>
               <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
                  <Button variant="ghost" onClick={() => setShowPaymentProofModal(null)}>Cancel</Button>
-                 <Button onClick={handleSubmitPaymentProof} disabled={!proofImage}>Send Verification</Button>
+                 {/* Change: Open Warning Modal instead of direct submit */}
+                 <Button onClick={() => setShowPaymentWarning(true)} disabled={!proofImage}>Send Verification</Button>
               </div>
            </div>
         </div>
@@ -1363,7 +1438,85 @@ const ContractDetail: React.FC = () => {
               </div>
               <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
                  <Button variant="ghost" onClick={() => setShowDisputeModal(null)}>Cancel</Button>
-                 <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleRaiseDispute} disabled={!disputeReason}>Submit Dispute</Button>
+                 {/* Change: Open Warning Modal instead of direct submit */}
+                 <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => setShowDisputeWarning(true)} disabled={!disputeReason}>Submit Dispute</Button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* --- NEW STRESS TEST / WARNING MODALS --- */}
+
+      {/* A. Submit Work Warning */}
+      {showSubmitWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in zoom-in-95">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-orange-200 dark:border-orange-800">
+              <div className="p-6 text-center">
+                 <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-600">
+                    <ShieldAlert size={32} />
+                 </div>
+                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Confirm Submission</h3>
+                 <div className="text-left bg-orange-50 dark:bg-orange-900/10 p-4 rounded-xl border border-orange-100 dark:border-orange-800/30 mb-4">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                       By clicking confirm, you certify that the work for this milestone has been completed as per the requirements. 
+                       <br/><br/>
+                       <span className="font-bold text-orange-800 dark:text-orange-400">Warning:</span> Attempting to collect funds under false pretenses constitutes fraud and may result in immediate account suspension and legal action.
+                    </p>
+                 </div>
+                 <div className="flex gap-3">
+                    <Button variant="ghost" className="flex-1" onClick={() => setShowSubmitWarning(false)}>Back</Button>
+                    <Button className="flex-1 bg-orange-600 hover:bg-orange-700 text-white" onClick={handleSubmitWork}>I Confirm</Button>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* B. Payment Proof Warning */}
+      {showPaymentWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in zoom-in-95">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-blue-200 dark:border-blue-800">
+              <div className="p-6 text-center">
+                 <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                    <ShieldAlert size={32} />
+                 </div>
+                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Confirm Payment</h3>
+                 <div className="text-left bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 mb-4">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                       You are about to mark this milestone as paid. Please ensure the attached proof is authentic.
+                       <br/><br/>
+                       <span className="font-bold text-blue-800 dark:text-blue-400">Warning:</span> Submitting fake transaction details is a serious offense punishable by law. This action cannot be undone; incorrect submissions will result in a dispute process.
+                    </p>
+                 </div>
+                 <div className="flex gap-3">
+                    <Button variant="ghost" className="flex-1" onClick={() => setShowPaymentWarning(false)}>Back</Button>
+                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSubmitPaymentProof}>Confirm Payment</Button>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* C. Dispute Warning */}
+      {showDisputeWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in zoom-in-95">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-red-200 dark:border-red-800">
+              <div className="p-6 text-center">
+                 <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
+                    <AlertTriangle size={32} />
+                 </div>
+                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Raise Payment Dispute?</h3>
+                 <div className="text-left bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-800/30 mb-4">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                       Disputing a payment triggers a formal investigation by our Support Team. This action cannot be undone.
+                       <br/><br/>
+                       <span className="font-bold text-red-800 dark:text-red-400">Warning:</span> If it is determined that you received the funds but falsely claimed otherwise, you will face legal consequences and a permanent ban from the platform.
+                    </p>
+                 </div>
+                 <div className="flex gap-3">
+                    <Button variant="ghost" className="flex-1" onClick={() => setShowDisputeWarning(false)}>Back</Button>
+                    <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleRaiseDispute}>Raise Dispute</Button>
+                 </div>
               </div>
            </div>
         </div>
@@ -1422,6 +1575,20 @@ const ContractDetail: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label>
                     <span className="text-sm font-bold text-brand-600">Total: KES {counterTerms.amount.toLocaleString()}</span>
+                  </div>
+
+                  {/* Quick Split Toolbar */}
+                  <div className="flex items-center gap-2 mb-4 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-2">Quick Split:</span>
+                     <button onClick={() => handleAutoDistribute(3)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        3 Phases (Safe)
+                     </button>
+                     <button onClick={() => handleAutoDistribute(4)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        4 Phases
+                     </button>
+                     <button onClick={() => handleAutoDistribute(5)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        5 Phases
+                     </button>
                   </div>
 
                   {counterTerms.milestones?.map((ms, idx) => {
