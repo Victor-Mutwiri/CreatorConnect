@@ -1,10 +1,11 @@
 
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
-  Smartphone, Building, Bitcoin, Lock, Flag, Loader
+  Smartphone, Building, Bitcoin, Lock, Flag, Loader, Upload, Eye, ExternalLink, HelpCircle
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -12,7 +13,7 @@ import Input from '../../components/Input';
 import { useAuth } from '../../context/AuthContext';
 import { mockContractService } from '../../services/mockContract';
 import { mockAuth } from '../../services/mockAuth';
-import { Contract, ContractStatus, Message, ContractTerms, User, MilestoneStatus } from '../../types';
+import { Contract, ContractStatus, Message, ContractTerms, User, MilestoneStatus, Milestone } from '../../types';
 
 const ContractDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +34,26 @@ const ContractDetail: React.FC = () => {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showRejectEndModal, setShowRejectEndModal] = useState(false);
   
+  // New Modals for Trust & Verification
+  const [showSubmitWorkModal, setShowSubmitWorkModal] = useState<string | null>(null); // holds milestone ID
+  const [showPaymentProofModal, setShowPaymentProofModal] = useState<string | null>(null); // holds milestone ID
+  const [showReviewWorkModal, setShowReviewWorkModal] = useState<Milestone | null>(null);
+  const [showDisputeModal, setShowDisputeModal] = useState<string | null>(null); // holds milestone ID
+  
+  // Work Submission State
+  const [workLink, setWorkLink] = useState('');
+  const [workNote, setWorkNote] = useState('');
+
+  // Payment Proof State
+  const [proofImage, setProofImage] = useState<string>(''); // Simulating image URL/Base64
+  const [paymentMethod, setPaymentMethod] = useState('M-Pesa');
+
+  // Review State (Client)
+  const [revisionNote, setRevisionNote] = useState('');
+
+  // Dispute State
+  const [disputeReason, setDisputeReason] = useState('');
+
   // End Contract State
   const [endReason, setEndReason] = useState('');
   const [endType, setEndType] = useState<'completion' | 'termination'>('completion');
@@ -136,17 +157,118 @@ const ContractDetail: React.FC = () => {
     }
   };
 
-  const handleUpdateMilestone = async (milestoneId: string, status: MilestoneStatus) => {
-    if (!contract || !user) return;
+  // --- Trust & Verification Handlers ---
+
+  const handleSubmitWork = async () => {
+    if (!contract || !user || !showSubmitWorkModal) return;
     try {
       const updated = await mockContractService.updateMilestoneStatus(
-        contract.id, milestoneId, status, user.id, user.name
+        contract.id, 
+        showSubmitWorkModal, 
+        'UNDER_REVIEW', 
+        user.id, 
+        user.name,
+        {
+           submission: {
+              type: 'link', // Simplified for mock
+              content: workLink,
+              note: workNote,
+              date: new Date().toISOString()
+           }
+        }
       );
       setContract(updated);
+      setShowSubmitWorkModal(null);
+      setWorkLink('');
+      setWorkNote('');
     } catch (e) {
       console.error(e);
     }
-  }
+  };
+
+  const handleRequestChanges = async (milestoneId: string) => {
+    if (!contract || !user) return;
+    try {
+       const updated = await mockContractService.updateMilestoneStatus(
+          contract.id,
+          milestoneId,
+          'IN_PROGRESS',
+          user.id,
+          user.name,
+          { revisionNotes: revisionNote }
+       );
+       setContract(updated);
+       setShowReviewWorkModal(null);
+       setRevisionNote('');
+    } catch (e) {
+       console.error(e);
+    }
+  };
+
+  const handleSubmitPaymentProof = async () => {
+    if (!contract || !user || !showPaymentProofModal) return;
+    // Simulate upload
+    const mockUrl = proofImage || "https://example.com/payment-proof.jpg"; 
+
+    try {
+       const updated = await mockContractService.updateMilestoneStatus(
+          contract.id,
+          showPaymentProofModal,
+          'PAYMENT_VERIFY',
+          user.id,
+          user.name,
+          {
+             paymentProof: {
+                content: mockUrl,
+                method: paymentMethod,
+                date: new Date().toISOString()
+             }
+          }
+       );
+       setContract(updated);
+       setShowPaymentProofModal(null);
+       if(showReviewWorkModal) setShowReviewWorkModal(null); // Close review modal if opened from there
+    } catch (e) {
+       console.error(e);
+    }
+  };
+
+  const handleConfirmPayment = async (milestoneId: string) => {
+     if (!contract || !user) return;
+     try {
+       const updated = await mockContractService.updateMilestoneStatus(
+          contract.id,
+          milestoneId,
+          'PAID',
+          user.id,
+          user.name
+       );
+       setContract(updated);
+     } catch (e) {
+        console.error(e);
+     }
+  };
+
+  const handleRaiseDispute = async () => {
+    if (!contract || !user || !showDisputeModal) return;
+    try {
+       const updated = await mockContractService.updateMilestoneStatus(
+          contract.id,
+          showDisputeModal,
+          'DISPUTED',
+          user.id,
+          user.name,
+          { disputeReason }
+       );
+       setContract(updated);
+       setShowDisputeModal(null);
+       setDisputeReason('');
+    } catch (e) {
+       console.error(e);
+    }
+  };
+
+  // --- End Trust Handlers ---
 
   const handleRequestEndContract = async () => {
     if (!contract || !user || !endReason) return;
@@ -315,18 +437,30 @@ const ContractDetail: React.FC = () => {
                const isPaid = ms.status === 'PAID';
                const isInProgress = ms.status === 'IN_PROGRESS';
                const isReview = ms.status === 'UNDER_REVIEW';
+               const isPaymentVerify = ms.status === 'PAYMENT_VERIFY';
+               const isDisputed = ms.status === 'DISPUTED';
                
                return (
-                  <div key={ms.id} className={`relative p-5 rounded-xl border ${isInProgress || isReview ? 'bg-white dark:bg-slate-900 border-brand-200 dark:border-brand-900 shadow-md ring-1 ring-brand-500/30' : isPaid ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-70'}`}>
+                  <div key={ms.id} className={`relative p-5 rounded-xl border ${
+                     isInProgress || isReview || isPaymentVerify
+                        ? 'bg-white dark:bg-slate-900 border-brand-200 dark:border-brand-900 shadow-md ring-1 ring-brand-500/30' 
+                        : isPaid 
+                           ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                           : isDisputed
+                              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-70'
+                  }`}>
                      {/* Timeline Node */}
                      <div className={`absolute -left-[41px] top-6 w-6 h-6 rounded-full border-4 flex items-center justify-center ${
                        isPaid ? 'bg-green-500 border-green-100 dark:border-green-900' : 
-                       isInProgress || isReview ? 'bg-brand-500 border-brand-100 dark:border-brand-900' : 
+                       isDisputed ? 'bg-red-500 border-red-100 dark:border-red-900' :
+                       (isInProgress || isReview || isPaymentVerify) ? 'bg-brand-500 border-brand-100 dark:border-brand-900' : 
                        'bg-slate-300 border-slate-100 dark:bg-slate-700 dark:border-slate-800'
                      }`}>
                         {isPaid && <CheckCircle size={12} className="text-white" />}
                         {isLocked && <Lock size={10} className="text-slate-500" />}
-                        {(isInProgress || isReview) && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
+                        {isDisputed && <XCircle size={12} className="text-white" />}
+                        {(isInProgress || isReview || isPaymentVerify) && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
                      </div>
 
                      <div className="flex justify-between items-start mb-2">
@@ -339,32 +473,111 @@ const ContractDetail: React.FC = () => {
                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
                               isPaid ? 'bg-green-100 text-green-700' :
                               isReview ? 'bg-orange-100 text-orange-700' :
+                              isPaymentVerify ? 'bg-purple-100 text-purple-700' :
+                              isDisputed ? 'bg-red-100 text-red-700' :
                               isInProgress ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-600'
                            }`}>
                               {ms.status.replace('_', ' ')}
                            </span>
                         </div>
                      </div>
+                     
+                     {/* Revision Notes if any */}
+                     {ms.revisionNotes && isInProgress && (
+                        <div className="mb-3 bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800/50 text-sm">
+                           <p className="font-bold text-yellow-800 dark:text-yellow-500 text-xs uppercase mb-1">Changes Requested:</p>
+                           <p className="text-slate-700 dark:text-slate-300 italic">"{ms.revisionNotes}"</p>
+                        </div>
+                     )}
 
                      {/* Actions */}
                      {isActive && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex justify-end">
-                           {isCreator && isInProgress && (
-                              <Button size="sm" onClick={() => handleUpdateMilestone(ms.id, 'UNDER_REVIEW')}>
-                                 Submit Work
-                              </Button>
-                           )}
-                           {isClientViewer && isReview && (
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => {}}>Request Revision</Button>
-                                <Button size="sm" onClick={() => handleUpdateMilestone(ms.id, 'PAID')}>
-                                   Approve & Release Payment
-                                </Button>
+                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                           
+                           {/* CREATOR ACTIONS */}
+                           {isCreator && (
+                              <div className="flex justify-end gap-2">
+                                 {isInProgress && (
+                                    <Button size="sm" onClick={() => setShowSubmitWorkModal(ms.id)}>
+                                       <Upload size={16} className="mr-2" /> Submit Work
+                                    </Button>
+                                 )}
+                                 {isPaymentVerify && (
+                                    <div className="flex flex-col items-end w-full">
+                                       <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-100 dark:border-purple-800 mb-3 w-full">
+                                          <p className="text-sm font-bold text-purple-800 dark:text-purple-300 mb-2">Client has sent payment.</p>
+                                          {ms.paymentProof && (
+                                             <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800">
+                                                <Eye size={14} /> 
+                                                <a href={ms.paymentProof.content} target="_blank" rel="noreferrer" className="hover:underline text-blue-500">View Proof</a>
+                                                <span className="text-slate-300">|</span>
+                                                <span>Method: {ms.paymentProof.method}</span>
+                                             </div>
+                                          )}
+                                       </div>
+                                       <div className="flex gap-2">
+                                          <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setShowDisputeModal(ms.id)}>
+                                             Dispute Payment
+                                          </Button>
+                                          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleConfirmPayment(ms.id)}>
+                                             Confirm Receipt
+                                          </Button>
+                                       </div>
+                                    </div>
+                                 )}
+                                 {isReview && <span className="text-xs text-orange-600 flex items-center bg-orange-50 px-2 py-1 rounded"><Clock size={12} className="mr-1"/> Waiting for client approval</span>}
                               </div>
                            )}
+
+                           {/* CLIENT ACTIONS */}
+                           {isClientViewer && (
+                              <div className="flex justify-end gap-2">
+                                 {isReview && (
+                                    <div className="w-full">
+                                       <div className="bg-orange-50 dark:bg-orange-900/10 p-3 rounded-lg border border-orange-100 dark:border-orange-800 mb-3">
+                                          <div className="flex justify-between items-start">
+                                             <p className="text-sm font-bold text-orange-800 dark:text-orange-400 mb-2">Review Submission</p>
+                                             <div className="text-xs text-orange-600 flex items-center">
+                                                <Clock size={12} className="mr-1" /> Auto-approves in 71h 59m
+                                             </div>
+                                          </div>
+                                          {ms.submission && (
+                                             <div className="bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 text-sm">
+                                                <p className="font-semibold text-slate-900 dark:text-white mb-1">Creator Note:</p>
+                                                <p className="text-slate-600 dark:text-slate-400 mb-2 italic">"{ms.submission.note}"</p>
+                                                <a href={ms.submission.content} target="_blank" rel="noreferrer" className="inline-flex items-center text-brand-600 hover:underline">
+                                                   <ExternalLink size={14} className="mr-1" /> View Work
+                                                </a>
+                                             </div>
+                                          )}
+                                       </div>
+                                       <div className="flex justify-end gap-2">
+                                          <Button size="sm" variant="outline" onClick={() => setShowReviewWorkModal(ms)}>Request Changes</Button>
+                                          <Button size="sm" onClick={() => setShowPaymentProofModal(ms.id)}>
+                                             Approve & Pay
+                                          </Button>
+                                       </div>
+                                    </div>
+                                 )}
+                                 {isInProgress && <span className="text-xs text-brand-600 flex items-center bg-brand-50 px-2 py-1 rounded"><Loader size={12} className="mr-1 animate-spin"/> Creator is working on this</span>}
+                                 {isPaymentVerify && <span className="text-xs text-purple-600 flex items-center bg-purple-50 px-2 py-1 rounded"><Clock size={12} className="mr-1"/> Waiting for creator to confirm payment</span>}
+                              </div>
+                           )}
+                           
+                           {/* COMMON */}
+                           {isDisputed && (
+                              <div className="w-full bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                                 <p className="font-bold text-red-800 dark:text-red-400 text-sm flex items-center">
+                                    <AlertTriangle size={16} className="mr-2" /> Dispute Raised
+                                 </p>
+                                 <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                                    Reason: {ms.disputeReason}
+                                 </p>
+                                 <p className="text-xs text-slate-500 mt-2">Support team has been notified and will intervene shortly.</p>
+                              </div>
+                           )}
+
                            {isLocked && <span className="text-xs text-slate-400 italic flex items-center"><Lock size={12} className="mr-1"/> Locked until previous milestone is paid</span>}
-                           {isCreator && isReview && <span className="text-xs text-orange-600 flex items-center"><Clock size={12} className="mr-1"/> Waiting for client approval</span>}
-                           {isClientViewer && isInProgress && <span className="text-xs text-brand-600 flex items-center"><Loader size={12} className="mr-1 animate-spin"/> Creator is working on this</span>}
                         </div>
                      )}
                   </div>
@@ -724,6 +937,11 @@ const ContractDetail: React.FC = () => {
                         "{item.note}"
                       </p>
                     )}
+                    {item.attachment && (
+                       <a href={item.attachment} target="_blank" rel="noreferrer" className="mt-2 text-xs text-brand-600 dark:text-brand-400 flex items-center hover:underline">
+                          <Paperclip size={12} className="mr-1" /> View Attachment
+                       </a>
+                    )}
                   </div>
                 </div>
               ))}
@@ -787,6 +1005,162 @@ const ContractDetail: React.FC = () => {
         </div>
 
       </div>
+
+      {/* --- MODALS --- */}
+
+      {/* 1. Submit Work Modal */}
+      {showSubmitWorkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Submit Work for Review</h3>
+                <button onClick={() => setShowSubmitWorkModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Provide a link to your work (Google Drive, Dropbox, etc.) or describe what you've done.
+                 </p>
+                 <Input 
+                   label="Work Link / URL"
+                   placeholder="https://..."
+                   value={workLink}
+                   onChange={(e) => setWorkLink(e.target.value)}
+                 />
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes / Description</label>
+                    <textarea 
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
+                      rows={3}
+                      placeholder="I've completed the video edits..."
+                      value={workNote}
+                      onChange={(e) => setWorkNote(e.target.value)}
+                    />
+                 </div>
+              </div>
+              <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+                 <Button variant="ghost" onClick={() => setShowSubmitWorkModal(null)}>Cancel</Button>
+                 <Button onClick={handleSubmitWork} disabled={!workLink && !workNote}>Submit Work</Button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* 2. Review Work Modal (Client Request Changes) */}
+      {showReviewWorkModal && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Request Changes</h3>
+                <button onClick={() => setShowReviewWorkModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Please explain clearly what needs to be changed.
+                 </p>
+                 <textarea 
+                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
+                   rows={4}
+                   placeholder="The logo is too small in the intro..."
+                   value={revisionNote}
+                   onChange={(e) => setRevisionNote(e.target.value)}
+                 />
+              </div>
+              <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+                 <Button variant="ghost" onClick={() => setShowReviewWorkModal(null)}>Cancel</Button>
+                 <Button onClick={() => handleRequestChanges(showReviewWorkModal.id)} disabled={!revisionNote}>Request Changes</Button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* 3. Payment Proof Modal */}
+      {showPaymentProofModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Upload Payment Proof</h3>
+                <button onClick={() => setShowPaymentProofModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg text-sm border border-blue-100 dark:border-blue-800">
+                    Please send the payment using the details provided, then upload the screenshot here.
+                 </div>
+                 
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Payment Method Used</label>
+                    <select 
+                       className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
+                       value={paymentMethod}
+                       onChange={(e) => setPaymentMethod(e.target.value)}
+                    >
+                       <option>M-Pesa</option>
+                       <option>Bank Transfer</option>
+                       <option>Crypto</option>
+                    </select>
+                 </div>
+
+                 {/* Simulated Upload */}
+                 <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                      onClick={() => setProofImage("https://via.placeholder.com/300x400?text=Payment+Proof")}
+                 >
+                    {proofImage ? (
+                       <div className="relative">
+                          <img src={proofImage} alt="Proof" className="mx-auto h-32 object-contain rounded" />
+                          <p className="text-xs text-green-600 mt-2 font-bold">Image Selected</p>
+                       </div>
+                    ) : (
+                       <>
+                          <Upload className="mx-auto h-8 w-8 text-slate-400 mb-2" />
+                          <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Click to upload screenshot</p>
+                       </>
+                    )}
+                 </div>
+              </div>
+              <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+                 <Button variant="ghost" onClick={() => setShowPaymentProofModal(null)}>Cancel</Button>
+                 <Button onClick={handleSubmitPaymentProof} disabled={!proofImage}>Send Verification</Button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* 4. Dispute Modal */}
+      {showDisputeModal && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-red-50 dark:bg-red-900/20">
+                <h3 className="font-bold text-lg text-red-900 dark:text-red-400 flex items-center">
+                   <AlertTriangle className="mr-2" size={20}/> Raise Dispute
+                </h3>
+                <button onClick={() => setShowDisputeModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Disputes should be a last resort. Our support team will review the evidence provided by both parties.
+                 </p>
+                 <textarea 
+                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-red-500 dark:bg-slate-800 dark:text-white"
+                   rows={4}
+                   placeholder="I haven't received the payment yet / The work was not done..."
+                   value={disputeReason}
+                   onChange={(e) => setDisputeReason(e.target.value)}
+                 />
+              </div>
+              <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+                 <Button variant="ghost" onClick={() => setShowDisputeModal(null)}>Cancel</Button>
+                 <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleRaiseDispute} disabled={!disputeReason}>Submit Dispute</Button>
+              </div>
+           </div>
+        </div>
+      )}
 
       {/* Counter Offer Modal */}
       {showCounterModal && (

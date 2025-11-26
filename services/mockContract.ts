@@ -1,5 +1,6 @@
 
-import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus } from '../types';
+
+import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
@@ -210,7 +211,19 @@ export const mockContractService = {
     return updatedContract;
   },
 
-  updateMilestoneStatus: async (contractId: string, milestoneId: string, newStatus: MilestoneStatus, userId: string, userName: string): Promise<Contract> => {
+  updateMilestoneStatus: async (
+    contractId: string, 
+    milestoneId: string, 
+    newStatus: MilestoneStatus, 
+    userId: string, 
+    userName: string,
+    payload?: {
+      submission?: MilestoneSubmission,
+      paymentProof?: MilestonePaymentProof,
+      revisionNotes?: string,
+      disputeReason?: string
+    }
+  ): Promise<Contract> => {
     await delay(600);
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
     const index = contracts.findIndex((c: Contract) => c.id === contractId);
@@ -226,13 +239,40 @@ export const mockContractService = {
     contract.terms.milestones[mIndex].status = newStatus;
 
     let note = `Milestone "${contract.terms.milestones[mIndex].title}" marked as ${newStatus}`;
+    let attachment = undefined;
 
-    // Logic for unlocking next milestone
+    // Handle Payload Data
+    if (newStatus === 'UNDER_REVIEW' && payload?.submission) {
+      contract.terms.milestones[mIndex].submission = payload.submission;
+      note = `Work submitted: ${payload.submission.note || 'No notes'}`;
+      attachment = payload.submission.content;
+    }
+
+    if (newStatus === 'IN_PROGRESS' && payload?.revisionNotes) {
+      // Reverting from review to in progress (Changes Requested)
+      contract.terms.milestones[mIndex].revisionNotes = payload.revisionNotes;
+      note = `Changes requested: ${payload.revisionNotes}`;
+    }
+
+    if (newStatus === 'PAYMENT_VERIFY' && payload?.paymentProof) {
+      contract.terms.milestones[mIndex].paymentProof = payload.paymentProof;
+      note = `Payment proof uploaded via ${payload.paymentProof.method}`;
+      attachment = payload.paymentProof.content;
+    }
+
+    if (newStatus === 'DISPUTED' && payload?.disputeReason) {
+      contract.terms.milestones[mIndex].disputeReason = payload.disputeReason;
+      note = `Dispute raised: ${payload.disputeReason}`;
+    }
+
+    // Logic for unlocking next milestone ONLY after Payment is CONFIRMED (PAID)
     if (newStatus === 'PAID') {
        // If there is a next milestone, unlock it
        if (mIndex + 1 < contract.terms.milestones.length) {
          contract.terms.milestones[mIndex + 1].status = 'IN_PROGRESS';
          note += ` and next milestone unlocked.`;
+       } else {
+         // If last milestone, maybe mark contract as pending completion or notify
        }
     }
 
@@ -243,7 +283,8 @@ export const mockContractService = {
       action: 'milestone_update',
       actorName: userName,
       actionBy: userId,
-      note
+      note,
+      attachment
     });
 
     contracts[index] = contract;
@@ -254,14 +295,30 @@ export const mockContractService = {
     const targetUserId = isCreatorAction ? contract.clientId : contract.creatorId;
     
     let notifyTitle = 'Milestone Update';
-    if (newStatus === 'UNDER_REVIEW') notifyTitle = 'Work Submitted for Review';
-    if (newStatus === 'PAID') notifyTitle = 'Milestone Paid';
+    let type: 'info' | 'success' | 'warning' | 'error' = 'info';
+
+    if (newStatus === 'UNDER_REVIEW') {
+      notifyTitle = 'Work Submitted for Review';
+      type = 'info';
+    } else if (newStatus === 'PAYMENT_VERIFY') {
+      notifyTitle = 'Payment Sent - Verify Now';
+      type = 'success';
+    } else if (newStatus === 'PAID') {
+      notifyTitle = 'Payment Confirmed';
+      type = 'success';
+    } else if (newStatus === 'DISPUTED') {
+      notifyTitle = 'Milestone Disputed';
+      type = 'error';
+    } else if (payload?.revisionNotes) {
+      notifyTitle = 'Changes Requested';
+      type = 'warning';
+    }
 
     createNotification(
        targetUserId,
        notifyTitle,
        `${userName}: ${note}`,
-       newStatus === 'PAID' ? 'success' : 'info',
+       type,
        `/creator/contracts/${contract.id}`
     );
 

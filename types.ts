@@ -190,7 +190,20 @@ export enum ContractStatus {
 
 export type ContractPaymentType = 'FIXED' | 'MILESTONE';
 
-export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'PAID';
+export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'PAYMENT_VERIFY' | 'PAID' | 'DISPUTED';
+
+export interface MilestoneSubmission {
+  type: 'link' | 'file';
+  content: string; // URL or File Name
+  note?: string;
+  date: string;
+}
+
+export interface MilestonePaymentProof {
+  content: string; // URL or text reference to image
+  method: string; // e.g. M-Pesa
+  date: string;
+}
 
 export interface Milestone {
   id: string;
@@ -198,6 +211,12 @@ export interface Milestone {
   description: string;
   amount: number;
   status: MilestoneStatus;
+  
+  // Trust & Verification Fields
+  submission?: MilestoneSubmission;
+  paymentProof?: MilestonePaymentProof;
+  revisionNotes?: string;
+  disputeReason?: string;
 }
 
 export interface ContractTerms {
@@ -222,6 +241,7 @@ export interface ContractHistoryItem {
   actorName: string;
   actionBy?: string; // User ID of the actor
   note?: string;
+  attachment?: string; // For proofs
 }
 
 export interface ContractEndRequest {
