@@ -419,7 +419,12 @@ export const mockContractService = {
     // Apply logic
     let newStatus: MilestoneStatus = 'DISPUTED';
     if (resolution.type === 'RESUME_WORK') newStatus = 'IN_PROGRESS';
-    if (resolution.type === 'RETRY_PAYMENT') newStatus = 'PAYMENT_VERIFY'; // Or just back to pending if they need to resend
+    if (resolution.type === 'RETRY_PAYMENT') {
+       // If payment is being retried, go back to 'UNDER_REVIEW' so the client can click 'Approve & Pay' again
+       newStatus = 'UNDER_REVIEW';
+       // Clear the previous disputed proof so they can upload a new one
+       delete contract.terms.milestones[mIndex].paymentProof;
+    }
 
     contract.terms.milestones[mIndex].status = newStatus;
     // Clear the resolution request
