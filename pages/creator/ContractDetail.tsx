@@ -5,7 +5,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
-  Smartphone, Building, Bitcoin, Lock, Flag, Loader, Upload, Eye, ExternalLink, HelpCircle
+  Smartphone, Building, Bitcoin, Lock, Flag, Loader, Upload, Eye, ExternalLink, HelpCircle,
+  Plus, Trash2, Target, ShieldAlert
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -13,7 +14,7 @@ import Input from '../../components/Input';
 import { useAuth } from '../../context/AuthContext';
 import { mockContractService } from '../../services/mockContract';
 import { mockAuth } from '../../services/mockAuth';
-import { Contract, ContractStatus, Message, ContractTerms, User, MilestoneStatus, Milestone } from '../../types';
+import { Contract, ContractStatus, Message, ContractTerms, User, MilestoneStatus, Milestone, ContractPaymentType } from '../../types';
 
 const ContractDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -92,7 +93,8 @@ const ContractDetail: React.FC = () => {
         setContract(c);
         setMessages(m);
         if(c) {
-          setCounterTerms(c.terms);
+          // Initialize counter terms with current contract terms
+          setCounterTerms(JSON.parse(JSON.stringify(c.terms)));
           // Fetch creator details for payment info
           const cUser = await mockAuth.getCreatorProfile(c.creatorId);
           setCreatorUser(cUser);
@@ -106,6 +108,14 @@ const ContractDetail: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Recalculate amount if milestones change in counter offer
+  useEffect(() => {
+    if (counterTerms.paymentType === 'MILESTONE' && counterTerms.milestones) {
+      const total = counterTerms.milestones.reduce((sum, m) => sum + (m.amount || 0), 0);
+      setCounterTerms(prev => ({ ...prev, amount: total }));
+    }
+  }, [counterTerms.milestones, counterTerms.paymentType]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,9 +151,28 @@ const ContractDetail: React.FC = () => {
 
   const handleCounterOffer = async () => {
     if (!contract || !user) return;
+    
+    // Final check for empty milestones if type is milestone
+    if (counterTerms.paymentType === 'MILESTONE' && (!counterTerms.milestones || counterTerms.milestones.length === 0)) {
+       alert("Please add at least one milestone.");
+       return;
+    }
+
     try {
+      // Ensure milestones have proper IDs if they are new
+      const sanitizedTerms = { ...counterTerms };
+      if (sanitizedTerms.paymentType === 'MILESTONE' && sanitizedTerms.milestones) {
+         sanitizedTerms.milestones = sanitizedTerms.milestones.map((m, idx) => ({
+            ...m,
+            id: m.id || `ms-new-${Date.now()}-${idx}`,
+            status: 'PENDING' // Reset status for new negotiation
+         }));
+      } else {
+        sanitizedTerms.milestones = [];
+      }
+
       const updated = await mockContractService.counterOffer(
-        contract.id, counterTerms, user.id, user.name
+        contract.id, sanitizedTerms, user.id, user.name
       );
       setContract(updated);
       setShowCounterModal(false);
@@ -156,6 +185,52 @@ const ContractDetail: React.FC = () => {
       console.error(e);
     }
   };
+
+  // --- Counter Offer Helper Functions ---
+  
+  const toggleCounterPaymentType = (type: ContractPaymentType) => {
+     setCounterTerms(prev => ({
+        ...prev,
+        paymentType: type,
+        milestones: type === 'MILESTONE' && (!prev.milestones || prev.milestones.length === 0) 
+           ? [{ id: `temp-${Date.now()}`, title: 'Phase 1', amount: prev.amount, description: '', status: 'PENDING' }] 
+           : prev.milestones
+     }));
+  };
+
+  const updateCounterMilestone = (index: number, field: keyof Milestone, value: any) => {
+     if (!counterTerms.milestones) return;
+     const newMilestones = [...counterTerms.milestones];
+     // @ts-ignore
+     newMilestones[index][field] = value;
+     setCounterTerms(prev => ({ ...prev, milestones: newMilestones }));
+  };
+
+  const addCounterMilestone = () => {
+     const newMs: Milestone = {
+        id: `temp-${Date.now()}`,
+        title: '',
+        amount: 0,
+        description: '',
+        status: 'PENDING'
+     };
+     setCounterTerms(prev => ({
+        ...prev,
+        milestones: [...(prev.milestones || []), newMs]
+     }));
+  };
+
+  const removeCounterMilestone = (index: number) => {
+     if (!counterTerms.milestones) return;
+     const newMilestones = counterTerms.milestones.filter((_, i) => i !== index);
+     setCounterTerms(prev => ({ ...prev, milestones: newMilestones }));
+  };
+
+  // 30% Rule Validation for Counter Offer
+  const firstMilestoneAmount = counterTerms.milestones?.[0]?.amount || 0;
+  const thirtyPercentLimit = counterTerms.amount * 0.30;
+  const isFirstMilestoneTooHigh = counterTerms.paymentType === 'MILESTONE' && counterTerms.amount > 0 && firstMilestoneAmount > thirtyPercentLimit;
+
 
   // --- Trust & Verification Handlers ---
 
@@ -1165,7 +1240,7 @@ const ContractDetail: React.FC = () => {
       {/* Counter Offer Modal */}
       {showCounterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white">Propose Counter Offer</h3>
               <button onClick={() => setShowCounterModal(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
@@ -1173,14 +1248,118 @@ const ContractDetail: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto space-y-5">
-              <Input 
-                label="Total Amount (KES)"
-                type="number"
-                value={counterTerms.amount}
-                onChange={(e) => setCounterTerms({...counterTerms, amount: parseInt(e.target.value)})}
-              />
-              {/* Removed Deposit Input here as per specification */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              
+              {/* Contract Type Selector */}
+              <div className="grid grid-cols-2 gap-4">
+                 <button
+                   onClick={() => toggleCounterPaymentType('FIXED')}
+                   className={`p-4 rounded-xl border text-center transition-all ${
+                     counterTerms.paymentType === 'FIXED'
+                       ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400 ring-1 ring-brand-500'
+                       : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                   }`}
+                 >
+                    <DollarSign className="mx-auto mb-2" size={24} />
+                    <div className="font-bold">Fixed Contract</div>
+                 </button>
+                 <button
+                   onClick={() => toggleCounterPaymentType('MILESTONE')}
+                   className={`p-4 rounded-xl border text-center transition-all ${
+                     counterTerms.paymentType === 'MILESTONE'
+                       ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400 ring-1 ring-brand-500'
+                       : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                   }`}
+                 >
+                    <Flag className="mx-auto mb-2" size={24} />
+                    <div className="font-bold">Milestone Contract</div>
+                 </button>
+              </div>
+
+              {counterTerms.paymentType === 'FIXED' ? (
+                // Fixed Contract Fields
+                <Input 
+                  label="Total Amount (KES)"
+                  type="number"
+                  value={counterTerms.amount}
+                  onChange={(e) => setCounterTerms({...counterTerms, amount: parseInt(e.target.value)})}
+                />
+              ) : (
+                // Milestone Builder
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label>
+                    <span className="text-sm font-bold text-brand-600">Total: KES {counterTerms.amount.toLocaleString()}</span>
+                  </div>
+
+                  {counterTerms.milestones?.map((ms, idx) => {
+                     // Check 30% rule for first milestone
+                     const isViolation = idx === 0 && isFirstMilestoneTooHigh;
+
+                     return (
+                      <div key={idx} className={`bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border flex flex-col md:flex-row gap-4 items-start ${isViolation ? 'border-amber-400 ring-1 ring-amber-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                         <div className="flex items-center justify-center bg-white dark:bg-slate-900 w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600 font-bold text-slate-500 text-sm flex-shrink-0 mt-2">
+                           {idx + 1}
+                         </div>
+                         <div className="flex-1 w-full space-y-3">
+                            <div className="flex flex-col md:flex-row gap-4">
+                               <Input 
+                                 label="Milestone Title"
+                                 value={ms.title}
+                                 onChange={(e) => updateCounterMilestone(idx, 'title', e.target.value)}
+                               />
+                               <Input 
+                                 label="Amount (KES)"
+                                 type="number"
+                                 value={ms.amount || ''}
+                                 onChange={(e) => updateCounterMilestone(idx, 'amount', Number(e.target.value))}
+                               />
+                            </div>
+                            <Input 
+                               label="Description"
+                               value={ms.description}
+                               onChange={(e) => updateCounterMilestone(idx, 'description', e.target.value)}
+                            />
+                             {isViolation && (
+                                <p className="text-xs text-amber-600 font-bold">
+                                  Amount exceeds 30% limit for the first milestone. Max allowed: KES {thirtyPercentLimit.toLocaleString()}
+                                </p>
+                              )}
+                         </div>
+                         <button 
+                            onClick={() => removeCounterMilestone(idx)}
+                            className="text-slate-400 hover:text-red-500 p-2 mt-2"
+                         >
+                            <Trash2 size={20} />
+                         </button>
+                      </div>
+                     );
+                  })}
+
+                  <button 
+                      onClick={addCounterMilestone}
+                      className="flex items-center text-sm font-bold text-brand-600 hover:text-brand-700 mt-2"
+                   >
+                      <Plus size={16} className="mr-1" /> Add Milestone
+                   </button>
+                   
+                   {/* Rule Explanation */}
+                   <div className={`mt-4 p-4 rounded-lg border ${isFirstMilestoneTooHigh ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'}`}>
+                      <div className="flex items-start">
+                         <ShieldAlert className={`mr-2 mt-0.5 ${isFirstMilestoneTooHigh ? 'text-amber-600' : 'text-blue-600'}`} size={20} />
+                         <div>
+                            <p className={`text-sm font-bold ${isFirstMilestoneTooHigh ? 'text-amber-800 dark:text-amber-400' : 'text-blue-800 dark:text-blue-400'}`}>
+                               Fair Play Protection: 30% Rule
+                            </p>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                               Work on Milestone 1 must not exceed 30% of total contract value.
+                            </p>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+              )}
+
               <Input 
                 label="Duration (Days)"
                 type="number"
@@ -1201,7 +1380,7 @@ const ContractDetail: React.FC = () => {
 
             <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowCounterModal(false)}>Cancel</Button>
-              <Button onClick={handleCounterOffer}>Submit Proposal</Button>
+              <Button onClick={handleCounterOffer} disabled={isFirstMilestoneTooHigh}>Submit Proposal</Button>
             </div>
           </div>
         </div>
