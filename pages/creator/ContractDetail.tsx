@@ -86,6 +86,8 @@ const ContractDetail: React.FC = () => {
     startDate: '',
     milestones: []
   });
+  
+  const [customSplitCount, setCustomSplitCount] = useState(6); // Default for custom input
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -198,13 +200,14 @@ const ContractDetail: React.FC = () => {
   
   // SMART SPLIT LOGIC
   const handleAutoDistribute = (count: number) => {
-    if (counterTerms.amount <= 0) return;
+    if (counterTerms.amount <= 0) {
+       alert("Please ensure Total Amount is set before splitting.");
+       return;
+    }
 
     const total = counterTerms.amount;
     const maxFirst = Math.floor(total * 0.30);
-    const evenSplit = Math.floor(total / count);
-    
-    let firstAmount = evenSplit;
+    let firstAmount = Math.floor(total / count);
     
     // If even split violates 30% rule, cap first amount and distribute remainder
     if (firstAmount > maxFirst) {
@@ -212,15 +215,17 @@ const ContractDetail: React.FC = () => {
     }
 
     const remainder = total - firstAmount;
-    const otherAmount = Math.floor(remainder / (count - 1));
-    const lastAmount = remainder - (otherAmount * (count - 2)); // Adjust last to catch rounding
+    // Avoid division by zero if count is 1 (though UI starts at 2)
+    const otherAmount = count > 1 ? Math.floor(remainder / (count - 1)) : 0;
+    // Adjust last milestone to cover rounding differences
+    const lastAmount = remainder - (otherAmount * (count - 2)); 
 
     const newMilestones: Milestone[] = [];
     
     for (let i = 0; i < count; i++) {
       let amount = otherAmount;
       if (i === 0) amount = firstAmount;
-      if (i === count - 1) amount = lastAmount;
+      if (i === count - 1 && count > 1) amount = lastAmount;
 
       newMilestones.push({
         id: `temp-${Date.now()}-${i}`,
@@ -1578,10 +1583,13 @@ const ContractDetail: React.FC = () => {
                   </div>
 
                   {/* Quick Split Toolbar */}
-                  <div className="flex items-center gap-2 mb-4 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
-                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-2">Quick Split:</span>
+                  <div className="flex flex-wrap items-center gap-2 mb-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mr-2">Auto-Split:</span>
+                     <button onClick={() => handleAutoDistribute(2)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        2 Phases
+                     </button>
                      <button onClick={() => handleAutoDistribute(3)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
-                        3 Phases (Safe)
+                        3 Phases
                      </button>
                      <button onClick={() => handleAutoDistribute(4)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
                         4 Phases
@@ -1589,6 +1597,21 @@ const ContractDetail: React.FC = () => {
                      <button onClick={() => handleAutoDistribute(5)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
                         5 Phases
                      </button>
+                     
+                     <div className="flex items-center ml-auto gap-2 pl-2 border-l border-slate-200 dark:border-slate-600">
+                        <span className="text-xs text-slate-500">Custom:</span>
+                        <input 
+                            type="number" 
+                            min="2" 
+                            max="20" 
+                            value={customSplitCount}
+                            onChange={(e) => setCustomSplitCount(Number(e.target.value))}
+                            className="w-14 px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white"
+                        />
+                        <button onClick={() => handleAutoDistribute(customSplitCount)} className="px-3 py-1 text-xs bg-brand-600 text-white rounded shadow-sm hover:bg-brand-700">
+                            Split
+                        </button>
+                     </div>
                   </div>
 
                   {counterTerms.milestones?.map((ms, idx) => {

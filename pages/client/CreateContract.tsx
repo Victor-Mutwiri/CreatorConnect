@@ -24,6 +24,7 @@ const CreateContract: React.FC = () => {
   const [description, setDescription] = useState('');
   const [expiryDate, setExpiryDate] = useState(''); // Offer Expiry
   const [paymentType, setPaymentType] = useState<ContractPaymentType>('MILESTONE');
+  const [customSplitCount, setCustomSplitCount] = useState(6); // Default for custom split input
   
   const [terms, setTerms] = useState<ContractTerms>({
     paymentType: 'MILESTONE',
@@ -116,13 +117,16 @@ const CreateContract: React.FC = () => {
 
   // --- SMART SPLIT LOGIC ---
   const handleAutoDistribute = (count: number) => {
-    if (terms.amount <= 0) return;
+    if (terms.amount <= 0) {
+        // If total is 0, we can't calculate splits properly, but we can still create rows
+        // However, better to prompt user
+        alert("Please enter a Total Contract Amount first.");
+        return;
+    }
 
     const total = terms.amount;
     const maxFirst = Math.floor(total * 0.30);
-    const evenSplit = Math.floor(total / count);
-    
-    let firstAmount = evenSplit;
+    let firstAmount = Math.floor(total / count);
     
     // If even split violates 30% rule, cap first amount and distribute remainder
     if (firstAmount > maxFirst) {
@@ -130,15 +134,17 @@ const CreateContract: React.FC = () => {
     }
 
     const remainder = total - firstAmount;
-    const otherAmount = Math.floor(remainder / (count - 1));
-    const lastAmount = remainder - (otherAmount * (count - 2)); // Adjust last to catch rounding
+    // Avoid division by zero if count is 1 (though UI starts at 2)
+    const otherAmount = count > 1 ? Math.floor(remainder / (count - 1)) : 0;
+    // Adjust last milestone to cover rounding differences
+    const lastAmount = remainder - (otherAmount * (count - 2)); 
 
     const newMilestones: Partial<Milestone>[] = [];
     
     for (let i = 0; i < count; i++) {
       let amount = otherAmount;
       if (i === 0) amount = firstAmount;
-      if (i === count - 1) amount = lastAmount;
+      if (i === count - 1 && count > 1) amount = lastAmount;
 
       newMilestones.push({
         title: `Phase ${i + 1}`,
@@ -171,6 +177,11 @@ const CreateContract: React.FC = () => {
   
   const isFirstMilestoneTooHigh = paymentType === 'MILESTONE' && terms.amount > 0 && firstMilestoneAmount > thirtyPercentLimit;
 
+  // Date Logic
+  const todayStr = new Date().toISOString().split('T')[0];
+  const maxExpiryStr = terms.startDate ? new Date(new Date(terms.startDate).getTime() - 86400000).toISOString().split('T')[0] : undefined;
+  const isExpiryInvalid = expiryDate && terms.startDate && expiryDate >= terms.startDate;
+
   // Validation
   const isValid = 
     title.trim() !== '' &&
@@ -179,6 +190,8 @@ const CreateContract: React.FC = () => {
     terms.durationDays > 0 &&
     terms.startDate !== '' &&
     expiryDate !== '' &&
+    expiryDate >= todayStr &&
+    !isExpiryInvalid &&
     !isFirstMilestoneTooHigh && // Block if rule violated
     (paymentType === 'FIXED' || (paymentType === 'MILESTONE' && milestones.length > 0 && milestones.every(m => (m.amount || 0) > 0 && m.title)));
 
@@ -303,10 +316,13 @@ const CreateContract: React.FC = () => {
                    </div>
 
                    {/* Quick Split Toolbar */}
-                   <div className="flex items-center gap-2 mb-2 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
-                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-2">Quick Split:</span>
+                   <div className="flex flex-wrap items-center gap-2 mb-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mr-2">Auto-Split:</span>
+                     <button onClick={() => handleAutoDistribute(2)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
+                        2 Phases
+                     </button>
                      <button onClick={() => handleAutoDistribute(3)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
-                        3 Phases (Safe)
+                        3 Phases
                      </button>
                      <button onClick={() => handleAutoDistribute(4)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
                         4 Phases
@@ -314,6 +330,21 @@ const CreateContract: React.FC = () => {
                      <button onClick={() => handleAutoDistribute(5)} className="px-3 py-1 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-sm hover:border-brand-500 text-slate-700 dark:text-slate-200">
                         5 Phases
                      </button>
+                     
+                     <div className="flex items-center ml-auto gap-2 pl-2 border-l border-slate-200 dark:border-slate-600">
+                        <span className="text-xs text-slate-500">Custom:</span>
+                        <input 
+                            type="number" 
+                            min="2" 
+                            max="20" 
+                            value={customSplitCount}
+                            onChange={(e) => setCustomSplitCount(Number(e.target.value))}
+                            className="w-14 px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-white"
+                        />
+                        <button onClick={() => handleAutoDistribute(customSplitCount)} className="px-3 py-1 text-xs bg-brand-600 text-white rounded shadow-sm hover:bg-brand-700">
+                            Split
+                        </button>
+                     </div>
                    </div>
                    
                    {milestones.map((ms, idx) => {
@@ -475,8 +506,13 @@ const CreateContract: React.FC = () => {
                      value={expiryDate}
                      onChange={(e) => setExpiryDate(e.target.value)}
                      required
+                     min={todayStr}
+                     max={maxExpiryStr}
                      className="mt-0"
                   />
+                  {isExpiryInvalid && (
+                     <p className="text-xs text-red-500 mt-1 font-medium">Offer must expire before the contract start date.</p>
+                  )}
                 </div>
              </div>
              
