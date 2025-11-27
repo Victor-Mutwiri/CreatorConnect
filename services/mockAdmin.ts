@@ -1,5 +1,5 @@
 
-import { User, UserStatus, AdminDispute, Contract } from '../types';
+import { User, UserStatus, AdminDispute, Contract, ContractStatus } from '../types';
 
 const USERS_KEY = 'ubuni_users_db';
 const CONTRACTS_KEY = 'ubuni_contracts_db';
@@ -27,7 +27,7 @@ const timeAgo = (dateString: string) => {
   return Math.floor(seconds) + "s ago";
 };
 
-// Helper to create notifications (duplicated from mockContract to avoid circular dep issues in mock setup)
+// Helper to create notifications
 const createNotification = (userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error', link?: string) => {
   const notifications = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
   notifications.push({
@@ -239,7 +239,7 @@ export const mockAdminService = {
     return disputes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
-  // 9. Resolve Dispute with Repercussions (New)
+  // 9. Resolve Dispute with Advanced Logic
   resolveDispute: async (
     disputeId: string, 
     contractId: string, 
@@ -251,7 +251,7 @@ export const mockAdminService = {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
     
-    // A. Apply User Repercussions
+    // 1. Apply User Repercussions
     const userIndex = users.findIndex((u: User) => u.id === targetUserId);
     if (userIndex !== -1) {
       if (action === 'WATCHLIST') {
@@ -261,30 +261,109 @@ export const mockAdminService = {
       } else if (action === 'BAN') {
         users[userIndex].status = 'banned';
       }
-      // If CLEAR or WARNING, we might unflag or just notify, preserving status
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
     }
 
-    // B. Update Contract Status (Force Resolve)
+    // 2. Resolve Contract & Milestone State based on Context
     const contractIndex = contracts.findIndex((c: Contract) => c.id === contractId);
     if (contractIndex !== -1) {
       const contract = contracts[contractIndex];
+      const isCreatorTarget = targetUserId === contract.creatorId;
+      const isSevereAction = ['SUSPEND', 'BAN'].includes(action);
       
-      // If Milestone Dispute
-      if (contract.terms.milestones) {
-        const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
-        if (mIndex !== -1) {
-           // For simplicity, Admin resolution usually cancels the milestone or forces it paid.
-           // Here we default to CANCELLED to close the dispute loop visually in this mock
-           contract.terms.milestones[mIndex].status = 'CANCELLED';
-           contract.terms.milestones[mIndex].disputeReason = `Resolved by Admin: ${adminNote}`;
+      let historyNote = `Dispute resolved by Admin. Action: ${action}. Note: ${adminNote}`;
+
+      // --- LOGIC BRANCHES ---
+
+      if (isCreatorTarget && isSevereAction) {
+        // SCENARIO: Creator at fault (Severe). 
+        // e.g., Creator lied about payment. Punish creator, but honor the "Payment" state for the client.
+        
+        contract.status = ContractStatus.COMPLETED;
+        historyNote += " | Creator punished. Contract marked COMPLETED.";
+
+        // Handle Milestone: Force it to PAID
+        if (contract.terms.milestones) {
+           const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
+           if (mIndex !== -1) {
+              contract.terms.milestones[mIndex].status = 'PAID';
+              contract.terms.milestones[mIndex].disputeReason = `Resolved (Creator Fault): ${adminNote}`;
+           }
+        }
+
+        // Update Client Stats: Give credit for completed job (since they effectively "won" the dispute)
+        const clientIndex = users.findIndex((u: User) => u.id === contract.clientId);
+        if (clientIndex !== -1 && users[clientIndex].clientProfile?.stats) {
+           users[clientIndex].clientProfile.stats.contractsCompleted += 1;
+           users[clientIndex].clientProfile.stats.disputesWon += 1;
+           localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+
+      } else if (!isCreatorTarget && !isSevereAction) {
+        // SCENARIO: Client at fault (Mild/Warning).
+        // e.g. Client forgot to pay or uploaded wrong proof. Give second chance.
+        
+        // Contract remains ACTIVE/ACCEPTED.
+        historyNote += " | Client warned. Milestone reset for retry.";
+
+        // Handle Milestone: Revert to UNDER_REVIEW (Allows "Approve & Pay" again)
+        if (contract.terms.milestones) {
+           const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
+           if (mIndex !== -1) {
+              contract.terms.milestones[mIndex].status = 'UNDER_REVIEW'; 
+              // Clear the bad payment proof
+              delete contract.terms.milestones[mIndex].paymentProof;
+              contract.terms.milestones[mIndex].disputeReason = `Retry Allowed: ${adminNote}`;
+           }
+        }
+
+      } else if (!isCreatorTarget && isSevereAction) {
+        // SCENARIO: Client at fault (Severe/Ban).
+        // e.g. Fraud. Terminate everything.
+        
+        contract.status = ContractStatus.CANCELLED;
+        historyNote += " | Client banned. Contract CANCELLED.";
+
+        // Handle Milestone: Cancel it.
+        if (contract.terms.milestones) {
+           const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
+           if (mIndex !== -1) {
+              contract.terms.milestones[mIndex].status = 'CANCELLED';
+              contract.terms.milestones[mIndex].disputeReason = `Terminated (Client Fault): ${adminNote}`;
+           }
+        }
+        
+        // Update Client Stats: Dispute Lost
+        const clientIndex = users.findIndex((u: User) => u.id === contract.clientId);
+        if (clientIndex !== -1 && users[clientIndex].clientProfile?.stats) {
+           users[clientIndex].clientProfile.stats.disputesLost += 1;
+           localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+
+      } else {
+        // DEFAULT FALLBACK (Any other combo, e.g., Creator Mild Warning)
+        // Just clear the dispute flag, keep milestone IN_PROGRESS or CANCELLED based on safety.
+        // Defaulting to CANCELLED milestone for safety if not specified.
+        if (contract.terms.milestones) {
+           const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
+           if (mIndex !== -1) {
+              // If simple warning, maybe let them resume work?
+              contract.terms.milestones[mIndex].status = 'IN_PROGRESS';
+              contract.terms.milestones[mIndex].disputeReason = `Resolved (Warning): ${adminNote}`;
+           }
         }
       }
 
-      // If Termination Dispute
+      // If Termination Dispute (End Contract Request)
       if (disputeId.startsWith('end-') && contract.endRequest) {
-         contract.endRequest.status = 'approved'; // Force approve end
-         contract.status = 'CANCELLED'; // Terminated
+         if (isSevereAction) {
+            contract.status = ContractStatus.CANCELLED;
+            contract.endRequest.status = 'approved';
+         } else {
+            // If mild warning, maybe reject the end request and force continuance?
+            contract.endRequest.status = 'rejected';
+            contract.endRequest.rejectionReason = "Admin Intervention: Resume Contract";
+         }
       }
 
       contract.history.push({
@@ -292,14 +371,14 @@ export const mockAdminService = {
         date: new Date().toISOString(),
         action: 'admin_resolution',
         actorName: 'Ubuni Support',
-        note: `Dispute resolved by Admin. Action: ${action}. Note: ${adminNote}`
+        note: historyNote
       });
 
       contracts[contractIndex] = contract;
       localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
     }
 
-    // C. Send Notification to User
+    // 3. Send Notification to Target User
     let title = 'Dispute Resolved';
     let msg = `The dispute on contract #${contractId} has been resolved by support.`;
     let type: any = 'info';
