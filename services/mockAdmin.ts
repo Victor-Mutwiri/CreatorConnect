@@ -4,6 +4,7 @@ import { User, UserStatus, Contract, ContractStatus, Milestone } from '../types'
 const USERS_KEY = 'ubuni_users_db';
 const CONTRACTS_KEY = 'ubuni_contracts_db';
 const NOTIFICATIONS_KEY = 'ubuni_notifications_db';
+const SETTINGS_KEY = 'ubuni_platform_settings_db';
 
 // Simulated delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -21,6 +22,25 @@ const createNotification = (userId: string, title: string, message: string, type
     date: new Date().toISOString(),
   });
   localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+};
+
+// Default Settings
+const DEFAULT_SETTINGS = {
+  taxRate: 16, // VAT
+  platformFeePercentage: 10,
+  minWithdrawal: 1000,
+  maintenanceMode: false,
+  categories: [
+    "Lifestyle", "Fashion", "Beauty", "Tech", "Travel", "Food", 
+    "Gaming", "Fitness", "Music", "Education", "Comedy", "Business",
+    "Art & Design", "Photography", "Parenting", "Sports"
+  ],
+  skills: [
+    "Content Creation", "Video Editing", "Photography", "Live Streaming",
+    "Copywriting", "Modelling", "Voice Over", "Public Speaking",
+    "Graphic Design", "Motion Graphics", "Scriptwriting", "Storytelling"
+  ],
+  featuredCreatorIds: [] as string[]
 };
 
 export const mockAdminService = {
@@ -543,5 +563,23 @@ export const mockAdminService = {
             revenue: revenueTrend
         }
     };
+  },
+
+  // 14. Get Platform Settings
+  getPlatformSettings: async (): Promise<any> => {
+    await delay(300);
+    const settings = localStorage.getItem(SETTINGS_KEY);
+    if (settings) {
+        return JSON.parse(settings);
+    }
+    // Initialize default if not exists
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS));
+    return DEFAULT_SETTINGS;
+  },
+
+  // 15. Update Platform Settings
+  updatePlatformSettings: async (settings: any): Promise<void> => {
+    await delay(500);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }
 };

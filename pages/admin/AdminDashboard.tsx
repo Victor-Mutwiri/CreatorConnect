@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, Database, LogOut, Activity, Settings, Sun, Moon, Lock, 
   CheckCircle, Search, MoreVertical, XCircle, AlertTriangle, 
   RefreshCcw, UserX, UserCheck, Key, Plus, ShieldCheck, Instagram, Youtube, Twitter, Facebook, ExternalLink,
-  Gavel, Clock, AlertCircle, BarChart3, TrendingUp, DollarSign, Star, Briefcase, Eye, ShoppingBag, User as UserIcon
+  Gavel, Clock, AlertCircle, BarChart3, TrendingUp, DollarSign, Star, Briefcase, Eye, ShoppingBag, User as UserIcon,
+  Tag, Zap, Sliders, Save, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -55,11 +55,17 @@ const AdminDashboard: React.FC = () => {
   const [adminVerdict, setAdminVerdict] = useState<'FAVOR_CLIENT' | 'FAVOR_CREATOR' | 'FORCE_REVISION' | null>(null);
   const [adminNote, setAdminNote] = useState('');
 
+  // Platform Settings State
+  const [platformSettings, setPlatformSettings] = useState<any>(null);
+  const [newCategory, setNewCategory] = useState('');
+  const [newSkill, setNewSkill] = useState('');
+  const [featuredUserSearch, setFeaturedUserSearch] = useState('');
+
   // Team State
   const [admins, setAdmins] = useState(MOCK_ADMINS);
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
 
-  // Password Change State
+  // Password Change State (kept for team/profile self-settings)
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -78,6 +84,10 @@ const AdminDashboard: React.FC = () => {
     }
     if (activeTab === 'analytics') {
         fetchAnalytics();
+    }
+    if (activeTab === 'settings') {
+        fetchSettings();
+        fetchUsers(); // Needed for featured user search
     }
   }, [activeTab, verificationTab]);
 
@@ -115,6 +125,11 @@ const AdminDashboard: React.FC = () => {
       setLoadingStats(false);
   };
 
+  const fetchSettings = async () => {
+      const settings = await mockAdminService.getPlatformSettings();
+      setPlatformSettings(settings);
+  };
+
   const filterUsers = () => {
     let result = users;
 
@@ -150,18 +165,6 @@ const AdminDashboard: React.FC = () => {
       setAdminVerdict(null);
       setAdminNote('');
       fetchDisputes();
-  };
-
-  const getTimeElapsed = (date: string) => {
-      const diff = new Date().getTime() - new Date(date).getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      return hours;
-  };
-
-  const getUrgencyLevel = (hours: number) => {
-      if (hours > 48) return 'critical';
-      if (hours > 24) return 'high';
-      return 'normal';
   };
 
   // --- User Actions ---
@@ -205,35 +208,52 @@ const AdminDashboard: React.FC = () => {
       fetchUsers();
   };
 
-  const handleToggleClientVerify = async (userId: string, currentStatus: boolean) => {
-      await mockAdminService.verifyIdentity(userId, !currentStatus);
-      fetchUsers();
+  // --- Settings Actions ---
+  const saveSettings = async () => {
+      if (!platformSettings) return;
+      setIsSaving(true);
+      await mockAdminService.updatePlatformSettings(platformSettings);
+      setIsSaving(false);
+      setMessage({ type: 'success', text: "Platform settings updated successfully." });
+      setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleToggleSocialVerify = async (userId: string, platform: string, currentStatus: boolean) => {
-      await mockAdminService.verifySocialPlatform(userId, platform, !currentStatus);
-      fetchUsers();
+  const addCategory = () => {
+      if (!newCategory.trim() || !platformSettings) return;
+      if (platformSettings.categories.includes(newCategory.trim())) return;
+      setPlatformSettings({ ...platformSettings, categories: [...platformSettings.categories, newCategory.trim()] });
+      setNewCategory('');
   };
 
-  // --- Password Change ---
-  const handlePasswordChange = (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage(null);
-    setIsSaving(true);
+  const removeCategory = (cat: string) => {
+      setPlatformSettings({ ...platformSettings, categories: platformSettings.categories.filter((c: string) => c !== cat) });
+  };
 
-    if (newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: "New passwords do not match." });
-      setIsSaving(false);
-      return;
-    }
+  const addSkill = () => {
+      if (!newSkill.trim() || !platformSettings) return;
+      if (platformSettings.skills.includes(newSkill.trim())) return;
+      setPlatformSettings({ ...platformSettings, skills: [...platformSettings.skills, newSkill.trim()] });
+      setNewSkill('');
+  };
 
-    setTimeout(() => {
-      setIsSaving(false);
-      setMessage({ type: 'success', text: "Password updated successfully." });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    }, 1500);
+  const removeSkill = (skill: string) => {
+      setPlatformSettings({ ...platformSettings, skills: platformSettings.skills.filter((s: string) => s !== skill) });
+  };
+
+  const addFeaturedUser = () => {
+      // Find user by email or ID from the search query
+      const user = users.find(u => u.id === featuredUserSearch || u.email.toLowerCase() === featuredUserSearch.toLowerCase());
+      if (!user) {
+          alert("User not found");
+          return;
+      }
+      if (platformSettings.featuredCreatorIds.includes(user.id)) return;
+      setPlatformSettings({ ...platformSettings, featuredCreatorIds: [...platformSettings.featuredCreatorIds, user.id] });
+      setFeaturedUserSearch('');
+  };
+
+  const removeFeaturedUser = (id: string) => {
+      setPlatformSettings({ ...platformSettings, featuredCreatorIds: platformSettings.featuredCreatorIds.filter((uid: string) => uid !== id) });
   };
 
   // Simple Chart Component
@@ -305,16 +325,16 @@ const AdminDashboard: React.FC = () => {
             <Gavel size={18} className={activeTab === 'disputes' ? 'text-blue-400' : ''} /> Disputes
           </button>
           <button 
+            onClick={() => setActiveTab('settings')}
+            className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'settings' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+          >
+            <Sliders size={18} className={activeTab === 'settings' ? 'text-blue-400' : ''} /> Platform Settings
+          </button>
+          <button 
             onClick={() => setActiveTab('team')}
             className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'team' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
           >
             <Key size={18} className={activeTab === 'team' ? 'text-blue-400' : ''} /> Team & Access
-          </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'settings' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-          >
-            <Settings size={18} className={activeTab === 'settings' ? 'text-blue-400' : ''} /> Settings
           </button>
         </nav>
 
@@ -811,7 +831,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* VERIFICATION & SETTINGS (Simplified for brevity) */}
+          {/* VERIFICATION */}
           {activeTab === 'verification' && (
              <div className="space-y-6 animate-in fade-in">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Verification Control</h2>
@@ -842,17 +862,124 @@ const AdminDashboard: React.FC = () => {
              </div>
           )}
 
-          {activeTab === 'settings' && (
-             <div className="space-y-6 animate-in fade-in">
-               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Settings</h2>
-               <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <h3 className="text-lg font-bold mb-4 dark:text-white">Security</h3>
-                  <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-                     <Input label="New Password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
-                     <Input label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-                     {message && <p className={`text-sm ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>{message.text}</p>}
-                     <Button type="submit" disabled={isSaving}>{isSaving ? 'Updating...' : 'Change Password'}</Button>
-                  </form>
+          {/* PLATFORM SETTINGS */}
+          {activeTab === 'settings' && platformSettings && (
+             <div className="space-y-8 animate-in fade-in">
+               <div className="flex justify-between items-center">
+                  <div>
+                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Platform Settings</h2>
+                     <p className="text-slate-500 dark:text-slate-400">Configure global parameters and references.</p>
+                  </div>
+                  <Button onClick={saveSettings} disabled={isSaving}>
+                     <Save size={18} className="mr-2" /> {isSaving ? 'Saving...' : 'Save Configuration'}
+                  </Button>
+               </div>
+
+               {message && <div className={`p-4 rounded-lg border ${message.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>{message.text}</div>}
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* General Configuration */}
+                  <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                     <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                        <Activity size={20} className="mr-2 text-blue-500" /> General Configuration
+                     </h3>
+                     <div className="space-y-4">
+                        <div>
+                           <Input label="Tax Rate (VAT Reference %)" type="number" value={platformSettings.taxRate} onChange={(e) => setPlatformSettings({...platformSettings, taxRate: parseFloat(e.target.value)})} />
+                        </div>
+                        <div>
+                           <Input label="Platform Fee (%)" type="number" value={platformSettings.platformFeePercentage} onChange={(e) => setPlatformSettings({...platformSettings, platformFeePercentage: parseFloat(e.target.value)})} />
+                        </div>
+                        <div>
+                           <Input label="Minimum Withdrawal (KES)" type="number" value={platformSettings.minWithdrawal} onChange={(e) => setPlatformSettings({...platformSettings, minWithdrawal: parseInt(e.target.value)})} />
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                           <span className="text-sm font-medium">Maintenance Mode</span>
+                           <button 
+                              onClick={() => setPlatformSettings({...platformSettings, maintenanceMode: !platformSettings.maintenanceMode})}
+                              className={`w-12 h-6 rounded-full p-1 transition-colors ${platformSettings.maintenanceMode ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                           >
+                              <div className={`w-4 h-4 bg-white rounded-full transition-transform ${platformSettings.maintenanceMode ? 'translate-x-6' : ''}`} />
+                           </button>
+                        </div>
+                        {platformSettings.maintenanceMode && <p className="text-xs text-red-500 font-bold">Warning: Platform is locked for non-admins.</p>}
+                     </div>
+                  </div>
+
+                  {/* Taxonomy Management */}
+                  <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                     <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                        <Tag size={20} className="mr-2 text-purple-500" /> Taxonomy
+                     </h3>
+                     
+                     <div className="mb-6">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Categories</label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                           {platformSettings.categories.map((cat: string) => (
+                              <span key={cat} className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded text-xs flex items-center border border-purple-100 dark:border-purple-800">
+                                 {cat} <button onClick={() => removeCategory(cat)} className="ml-1 hover:text-purple-900"><XCircle size={12} /></button>
+                              </span>
+                           ))}
+                        </div>
+                        <div className="flex gap-2">
+                           <Input placeholder="Add Category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="text-sm py-1" />
+                           <Button size="sm" onClick={addCategory}><Plus size={16} /></Button>
+                        </div>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Skills</label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                           {platformSettings.skills.map((skill: string) => (
+                              <span key={skill} className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded text-xs flex items-center border border-blue-100 dark:border-blue-800">
+                                 {skill} <button onClick={() => removeSkill(skill)} className="ml-1 hover:text-blue-900"><XCircle size={12} /></button>
+                              </span>
+                           ))}
+                        </div>
+                        <div className="flex gap-2">
+                           <Input placeholder="Add Skill" value={newSkill} onChange={(e) => setNewSkill(e.target.value)} className="text-sm py-1" />
+                           <Button size="sm" onClick={addSkill}><Plus size={16} /></Button>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Featured Creators */}
+                  <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm md:col-span-2">
+                     <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                        <Star size={20} className="mr-2 text-yellow-500" /> Featured Creators
+                     </h3>
+                     <div className="flex gap-4 mb-6">
+                        <Input 
+                           placeholder="Search User by Email or ID to Feature" 
+                           value={featuredUserSearch} 
+                           onChange={(e) => setFeaturedUserSearch(e.target.value)} 
+                        />
+                        <Button onClick={addFeaturedUser} disabled={!featuredUserSearch}>Add</Button>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {platformSettings.featuredCreatorIds.map((id: string) => {
+                           const user = users.find(u => u.id === id);
+                           if (!user) return null;
+                           return (
+                              <div key={id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                                 <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-slate-200 rounded-full overflow-hidden">
+                                       {user.avatarUrl && <img src={user.avatarUrl} className="w-full h-full object-cover" />}
+                                    </div>
+                                    <div>
+                                       <p className="text-sm font-bold text-slate-900 dark:text-white">{user.name}</p>
+                                       <p className="text-xs text-slate-500 truncate w-24">{user.email}</p>
+                                    </div>
+                                 </div>
+                                 <button onClick={() => removeFeaturedUser(id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
+                              </div>
+                           );
+                        })}
+                        {platformSettings.featuredCreatorIds.length === 0 && <p className="text-slate-500 text-sm">No featured creators yet.</p>}
+                     </div>
+                  </div>
+
                </div>
              </div>
           )}
