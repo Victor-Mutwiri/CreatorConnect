@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
   Smartphone, Building, Bitcoin, Lock, Flag, Loader, Upload, Eye, ExternalLink, HelpCircle,
-  Plus, Trash2, Calculator, ChevronDown, ChevronUp, ShieldAlert, Wand2, Divide, Handshake
+  Plus, Trash2, Calculator, ChevronDown, ChevronUp, ShieldAlert, Wand2, Divide, Handshake, X
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -29,6 +30,7 @@ const ContractDetail: React.FC = () => {
   const [showEndContractModal, setShowEndContractModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showRejectEndModal, setShowRejectEndModal] = useState(false); // For rejecting end request
+  const [showCounterModal, setShowCounterModal] = useState(false); // For counter offers
   
   // Submission & Dispute Modals
   const [showSubmitWorkModal, setShowSubmitWorkModal] = useState<string | null>(null); // holds milestone ID or 'FIXED'
@@ -42,6 +44,11 @@ const ContractDetail: React.FC = () => {
   const [endType, setEndType] = useState<'completion' | 'termination'>('completion');
   const [rejectionReason, setRejectionReason] = useState('');
   
+  // Counter Offer State
+  const [counterAmount, setCounterAmount] = useState<number>(0);
+  const [counterDuration, setCounterDuration] = useState<number>(0);
+  const [counterNote, setCounterNote] = useState('');
+
   // Rating
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -54,6 +61,12 @@ const ContractDetail: React.FC = () => {
         const m = await mockContractService.getMessages(id);
         setContract(c);
         setMessages(m);
+        
+        // Initialize counter defaults
+        if (c) {
+          setCounterAmount(c.terms.amount);
+          setCounterDuration(c.terms.durationDays);
+        }
       }
       setLoading(false);
     };
@@ -85,6 +98,31 @@ const ContractDetail: React.FC = () => {
     setContract(c);
   };
   
+  const handleCounterOffer = async () => {
+    if (!contract || !user) return;
+    
+    // Create new terms based on current ones but updated values
+    // Note: For complex milestone splits, this simplistic counter just updates the total.
+    // In a real app, you'd want to redistribute milestones.
+    // Here we preserve milestones but warn if total doesn't match sum (or simplistic logic).
+    const newTerms = { 
+      ...contract.terms, 
+      amount: counterAmount, 
+      durationDays: counterDuration 
+    };
+
+    await mockContractService.counterOffer(contract.id, newTerms, user.id, user.name);
+    
+    // Send a system message about the counter
+    if (counterNote) {
+       await mockContractService.sendMessage(contract.id, user.id, user.name, `Counter Offer Note: ${counterNote}`);
+    }
+
+    setShowCounterModal(false);
+    const c = await mockContractService.getContractById(contract.id);
+    setContract(c);
+  };
+
   const handleSubmitWork = async () => {
     if (!contract || !user || !showSubmitWorkModal) return;
     
@@ -188,6 +226,7 @@ const ContractDetail: React.FC = () => {
     if (['COMPLETED', 'PAID'].includes(status)) color = 'bg-blue-100 text-blue-700';
     if (['DISPUTED', 'CANCELLED', 'DECLINED'].includes(status)) color = 'bg-red-100 text-red-700';
     if (['UNDER_REVIEW', 'PAYMENT_VERIFY'].includes(status)) color = 'bg-orange-100 text-orange-700';
+    if (status === 'NEGOTIATING') color = 'bg-purple-100 text-purple-700';
     
     return (
       <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${color}`}>
@@ -211,19 +250,40 @@ const ContractDetail: React.FC = () => {
                      {contract.title}
                      {renderStatusBadge(contract.status)}
                   </h1>
-                  <p className="text-slate-500 dark:text-slate-400 mt-1">
-                     Contract #{contract.id.slice(-6)} • Created on {new Date(contract.createdAt).toLocaleDateString()}
-                  </p>
+                  
+                  {/* Profile Links & Metadata */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-600 dark:text-slate-400">
+                     <span>Contract #{contract.id.slice(-6)}</span>
+                     <span className="hidden sm:inline">•</span>
+                     <span>
+                        Client: <Link to={`/client/profile/${contract.clientId}`} className="font-bold text-brand-600 hover:underline">{contract.clientName}</Link>
+                     </span>
+                     <span className="hidden sm:inline">•</span>
+                     <span>
+                        Creator: <Link to={`/profile/${contract.creatorId}`} className="font-bold text-brand-600 hover:underline">{contract.creatorName}</Link>
+                     </span>
+                  </div>
                </div>
                
                {/* Global Actions */}
                <div className="flex gap-2">
+                  {/* Counter Offer Logic: Visible if SENT (Creator only) or NEGOTIATING (Both) */}
+                  {((contract.status === ContractStatus.SENT && isCreator) || (contract.status === ContractStatus.NEGOTIATING)) && (
+                     <Button variant="outline" onClick={() => setShowCounterModal(true)}>
+                        Counter Offer
+                     </Button>
+                  )}
+
                   {contract.status === ContractStatus.SENT && isCreator && (
                      <>
                         <Button variant="outline" onClick={() => handleStatusChange(ContractStatus.DECLINED)} className="text-red-600 border-red-200 hover:bg-red-50">Decline</Button>
                         <Button onClick={() => handleStatusChange(ContractStatus.ACCEPTED)}>Accept Offer</Button>
                      </>
                   )}
+                  {contract.status === ContractStatus.NEGOTIATING && (
+                     <Button onClick={() => handleStatusChange(ContractStatus.ACCEPTED)}>Accept New Terms</Button>
+                  )}
+
                   {contract.status === ContractStatus.ACCEPTED && (
                       <div className="p-2 bg-blue-50 text-blue-700 rounded text-sm font-medium border border-blue-200">
                          Contract Active. Work can begin.
@@ -460,6 +520,48 @@ const ContractDetail: React.FC = () => {
       </div>
 
       {/* --- MODALS --- */}
+
+      {/* Counter Offer Modal */}
+      {showCounterModal && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-xl w-full max-w-md p-6 shadow-xl border border-slate-200 dark:border-slate-800">
+               <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Make Counter Offer</h3>
+                  <button onClick={() => setShowCounterModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+               </div>
+               
+               <div className="space-y-4">
+                  <Input 
+                     label="New Total Amount (KES)"
+                     type="number"
+                     value={counterAmount}
+                     onChange={(e) => setCounterAmount(Number(e.target.value))}
+                  />
+                  <Input 
+                     label="Duration (Days)"
+                     type="number"
+                     value={counterDuration}
+                     onChange={(e) => setCounterDuration(Number(e.target.value))}
+                  />
+                  <div>
+                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Note (Optional)</label>
+                     <textarea 
+                        className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white"
+                        rows={2}
+                        placeholder="Why are you changing the terms?"
+                        value={counterNote}
+                        onChange={(e) => setCounterNote(e.target.value)}
+                     />
+                  </div>
+               </div>
+
+               <div className="flex justify-end gap-3 mt-6">
+                  <Button variant="ghost" onClick={() => setShowCounterModal(false)}>Cancel</Button>
+                  <Button onClick={handleCounterOffer}>Send Counter Offer</Button>
+               </div>
+            </div>
+         </div>
+      )}
 
       {/* Submit Work Modal */}
       {showSubmitWorkModal && (
