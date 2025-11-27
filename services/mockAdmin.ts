@@ -348,5 +348,61 @@ export const mockAdminService = {
       // Notify
       createNotification(contract.clientId, 'Dispute Update', `Admin Ruling on ${contract.title}: ${adminNote}`, 'info');
       createNotification(contract.creatorId, 'Dispute Update', `Admin Ruling on ${contract.title}: ${adminNote}`, 'info');
+  },
+
+  // 11. Get Creator Performance Report
+  getCreatorPerformanceReport: async (): Promise<any> => {
+    await delay(700);
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    
+    // Filter only creators
+    const creators = users.filter((u: User) => u.role === 'CREATOR');
+    
+    const stats = creators.map((creator: User) => {
+        const myContracts = contracts.filter((c: Contract) => c.creatorId === creator.id);
+        
+        const totalJobs = myContracts.length;
+        const completedJobs = myContracts.filter((c: Contract) => c.status === ContractStatus.COMPLETED).length;
+        const cancelledJobs = myContracts.filter((c: Contract) => c.status === ContractStatus.CANCELLED).length;
+        const disputeCount = myContracts.filter((c: Contract) => 
+            c.status === ContractStatus.DISPUTED || c.terms.milestones?.some(m => m.status === 'DISPUTED')
+        ).length;
+
+        // Calculate Earnings
+        let earnings = 0;
+        myContracts.forEach((c: Contract) => {
+            if (c.terms.paymentType === 'FIXED' && c.status === ContractStatus.COMPLETED) {
+                earnings += c.terms.amount;
+            } else if (c.terms.paymentType === 'MILESTONE' && c.terms.milestones) {
+                const paid = c.terms.milestones.filter((m: Milestone) => m.status === 'PAID');
+                earnings += paid.reduce((acc: number, m: Milestone) => acc + m.amount, 0);
+            }
+        });
+
+        // Completion Rate
+        const closedJobs = completedJobs + cancelledJobs;
+        const completionRate = closedJobs > 0 ? Math.round((completedJobs / closedJobs) * 100) : 0;
+
+        return {
+            id: creator.id,
+            name: creator.name,
+            email: creator.email,
+            avatarUrl: creator.avatarUrl,
+            status: creator.status,
+            trustScore: creator.profile?.verification?.trustScore || 0,
+            averageRating: creator.profile?.averageRating || 0,
+            totalReviews: creator.profile?.totalReviews || 0,
+            totalJobs,
+            completedJobs,
+            earnings,
+            disputeCount,
+            completionRate,
+            joinedAt: creator.createdAt
+        };
+    });
+
+    // Sort by Earnings descending
+    return stats.sort((a: any, b: any) => b.earnings - a.earnings);
   }
 };

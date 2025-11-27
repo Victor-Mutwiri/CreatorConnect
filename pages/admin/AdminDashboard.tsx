@@ -5,7 +5,7 @@ import {
   Shield, Users, Database, LogOut, Activity, Settings, Sun, Moon, Lock, 
   CheckCircle, Search, MoreVertical, XCircle, AlertTriangle, 
   RefreshCcw, UserX, UserCheck, Key, Plus, ShieldCheck, Instagram, Youtube, Twitter, Facebook, ExternalLink,
-  Gavel, Clock, AlertCircle
+  Gavel, Clock, AlertCircle, BarChart3, TrendingUp, DollarSign, Star, Briefcase, Eye
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -24,7 +24,7 @@ const AdminDashboard: React.FC = () => {
   const { signOut, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'verification' | 'disputes' | 'team' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'verification' | 'disputes' | 'team' | 'settings' | 'analytics'>('dashboard');
 
   // User Management State
   const [users, setUsers] = useState<User[]>([]);
@@ -33,6 +33,11 @@ const AdminDashboard: React.FC = () => {
   const [userFilter, setUserFilter] = useState<'ALL' | 'CREATOR' | 'CLIENT' | 'FLAGGED' | 'BANNED'>('ALL');
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+
+  // Analytics State
+  const [creatorStats, setCreatorStats] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [selectedCreatorStat, setSelectedCreatorStat] = useState<any | null>(null);
 
   // Verification State
   const [verificationTab, setVerificationTab] = useState<'pending' | 'clients' | 'socials'>('pending');
@@ -68,6 +73,9 @@ const AdminDashboard: React.FC = () => {
     if (activeTab === 'disputes') {
         fetchDisputes();
     }
+    if (activeTab === 'analytics') {
+        fetchAnalytics();
+    }
   }, [activeTab, verificationTab]);
 
   useEffect(() => {
@@ -89,6 +97,13 @@ const AdminDashboard: React.FC = () => {
   const fetchDisputes = async () => {
       const data = await mockAdminService.getAllDisputes();
       setDisputes(data);
+  };
+
+  const fetchAnalytics = async () => {
+      setLoadingStats(true);
+      const data = await mockAdminService.getCreatorPerformanceReport();
+      setCreatorStats(data);
+      setLoadingStats(false);
   };
 
   const filterUsers = () => {
@@ -233,6 +248,12 @@ const AdminDashboard: React.FC = () => {
             <Activity size={18} className={activeTab === 'dashboard' ? 'text-blue-400' : ''} /> Dashboard
           </button>
           <button 
+            onClick={() => setActiveTab('analytics')}
+            className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'analytics' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+          >
+            <BarChart3 size={18} className={activeTab === 'analytics' ? 'text-blue-400' : ''} /> Analytics
+          </button>
+          <button 
             onClick={() => setActiveTab('users')}
             className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'users' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
           >
@@ -296,6 +317,126 @@ const AdminDashboard: React.FC = () => {
                 Use the sidebar to manage users, roles, and system configurations.
                 </p>
             </div>
+          )}
+
+          {/* ANALYTICS TAB */}
+          {activeTab === 'analytics' && (
+             <div className="space-y-8 animate-in fade-in">
+                <div className="flex justify-between items-center">
+                   <div>
+                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Creator Performance Metrics</h2>
+                      <p className="text-slate-500 dark:text-slate-400">Platform-wide earnings, completion rates, and talent leaderboard.</p>
+                   </div>
+                   <button onClick={fetchAnalytics} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+                      <RefreshCcw size={18} className={`text-slate-600 dark:text-slate-300 ${loadingStats ? 'animate-spin' : ''}`} />
+                   </button>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                   <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                      <p className="text-xs text-slate-500 uppercase font-bold mb-1">Total Earnings</p>
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center">
+                         KES {creatorStats.reduce((acc, c) => acc + c.earnings, 0).toLocaleString()}
+                      </h3>
+                   </div>
+                   <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                      <p className="text-xs text-slate-500 uppercase font-bold mb-1">Active Creators</p>
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center">
+                         {creatorStats.filter(c => c.status === 'active').length} <span className="text-xs text-slate-400 ml-2 font-normal">/ {creatorStats.length} Total</span>
+                      </h3>
+                   </div>
+                   <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                      <p className="text-xs text-slate-500 uppercase font-bold mb-1">Avg Completion Rate</p>
+                      <h3 className="text-2xl font-bold text-green-600 dark:text-green-400 flex items-center">
+                         {Math.round(creatorStats.reduce((acc, c) => acc + c.completionRate, 0) / (creatorStats.length || 1))}%
+                      </h3>
+                   </div>
+                   <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                      <p className="text-xs text-slate-500 uppercase font-bold mb-1">Jobs Completed</p>
+                      <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center">
+                         {creatorStats.reduce((acc, c) => acc + c.completedJobs, 0)}
+                      </h3>
+                   </div>
+                </div>
+
+                {/* Leaderboard */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                   <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">Top Performing Creators</h3>
+                   </div>
+                   <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                         <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 font-medium">
+                            <tr>
+                               <th className="px-6 py-4">Creator</th>
+                               <th className="px-6 py-4">Contracts Closed</th>
+                               <th className="px-6 py-4">Total Earnings</th>
+                               <th className="px-6 py-4">Completion Rate</th>
+                               <th className="px-6 py-4">Rating</th>
+                               <th className="px-6 py-4">Trust Score</th>
+                               <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {creatorStats.length > 0 ? creatorStats.map((c, idx) => (
+                               <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                  <td className="px-6 py-4">
+                                     <div className="flex items-center gap-3">
+                                        <span className="text-slate-400 w-4 text-center font-mono text-xs">{idx + 1}</span>
+                                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden">
+                                           {c.avatarUrl && <img src={c.avatarUrl} className="w-full h-full object-cover" />}
+                                        </div>
+                                        <div>
+                                           <p className="font-bold text-slate-900 dark:text-white">{c.name}</p>
+                                           <p className="text-xs text-slate-500">{c.email}</p>
+                                        </div>
+                                     </div>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <span className="font-bold text-slate-700 dark:text-slate-300">{c.completedJobs}</span>
+                                     <span className="text-slate-400 text-xs ml-1">/ {c.totalJobs}</span>
+                                  </td>
+                                  <td className="px-6 py-4 font-mono text-slate-900 dark:text-white">
+                                     KES {c.earnings.toLocaleString()}
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <div className="flex items-center gap-2">
+                                        <div className="w-16 bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
+                                           <div className={`h-1.5 rounded-full ${c.completionRate >= 90 ? 'bg-green-500' : c.completionRate >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${c.completionRate}%` }}></div>
+                                        </div>
+                                        <span className="text-xs font-medium">{c.completionRate}%</span>
+                                     </div>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <div className="flex items-center text-yellow-500">
+                                        <Star size={14} fill="currentColor" />
+                                        <span className="ml-1 text-slate-700 dark:text-slate-300 font-bold">{c.averageRating || '0.0'}</span>
+                                        <span className="text-xs text-slate-400 ml-1">({c.totalReviews})</span>
+                                     </div>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <span className={`px-2 py-1 rounded text-xs font-bold ${c.trustScore >= 80 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                                        {c.trustScore}
+                                     </span>
+                                  </td>
+                                  <td className="px-6 py-4 text-right">
+                                     <button 
+                                       onClick={() => setSelectedCreatorStat(c)}
+                                       className="text-blue-600 dark:text-blue-400 hover:underline text-xs flex items-center justify-end gap-1 ml-auto"
+                                     >
+                                        <Eye size={14} /> Details
+                                     </button>
+                                  </td>
+                               </tr>
+                            )) : (
+                               <tr><td colSpan={7} className="p-8 text-center text-slate-500">No data available.</td></tr>
+                            )}
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+             </div>
           )}
 
           {/* DISPUTE RESOLUTION MODULE */}
@@ -502,6 +643,61 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* --- MODALS --- */}
+
+      {/* Analytics Details Modal */}
+      {selectedCreatorStat && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700">
+               <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden">
+                        {selectedCreatorStat.avatarUrl && <img src={selectedCreatorStat.avatarUrl} className="w-full h-full object-cover" />}
+                     </div>
+                     <div>
+                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">{selectedCreatorStat.name}</h3>
+                        <p className="text-sm text-slate-500">{selectedCreatorStat.email}</p>
+                     </div>
+                  </div>
+                  <button onClick={() => setSelectedCreatorStat(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><XCircle size={24} /></button>
+               </div>
+               <div className="p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <p className="text-xs text-slate-500 uppercase font-bold">Total Earnings</p>
+                        <p className="text-xl font-bold text-slate-900 dark:text-white">KES {selectedCreatorStat.earnings.toLocaleString()}</p>
+                     </div>
+                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <p className="text-xs text-slate-500 uppercase font-bold">Completion Rate</p>
+                        <p className="text-xl font-bold text-slate-900 dark:text-white">{selectedCreatorStat.completionRate}%</p>
+                     </div>
+                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <p className="text-xs text-slate-500 uppercase font-bold">Disputes Involved</p>
+                        <p className={`text-xl font-bold ${selectedCreatorStat.disputeCount > 0 ? 'text-red-500' : 'text-slate-900 dark:text-white'}`}>
+                           {selectedCreatorStat.disputeCount}
+                        </p>
+                     </div>
+                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <p className="text-xs text-slate-500 uppercase font-bold">Joined</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-white mt-1">{new Date(selectedCreatorStat.joinedAt).toLocaleDateString()}</p>
+                     </div>
+                  </div>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                     <h4 className="font-bold text-blue-900 dark:text-blue-300 text-sm mb-2">Performance Summary</h4>
+                     <p className="text-sm text-blue-800 dark:text-blue-400">
+                        {selectedCreatorStat.completionRate >= 90 
+                           ? "Excellent reliability. Consistently delivers work on time." 
+                           : selectedCreatorStat.completionRate >= 70
+                           ? "Good performance, but has some cancelled or incomplete contracts."
+                           : "Low completion rate. May need monitoring or support."}
+                     </p>
+                  </div>
+               </div>
+               <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-end">
+                  <Button variant="outline" onClick={() => setSelectedCreatorStat(null)}>Close</Button>
+               </div>
+            </div>
+         </div>
+      )}
 
       {/* Mediation Console Modal */}
       {selectedDispute && (
