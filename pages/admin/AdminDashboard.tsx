@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, Database, LogOut, Activity, Settings, Sun, Moon, Lock, 
   CheckCircle, Search, Filter, MoreVertical, XCircle, AlertTriangle, 
-  RefreshCcw, UserX, UserCheck, Key, Plus, ShieldCheck
+  RefreshCcw, UserX, UserCheck, Key, Plus, ShieldCheck, Instagram, Youtube, Twitter, Facebook, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -23,7 +23,7 @@ const AdminDashboard: React.FC = () => {
   const { signOut, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'team' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'verification' | 'team' | 'settings'>('dashboard');
 
   // User Management State
   const [users, setUsers] = useState<User[]>([]);
@@ -32,6 +32,13 @@ const AdminDashboard: React.FC = () => {
   const [userFilter, setUserFilter] = useState<'ALL' | 'CREATOR' | 'CLIENT' | 'FLAGGED' | 'BANNED'>('ALL');
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+
+  // Verification State
+  const [verificationTab, setVerificationTab] = useState<'pending' | 'clients' | 'socials'>('pending');
+  const [pendingCreators, setPendingCreators] = useState<User[]>([]);
+  const [verificationSearch, setVerificationSearch] = useState('');
+  const [rejectModalOpen, setRejectModalOpen] = useState<string | null>(null); // userId to reject
+  const [rejectReason, setRejectReason] = useState('');
 
   // Team State
   const [admins, setAdmins] = useState(MOCK_ADMINS);
@@ -45,10 +52,13 @@ const AdminDashboard: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   useEffect(() => {
-    if (activeTab === 'users') {
+    if (activeTab === 'users' || activeTab === 'verification') {
       fetchUsers();
     }
-  }, [activeTab]);
+    if (activeTab === 'verification' && verificationTab === 'pending') {
+        fetchPending();
+    }
+  }, [activeTab, verificationTab]);
 
   useEffect(() => {
     filterUsers();
@@ -59,6 +69,11 @@ const AdminDashboard: React.FC = () => {
     const data = await mockAdminService.getAllUsers();
     setUsers(data);
     setIsLoadingUsers(false);
+  };
+
+  const fetchPending = async () => {
+      const data = await mockAdminService.getPendingVerifications();
+      setPendingCreators(data);
   };
 
   const filterUsers = () => {
@@ -115,6 +130,33 @@ const AdminDashboard: React.FC = () => {
     alert(`Force logout signal sent for user ${userId}`);
   };
 
+  // --- Verification Actions ---
+
+  const handleApproveIdentity = async (userId: string) => {
+      await mockAdminService.verifyIdentity(userId, true);
+      fetchPending(); // Refresh Pending Tab
+      fetchUsers(); // Refresh Global List
+  };
+
+  const handleRejectIdentity = async () => {
+      if (!rejectModalOpen || !rejectReason) return;
+      await mockAdminService.verifyIdentity(rejectModalOpen, false, rejectReason);
+      setRejectModalOpen(null);
+      setRejectReason('');
+      fetchPending();
+      fetchUsers();
+  };
+
+  const handleToggleClientVerify = async (userId: string, currentStatus: boolean) => {
+      await mockAdminService.verifyIdentity(userId, !currentStatus);
+      fetchUsers();
+  };
+
+  const handleToggleSocialVerify = async (userId: string, platform: string, currentStatus: boolean) => {
+      await mockAdminService.verifySocialPlatform(userId, platform, !currentStatus);
+      fetchUsers();
+  };
+
   // --- Password Change ---
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +177,15 @@ const AdminDashboard: React.FC = () => {
       setConfirmPassword('');
     }, 1500);
   };
+
+  // Filter logic for verification tabs
+  const clientsForVerification = users.filter(u => u.role === UserRole.CLIENT && 
+    (verificationSearch ? u.name.toLowerCase().includes(verificationSearch.toLowerCase()) || u.clientProfile?.businessName?.toLowerCase().includes(verificationSearch.toLowerCase()) : true)
+  );
+
+  const creatorsForSocials = users.filter(u => u.role === UserRole.CREATOR && 
+    (verificationSearch ? u.name.toLowerCase().includes(verificationSearch.toLowerCase()) || u.profile?.username?.toLowerCase().includes(verificationSearch.toLowerCase()) : true)
+  );
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex font-sans transition-colors duration-300">
@@ -161,6 +212,12 @@ const AdminDashboard: React.FC = () => {
             className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'users' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
           >
             <Users size={18} className={activeTab === 'users' ? 'text-blue-400' : ''} /> User Management
+          </button>
+          <button 
+            onClick={() => setActiveTab('verification')}
+            className={`w-full px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'verification' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+          >
+            <ShieldCheck size={18} className={activeTab === 'verification' ? 'text-blue-400' : ''} /> Verification
           </button>
           <button 
             onClick={() => setActiveTab('team')}
@@ -387,6 +444,249 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
+          {/* VERIFICATION MODULE */}
+          {activeTab === 'verification' && (
+             <div className="space-y-6 animate-in fade-in">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Verification Control</h2>
+                
+                {/* Tabs */}
+                <div className="flex space-x-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl w-fit">
+                   {(['pending', 'clients', 'socials'] as const).map(tab => (
+                      <button
+                         key={tab}
+                         onClick={() => setVerificationTab(tab)}
+                         className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                            verificationTab === tab
+                               ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                         }`}
+                      >
+                         {tab === 'pending' ? 'Pending Requests' : tab === 'clients' ? 'Client Approval' : 'Social Media'}
+                      </button>
+                   ))}
+                </div>
+
+                {/* --- Pending Requests (Creators) --- */}
+                {verificationTab === 'pending' && (
+                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                         <h3 className="font-bold text-slate-900 dark:text-white">Identity Verification Queue</h3>
+                         <p className="text-sm text-slate-500">Review creator details against M-Pesa records.</p>
+                      </div>
+                      <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                         {pendingCreators.length > 0 ? pendingCreators.map(creator => (
+                            <div key={creator.id} className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                               <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                     {creator.avatarUrl && <img src={creator.avatarUrl} className="w-full h-full object-cover" />}
+                                  </div>
+                                  <div>
+                                     <h4 className="font-bold text-slate-900 dark:text-white">{creator.name}</h4>
+                                     <div className="text-sm text-slate-600 dark:text-slate-400 mt-1 grid grid-cols-2 gap-x-6 gap-y-1">
+                                        <span>Legal Name: <strong className="text-slate-900 dark:text-white">{creator.profile?.legalName}</strong></span>
+                                        <span>M-Pesa: <strong className="text-slate-900 dark:text-white">{creator.profile?.mpesaNumber}</strong></span>
+                                        <span>DOB: <span className="font-mono">{creator.profile?.dob}</span></span>
+                                        <span>Email: {creator.email}</span>
+                                     </div>
+                                  </div>
+                               </div>
+                               <div className="flex gap-2">
+                                  <button 
+                                     onClick={() => setRejectModalOpen(creator.id)}
+                                     className="px-4 py-2 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium flex items-center"
+                                  >
+                                     <XCircle size={16} className="mr-2" /> Reject
+                                  </button>
+                                  <button 
+                                     onClick={() => handleApproveIdentity(creator.id)}
+                                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center shadow-lg shadow-green-500/30"
+                                  >
+                                     <CheckCircle size={16} className="mr-2" /> Approve
+                                  </button>
+                               </div>
+                            </div>
+                         )) : (
+                            <div className="p-12 text-center text-slate-500 dark:text-slate-400">
+                               <ShieldCheck size={48} className="mx-auto mb-4 opacity-20" />
+                               <p>No pending verification requests.</p>
+                            </div>
+                         )}
+                      </div>
+                   </div>
+                )}
+
+                {/* --- Client Approval --- */}
+                {verificationTab === 'clients' && (
+                   <div className="space-y-4">
+                      <div className="flex gap-2 mb-4">
+                         <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input 
+                               type="text" 
+                               placeholder="Search clients..." 
+                               className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:text-white w-64"
+                               value={verificationSearch}
+                               onChange={(e) => setVerificationSearch(e.target.value)}
+                            />
+                         </div>
+                      </div>
+                      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                         <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 font-medium">
+                               <tr>
+                                  <th className="px-6 py-4">Client / Business</th>
+                                  <th className="px-6 py-4">Type</th>
+                                  <th className="px-6 py-4">Location</th>
+                                  <th className="px-6 py-4">Verification Status</th>
+                               </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                               {clientsForVerification.map(client => (
+                                  <tr key={client.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                     <td className="px-6 py-4">
+                                        <div className="font-bold text-slate-900 dark:text-white">{client.clientProfile?.businessName || client.name}</div>
+                                        <div className="text-xs text-slate-500">{client.email}</div>
+                                     </td>
+                                     <td className="px-6 py-4 capitalize text-slate-600 dark:text-slate-300">
+                                        {client.clientProfile?.clientType || 'Individual'}
+                                     </td>
+                                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                        {client.clientProfile?.location || '-'}
+                                     </td>
+                                     <td className="px-6 py-4">
+                                        <button 
+                                           onClick={() => handleToggleClientVerify(client.id, !!client.clientProfile?.isVerified)}
+                                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                              client.clientProfile?.isVerified ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
+                                           }`}
+                                        >
+                                           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                              client.clientProfile?.isVerified ? 'translate-x-6' : 'translate-x-1'
+                                           }`} />
+                                        </button>
+                                        <span className="ml-3 text-xs font-medium text-slate-500">
+                                           {client.clientProfile?.isVerified ? 'Verified' : 'Unverified'}
+                                        </span>
+                                     </td>
+                                  </tr>
+                               ))}
+                            </tbody>
+                         </table>
+                      </div>
+                   </div>
+                )}
+
+                {/* --- Social Media Control --- */}
+                {verificationTab === 'socials' && (
+                   <div className="space-y-4">
+                      <div className="flex gap-2 mb-4">
+                         <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input 
+                               type="text" 
+                               placeholder="Search creators..." 
+                               className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:text-white w-64"
+                               value={verificationSearch}
+                               onChange={(e) => setVerificationSearch(e.target.value)}
+                            />
+                         </div>
+                      </div>
+                      <div className="grid gap-4">
+                         {creatorsForSocials.map(creator => {
+                            const socials = creator.profile?.socials || {};
+                            const verified = creator.profile?.verification?.verifiedPlatforms || [];
+                            
+                            // Only show creators who have linked at least one social
+                            if (!Object.values(socials).some(v => v)) return null;
+
+                            return (
+                               <div key={creator.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                  <div className="flex justify-between items-center mb-4">
+                                     <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                           {creator.avatarUrl && <img src={creator.avatarUrl} className="w-full h-full object-cover" />}
+                                        </div>
+                                        <div>
+                                           <h4 className="font-bold text-slate-900 dark:text-white">{creator.name}</h4>
+                                           <p className="text-xs text-slate-500">@{creator.profile?.username}</p>
+                                        </div>
+                                     </div>
+                                     <div className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded">
+                                        Bio Code: <span className="font-mono font-bold text-slate-600 dark:text-slate-300">{creator.profile?.verification?.bioCode || 'N/A'}</span>
+                                     </div>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                     {/* Social Toggles */}
+                                     {socials.instagram && (
+                                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                                           <div className="flex items-center text-sm text-slate-700 dark:text-slate-300">
+                                              <Instagram size={16} className="mr-2 text-pink-500" /> 
+                                              <span className="truncate max-w-[100px]">{socials.instagram}</span>
+                                              <a href={`https://instagram.com/${socials.instagram}`} target="_blank" rel="noreferrer" className="ml-1 text-slate-400 hover:text-blue-500"><ExternalLink size={12}/></a>
+                                           </div>
+                                           <button onClick={() => handleToggleSocialVerify(creator.id, 'instagram', verified.includes('instagram'))}>
+                                              {verified.includes('instagram') ? <CheckCircle size={20} className="text-green-500" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600" />}
+                                           </button>
+                                        </div>
+                                     )}
+                                     {socials.tiktok && (
+                                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                                           <div className="flex items-center text-sm text-slate-700 dark:text-slate-300">
+                                              <span className="mr-2 font-bold text-xs">TK</span>
+                                              <span className="truncate max-w-[100px]">{socials.tiktok}</span>
+                                           </div>
+                                           <button onClick={() => handleToggleSocialVerify(creator.id, 'tiktok', verified.includes('tiktok'))}>
+                                              {verified.includes('tiktok') ? <CheckCircle size={20} className="text-green-500" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600" />}
+                                           </button>
+                                        </div>
+                                     )}
+                                     {socials.youtube && (
+                                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                                           <div className="flex items-center text-sm text-slate-700 dark:text-slate-300">
+                                              <Youtube size={16} className="mr-2 text-red-500" /> 
+                                              <span className="truncate max-w-[100px]">Channel</span>
+                                              <a href={socials.youtube} target="_blank" rel="noreferrer" className="ml-1 text-slate-400 hover:text-blue-500"><ExternalLink size={12}/></a>
+                                           </div>
+                                           <button onClick={() => handleToggleSocialVerify(creator.id, 'youtube', verified.includes('youtube'))}>
+                                              {verified.includes('youtube') ? <CheckCircle size={20} className="text-green-500" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600" />}
+                                           </button>
+                                        </div>
+                                     )}
+                                     {socials.twitter && (
+                                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                                           <div className="flex items-center text-sm text-slate-700 dark:text-slate-300">
+                                              <Twitter size={16} className="mr-2 text-blue-400" /> 
+                                              <span className="truncate max-w-[100px]">{socials.twitter}</span>
+                                           </div>
+                                           <button onClick={() => handleToggleSocialVerify(creator.id, 'twitter', verified.includes('twitter'))}>
+                                              {verified.includes('twitter') ? <CheckCircle size={20} className="text-green-500" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600" />}
+                                           </button>
+                                        </div>
+                                     )}
+                                     {socials.facebook && (
+                                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                                           <div className="flex items-center text-sm text-slate-700 dark:text-slate-300">
+                                              <Facebook size={16} className="mr-2 text-blue-600" /> 
+                                              <span className="truncate max-w-[100px]">Page</span>
+                                              <a href={socials.facebook} target="_blank" rel="noreferrer" className="ml-1 text-slate-400 hover:text-blue-500"><ExternalLink size={12}/></a>
+                                           </div>
+                                           <button onClick={() => handleToggleSocialVerify(creator.id, 'facebook', verified.includes('facebook'))}>
+                                              {verified.includes('facebook') ? <CheckCircle size={20} className="text-green-500" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600" />}
+                                           </button>
+                                        </div>
+                                     )}
+                                  </div>
+                               </div>
+                            );
+                         })}
+                      </div>
+                   </div>
+                )}
+
+             </div>
+          )}
+
           {/* TEAM & ACCESS MODULE (MOCK) */}
           {activeTab === 'team' && (
              <div className="space-y-6 animate-in fade-in">
@@ -547,6 +847,26 @@ const AdminDashboard: React.FC = () => {
 
         </div>
       </div>
+
+      {/* Reject Reason Modal */}
+      {rejectModalOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-xl w-full max-w-md p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+               <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Reject Verification</h3>
+               <textarea 
+                  className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white"
+                  rows={3}
+                  placeholder="Reason for rejection (sent to user)..."
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+               />
+               <div className="flex justify-end gap-3 mt-4">
+                  <Button variant="ghost" onClick={() => { setRejectModalOpen(null); setRejectReason(''); }}>Cancel</Button>
+                  <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleRejectIdentity} disabled={!rejectReason}>Reject</Button>
+               </div>
+            </div>
+         </div>
+      )}
 
     </div>
   );
