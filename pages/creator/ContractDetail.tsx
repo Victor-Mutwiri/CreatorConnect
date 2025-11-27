@@ -672,11 +672,13 @@ const ContractDetail: React.FC = () => {
   const renderMilestones = () => {
      if (!contract.terms.milestones || contract.terms.milestones.length === 0) return null;
      
+     const isFixedContract = contract.terms.paymentType === 'FIXED';
+
      return (
        <div className="space-y-4 mt-6">
          <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
             <Flag size={20} className="mr-2 text-brand-600" /> 
-            Milestones
+            {isFixedContract ? 'Project Deliverable' : 'Milestones'}
          </h3>
          <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-4 space-y-8 pl-8 py-2">
             {contract.terms.milestones.map((ms, idx) => {
@@ -1143,17 +1145,8 @@ const ContractDetail: React.FC = () => {
               )}
             </div>
 
-            {contract.terms.paymentType === 'MILESTONE' && renderMilestones()}
-
-            {contract.terms.paymentType === 'FIXED' && isActive && (
-               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800 mb-6 flex items-start gap-3">
-                 <Shield className="text-blue-600 mt-1" size={20} />
-                 <div>
-                   <h4 className="font-bold text-blue-900 dark:text-blue-300">End-of-Project Payment</h4>
-                   <p className="text-sm text-blue-700 dark:text-blue-400">This is a fixed contract. Payment is released in full only upon successful completion of all work.</p>
-                 </div>
-               </div>
-            )}
+            {/* Always render milestones logic because we now auto-create a single milestone for FIXED contracts */}
+            {renderMilestones()}
 
             <div className="space-y-4 mt-6">
                {contract.terms.revisionPolicy && (

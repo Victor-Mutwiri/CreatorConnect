@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Calendar, DollarSign, FileText, AlertCircle, Smartphone, Building, Bitcoin, HelpCircle, Target, ShieldCheck, Flag, ShieldAlert } from 'lucide-react';
@@ -81,8 +82,15 @@ const CreateContract: React.FC = () => {
           status: 'PENDING'
         })) as Milestone[];
       } else {
-        // Clear milestones if fixed
-        finalTerms.milestones = [];
+        // FIXED CONTRACT LOGIC UPDATE:
+        // We create a single "Hidden" milestone to enable the submission/payment flow.
+        finalTerms.milestones = [{
+          id: `ms-${Date.now()}-fixed`,
+          title: 'Complete Project Delivery',
+          description: 'Final delivery of all agreed items.',
+          amount: terms.amount,
+          status: 'PENDING'
+        }];
       }
 
       const contract = await mockContractService.createContract(
@@ -280,7 +288,7 @@ const CreateContract: React.FC = () => {
                        <span className="font-bold text-slate-900 dark:text-white">Fixed Contract</span>
                     </div>
                     <p className="text-sm text-slate-600 dark:text-slate-300">
-                       Best for small, quick jobs with returning creators. Payment released fully at the end. High risk for new relationships.
+                       Best for quick jobs. Payment is made in full after the work is delivered and approved.
                     </p>
                  </button>
               </div>
@@ -297,7 +305,7 @@ const CreateContract: React.FC = () => {
                 <div className="mb-6 bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                    <p className="text-sm text-slate-500 mb-4 flex items-center">
                       <AlertCircle size={16} className="mr-2" /> 
-                      Payment is secure and released only when you mark the contract as complete.
+                      Funds will be held until the work is submitted and you approve the delivery.
                    </p>
                    <Input 
                       label="Total Contract Amount (KES)"
