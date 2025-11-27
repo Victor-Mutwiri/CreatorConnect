@@ -277,10 +277,10 @@ export const mockAdminService = {
 
       if (isCreatorTarget && isSevereAction) {
         // SCENARIO: Creator at fault (Severe). 
-        // e.g., Creator lied about payment. Punish creator, but honor the "Payment" state for the client.
+        // Logic: Force Complete so Client is okay, and Creator gets "paid" in system records (stats update) even if they are banned from accessing it further.
         
         contract.status = ContractStatus.COMPLETED;
-        historyNote += " | Creator punished. Contract marked COMPLETED.";
+        historyNote += " | Creator punished. Contract marked COMPLETED to preserve stats.";
 
         // Handle Milestone: Force it to PAID
         if (contract.terms.milestones) {
@@ -291,7 +291,7 @@ export const mockAdminService = {
            }
         }
 
-        // Update Client Stats: Give credit for completed job (since they effectively "won" the dispute)
+        // Update Client Stats: Give credit for completed job
         const clientIndex = users.findIndex((u: User) => u.id === contract.clientId);
         if (clientIndex !== -1 && users[clientIndex].clientProfile?.stats) {
            users[clientIndex].clientProfile.stats.contractsCompleted += 1;
@@ -301,12 +301,11 @@ export const mockAdminService = {
 
       } else if (!isCreatorTarget && !isSevereAction) {
         // SCENARIO: Client at fault (Mild/Warning).
-        // e.g. Client forgot to pay or uploaded wrong proof. Give second chance.
+        // Logic: Give client a second chance to pay. Revert to 'UNDER_REVIEW' or 'PAYMENT_VERIFY' state?
         
         // Contract remains ACTIVE/ACCEPTED.
         historyNote += " | Client warned. Milestone reset for retry.";
 
-        // Handle Milestone: Revert to UNDER_REVIEW (Allows "Approve & Pay" again)
         if (contract.terms.milestones) {
            const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
            if (mIndex !== -1) {
@@ -319,12 +318,11 @@ export const mockAdminService = {
 
       } else if (!isCreatorTarget && isSevereAction) {
         // SCENARIO: Client at fault (Severe/Ban).
-        // e.g. Fraud. Terminate everything.
+        // Logic: Client banned. Contract terminated. Money not counted.
         
         contract.status = ContractStatus.CANCELLED;
         historyNote += " | Client banned. Contract CANCELLED.";
 
-        // Handle Milestone: Cancel it.
         if (contract.terms.milestones) {
            const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
            if (mIndex !== -1) {
@@ -341,26 +339,22 @@ export const mockAdminService = {
         }
 
       } else {
-        // DEFAULT FALLBACK (Any other combo, e.g., Creator Mild Warning)
-        // Just clear the dispute flag, keep milestone IN_PROGRESS or CANCELLED based on safety.
-        // Defaulting to CANCELLED milestone for safety if not specified.
+        // Default fallback
         if (contract.terms.milestones) {
            const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
            if (mIndex !== -1) {
-              // If simple warning, maybe let them resume work?
               contract.terms.milestones[mIndex].status = 'IN_PROGRESS';
               contract.terms.milestones[mIndex].disputeReason = `Resolved (Warning): ${adminNote}`;
            }
         }
       }
 
-      // If Termination Dispute (End Contract Request)
+      // Handle End Request Disputes
       if (disputeId.startsWith('end-') && contract.endRequest) {
          if (isSevereAction) {
             contract.status = ContractStatus.CANCELLED;
             contract.endRequest.status = 'approved';
          } else {
-            // If mild warning, maybe reject the end request and force continuance?
             contract.endRequest.status = 'rejected';
             contract.endRequest.rejectionReason = "Admin Intervention: Resume Contract";
          }
@@ -378,7 +372,7 @@ export const mockAdminService = {
       localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
     }
 
-    // 3. Send Notification to Target User
+    // 3. Notification
     let title = 'Dispute Resolved';
     let msg = `The dispute on contract #${contractId} has been resolved by support.`;
     let type: any = 'info';
@@ -389,11 +383,11 @@ export const mockAdminService = {
       type = 'warning';
     } else if (action === 'WATCHLIST') {
       title = 'Account Flagged';
-      msg = `Your account has been placed on a watchlist due to recent dispute activity. Reason: ${adminNote}`;
+      msg = `Your account has been placed on a watchlist. Reason: ${adminNote}`;
       type = 'warning';
     } else if (action === 'SUSPEND') {
       title = 'Account Suspended';
-      msg = `Your account has been suspended following a dispute review. Reason: ${adminNote}`;
+      msg = `Your account has been suspended. Reason: ${adminNote}`;
       type = 'error';
     } else if (action === 'BAN') {
       title = 'Account Banned';

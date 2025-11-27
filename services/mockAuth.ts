@@ -163,15 +163,8 @@ export const mockAuth = {
       return { user: null, error: 'Invalid email or password.' };
     }
 
-    // Check Status
-    if (user.status === 'banned') {
-      return { user: null, error: 'Your account has been permanently banned due to policy violations.' };
-    }
+    // NOTE: Suspended/Banned users allowed to login to see their dashboard status.
     
-    if (user.status === 'suspended') {
-      return { user: null, error: 'Your account is temporarily suspended. Please contact support.' };
-    }
-
     // Remove password from session object
     const { password: _, ...userWithoutPassword } = user;
     localStorage.setItem(SESSION_KEY, JSON.stringify(userWithoutPassword));

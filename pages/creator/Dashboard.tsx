@@ -138,29 +138,44 @@ const Dashboard: React.FC = () => {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         
-        {/* Account Status Banners (Suspension / Watchlist) */}
-        {user?.status === 'suspended' && (
+        {/* Account Status Banners (Suspension / Watchlist / Ban) */}
+        
+        {user?.status === 'banned' && (
            <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
               <div className="p-2 bg-red-100 dark:bg-red-800/30 rounded-full text-red-600 dark:text-red-400">
                  <XCircle size={24} />
               </div>
               <div>
-                 <h3 className="font-bold text-red-900 dark:text-red-300">Account Suspended</h3>
+                 <h3 className="font-bold text-red-900 dark:text-red-300">Account Banned</h3>
                  <p className="text-sm text-red-800 dark:text-red-400 mt-1">
+                    Your account has been permanently banned due to severe policy violations. You can no longer accept new contracts or withdraw funds.
+                 </p>
+              </div>
+           </div>
+        )}
+
+        {user?.status === 'suspended' && (
+           <div className="mb-8 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
+              <div className="p-2 bg-orange-100 dark:bg-orange-800/30 rounded-full text-orange-600 dark:text-orange-400">
+                 <XCircle size={24} />
+              </div>
+              <div>
+                 <h3 className="font-bold text-orange-900 dark:text-orange-300">Account Suspended</h3>
+                 <p className="text-sm text-orange-800 dark:text-orange-400 mt-1">
                     Your account has been suspended due to policy violations or unresolved disputes. You are not visible to clients. Please check your notifications for details.
                  </p>
               </div>
            </div>
         )}
 
-        {user?.isWatchlisted && user?.status !== 'suspended' && (
-           <div className="mb-8 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
-              <div className="p-2 bg-orange-100 dark:bg-orange-800/30 rounded-full text-orange-600 dark:text-orange-400">
+        {user?.isWatchlisted && user?.status !== 'suspended' && user?.status !== 'banned' && (
+           <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-800/30 rounded-full text-yellow-600 dark:text-yellow-400">
                  <Eye size={24} />
               </div>
               <div>
-                 <h3 className="font-bold text-orange-900 dark:text-orange-300">Account Watchlisted</h3>
-                 <p className="text-sm text-orange-800 dark:text-orange-400 mt-1">
+                 <h3 className="font-bold text-yellow-900 dark:text-yellow-300">Account Watchlisted</h3>
+                 <p className="text-sm text-yellow-800 dark:text-yellow-400 mt-1">
                     Your account activity is being monitored by our trust & safety team due to recent reports. Please ensure all future contracts are handled professionally to avoid suspension.
                  </p>
               </div>
@@ -168,7 +183,7 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Verification Warning Banner */}
-        {!isVerified && user?.status !== 'suspended' && (
+        {!isVerified && user?.status !== 'suspended' && user?.status !== 'banned' && (
           <div className="mb-8 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
              <div className="flex items-start gap-4">
                <div className="p-2 bg-orange-100 dark:bg-orange-800/30 rounded-full text-orange-600 dark:text-orange-400 mt-1">
