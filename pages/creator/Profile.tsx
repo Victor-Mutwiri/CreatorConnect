@@ -99,6 +99,7 @@ const Profile: React.FC = () => {
 
   const profile = user.profile;
   const isOwner = currentUser?.id === user.id;
+  const isVerified = profile.verification?.status === 'verified';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -145,7 +146,7 @@ const Profile: React.FC = () => {
                 <div className="mt-4">
                   <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-2">
                     {profile.displayName}
-                    {profile.verification?.isIdentityVerified && (
+                    {isVerified && (
                       <CheckCircle className="text-brand-500 fill-brand-100 dark:fill-brand-900" size={24} />
                     )}
                   </h1>

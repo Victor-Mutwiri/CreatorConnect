@@ -70,7 +70,13 @@ export const mockAuth = {
       portfolio: { images: [], links: [] },
       experience: { years: '0', languages: ['English'], skills: [] },
       pricing: { model: 'negotiable', currency: 'KES', packages: [] },
-      verification: { isIdentityVerified: false, isSocialVerified: false, trustScore: 0 },
+      // Initialize with 'unverified' status
+      verification: { 
+        status: 'unverified',
+        isIdentityVerified: false, 
+        isSocialVerified: false, 
+        trustScore: 0 
+      },
       averageRating: 0,
       totalReviews: 0,
       reviews: []
@@ -160,6 +166,10 @@ export const mockAuth = {
     
     if (updates.profile) {
        updatedUser.profile = { ...(users[userIndex].profile || {}), ...updates.profile };
+       // Sync boolean property for backward compatibility if verification status updates
+       if (updates.profile.verification?.status) {
+         updatedUser.profile.verification.isIdentityVerified = updates.profile.verification.status === 'verified';
+       }
     }
     
     if (updates.clientProfile) {
@@ -317,6 +327,9 @@ export const mockAuth = {
     
     // STRICTLY filter only users with CREATOR role
     let creators = users.filter((u: User) => u.role === UserRole.CREATOR);
+
+    // NEW RULE: Only return creators who are VERIFIED
+    creators = creators.filter((c: User) => c.profile?.verification?.status === 'verified');
 
     if (query) {
       const q = query.toLowerCase();

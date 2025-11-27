@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   User, Bell, Lock, Palette, Save, CheckCircle, 
   Instagram, Youtube, Trash2, Plus, Moon, Sun, AlertTriangle, CreditCard,
-  Smartphone, Building, Bitcoin
+  Smartphone, Building, Bitcoin, ShieldCheck, HelpCircle, EyeOff, Loader,
+  Copy, Check
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -30,7 +31,7 @@ const Settings: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'appearance' | 'payments'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'verification' | 'account' | 'appearance' | 'payments'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   
@@ -38,6 +39,9 @@ const Settings: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deathEffect, setDeathEffect] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Verification Edit Warning
+  const [showVerificationWarning, setShowVerificationWarning] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<CreatorProfile>>({});
@@ -63,6 +67,50 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleVerificationSubmit = async () => {
+    // Basic validation
+    if (!formData.legalName || !formData.dob || !formData.mpesaNumber) {
+      alert("Please fill in all verification fields.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Logic for submitting verification
+      // NOTE: We do NOT ask for ID upload anymore. Just details.
+      const updatedProfile = { 
+        ...formData,
+        verification: {
+          ...formData.verification!,
+          status: 'pending' as const, // TS enum constraint
+          isIdentityVerified: false
+        }
+      };
+      
+      await updateProfile({ profile: updatedProfile as CreatorProfile });
+      setFormData(updatedProfile); // Update local state immediately
+      setSuccessMsg('Verification submitted! Review pending.');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (error) {
+      console.error("Failed to submit verification", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUnlockVerification = () => {
+    // Reset status to unverified so they can edit
+    setShowVerificationWarning(false);
+    setFormData(prev => ({
+      ...prev,
+      verification: {
+        ...prev.verification!,
+        status: 'unverified' as const,
+        isIdentityVerified: false
+      }
+    }));
+  };
+
   const handleDeleteConfirm = async () => {
     setDeleteError(null);
     const result = await deleteAccount();
@@ -77,6 +125,39 @@ const Settings: React.FC = () => {
     } else {
       setDeleteError(result.error || "Failed to delete account.");
     }
+  };
+
+  // Generate a random bio code if not present
+  useEffect(() => {
+    if (activeTab === 'verification' && !formData.verification?.bioCode) {
+      setFormData(prev => ({
+        ...prev,
+        verification: {
+          ...prev.verification!,
+          bioCode: `UBUNI-${Math.floor(1000 + Math.random() * 9000)}`
+        }
+      }));
+    }
+  }, [activeTab, formData.verification]);
+
+  const verifySocials = async () => {
+    // Simulate verification
+    setIsSaving(true);
+    setTimeout(async () => {
+      const updatedProfile = {
+        ...formData,
+        verification: {
+          ...formData.verification!,
+          isSocialVerified: true,
+          trustScore: (formData.verification?.trustScore || 20) + 20
+        }
+      };
+      await updateProfile({ profile: updatedProfile as CreatorProfile });
+      setFormData(updatedProfile);
+      setSuccessMsg('Socials Verified!');
+      setIsSaving(false);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    }, 1000);
   };
 
   const renderProfileTab = () => (
@@ -192,6 +273,182 @@ const Settings: React.FC = () => {
       </div>
     </div>
   );
+
+  const renderVerificationTab = () => {
+    const status = formData.verification?.status || 'unverified';
+    const isIdentityLocked = status === 'pending' || status === 'verified';
+    const isSocialVerified = formData.verification?.isSocialVerified;
+
+    return (
+      <div className="space-y-8 animate-in fade-in">
+        
+        {/* Status Banner */}
+        <div className={`p-6 rounded-2xl border ${
+          status === 'verified' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+          status === 'pending' ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' :
+          status === 'rejected' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+          'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+        }`}>
+           <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-full ${
+                 status === 'verified' ? 'bg-green-100 text-green-600' :
+                 status === 'pending' ? 'bg-orange-100 text-orange-600' :
+                 status === 'rejected' ? 'bg-red-100 text-red-600' :
+                 'bg-slate-200 text-slate-500'
+              }`}>
+                 {status === 'verified' ? <ShieldCheck size={28} /> :
+                  status === 'pending' ? <Loader size={28} className="animate-spin" /> :
+                  status === 'rejected' ? <AlertTriangle size={28} /> :
+                  <Lock size={28} />}
+              </div>
+              <div className="flex-1">
+                 <h3 className="text-lg font-bold text-slate-900 dark:text-white capitalize">
+                    Account Status: {status}
+                 </h3>
+                 <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                    {status === 'verified' && "Your identity is verified! You have the Blue Badge and are visible to all clients."}
+                    {status === 'pending' && "We are reviewing your details. This usually takes up to 72 hours. You cannot edit details during this time."}
+                    {status === 'rejected' && "Your verification was rejected. Please update your details and try again."}
+                    {status === 'unverified' && "Your profile is hidden from clients. Verify your identity to get listed."}
+                 </p>
+                 {status === 'verified' && (
+                    <button 
+                      onClick={() => setShowVerificationWarning(true)}
+                      className="mt-4 text-xs font-bold text-red-600 dark:text-red-400 hover:underline flex items-center"
+                    >
+                       Edit Legal Details
+                    </button>
+                 )}
+              </div>
+           </div>
+        </div>
+
+        {/* SECTION 1: Social Media Verification */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+           <div className="flex items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mr-auto flex items-center">
+                 <Instagram size={20} className="mr-2 text-pink-500"/> Social Media Ownership
+              </h3>
+              {isSocialVerified && (
+                 <span className="flex items-center text-xs text-green-600 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full font-bold">
+                    <CheckCircle size={14} className="mr-1.5" /> Verified
+                 </span>
+              )}
+           </div>
+
+           <div className="space-y-6">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    To verify ownership, copy the code below and paste it into your Instagram or TikTok bio temporarily.
+                 </p>
+                 <div className="flex items-center gap-2 mb-4">
+                    <code className="flex-1 bg-white dark:bg-slate-900 p-3 rounded-lg font-mono text-center text-lg tracking-widest text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                       {formData.verification?.bioCode || '...'}
+                    </code>
+                    <button 
+                       onClick={() => {
+                          navigator.clipboard.writeText(formData.verification?.bioCode || '');
+                          setSuccessMsg('Code copied!');
+                          setTimeout(() => setSuccessMsg(''), 2000);
+                       }}
+                       className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                    >
+                       <Copy size={20} />
+                    </button>
+                 </div>
+                 <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={verifySocials}
+                    disabled={isSocialVerified || isSaving}
+                 >
+                    {isSocialVerified ? 'Ownership Confirmed' : (isSaving ? 'Checking Bio...' : 'Verify Code')}
+                 </Button>
+              </div>
+           </div>
+        </div>
+
+        {/* SECTION 2: Legal Identity (M-Pesa Match) */}
+        <div className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative ${isIdentityLocked ? 'opacity-70 pointer-events-none' : ''}`}>
+           {isIdentityLocked && <div className="absolute inset-0 z-10" />} {/* Block interaction */}
+           
+           <div className="flex items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mr-auto flex items-center">
+                 <ShieldCheck size={20} className="mr-2 text-brand-600"/> Legal Identity
+              </h3>
+              <div className="flex items-center text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                 <EyeOff size={14} className="mr-1.5" /> Private
+              </div>
+           </div>
+
+           <div className="grid gap-6">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-sm rounded-xl border border-blue-100 dark:border-blue-800 flex gap-3">
+                 <Lock className="flex-shrink-0 mt-0.5" size={16} />
+                 <p>
+                    We verify your identity by matching your <strong>Legal Name</strong> with your <strong>M-Pesa registered name</strong>. 
+                    <br/><span className="font-bold">No ID card upload required.</span> These details remain private.
+                 </p>
+              </div>
+
+              <div>
+                 <Input 
+                    label="Legal Full Name"
+                    placeholder="As registered on M-Pesa"
+                    value={formData.legalName || ''}
+                    onChange={(e) => setFormData({...formData, legalName: e.target.value})}
+                    disabled={isIdentityLocked}
+                 />
+                 <p className="text-xs text-slate-500 mt-1">Must strictly match your M-Pesa account name.</p>
+              </div>
+
+              <div>
+                 <div className="flex items-center gap-2 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date of Birth</label>
+                    <div className="group relative">
+                       <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-800 text-white text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          You must be 18+ to legally sign contracts.
+                       </div>
+                    </div>
+                 </div>
+                 <input 
+                    type="date"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
+                    value={formData.dob || ''}
+                    onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                    disabled={isIdentityLocked}
+                 />
+              </div>
+
+              <div>
+                 <Input 
+                    label="M-Pesa Registered Number"
+                    placeholder="07..."
+                    value={formData.mpesaNumber || ''}
+                    onChange={(e) => setFormData({...formData, mpesaNumber: e.target.value})}
+                    disabled={isIdentityLocked}
+                 />
+                 <p className="text-xs text-slate-500 mt-1">We perform a name query to verify you.</p>
+              </div>
+           </div>
+        </div>
+
+        {/* Disclaimer & Action */}
+        {!isIdentityLocked && (
+           <div className="space-y-6">
+              <div className="text-xs text-slate-500 dark:text-slate-400 text-center px-4">
+                 By submitting, you agree to our Terms. Verification usually takes up to 72 hours.
+              </div>
+              <div className="flex justify-end">
+                 <Button onClick={handleVerificationSubmit} disabled={isSaving}>
+                    {isSaving ? 'Submitting...' : 'Submit for Verification'}
+                 </Button>
+              </div>
+           </div>
+        )}
+      </div>
+    );
+  };
 
   const renderPaymentsTab = () => (
     <div className="space-y-8 animate-in fade-in">
@@ -444,6 +701,20 @@ const Settings: React.FC = () => {
               <User size={18} className="mr-3" /> Profile Info
             </button>
             <button
+              onClick={() => setActiveTab('verification')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === 'verification' 
+                  ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400' 
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900'
+              }`}
+            >
+              <ShieldCheck size={18} className="mr-3" /> Verification
+              {/* Optional: Add a dot if unverified */}
+              {(formData.verification?.status !== 'verified') && (
+                 <span className="ml-auto w-2 h-2 rounded-full bg-red-500"></span>
+              )}
+            </button>
+            <button
               onClick={() => setActiveTab('payments')}
               className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === 'payments' 
@@ -478,6 +749,7 @@ const Settings: React.FC = () => {
           {/* Main Content Area */}
           <div className="flex-1">
              {activeTab === 'profile' && renderProfileTab()}
+             {activeTab === 'verification' && renderVerificationTab()}
              {activeTab === 'payments' && renderPaymentsTab()}
              {activeTab === 'appearance' && renderAppearanceTab()}
              {activeTab === 'account' && (
@@ -525,6 +797,35 @@ const Settings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Verification Warning Modal */}
+      {showVerificationWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-red-200 dark:border-red-800">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
+                <ShieldCheck size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Warning: Lose Verification Status?</h3>
+              <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">
+                Editing your legal details will immediately <span className="font-bold text-red-500">remove your Verified Badge</span> and hide your profile from clients until your new details are reviewed (72h).
+              </p>
+              
+              <div className="flex gap-3">
+                <Button variant="ghost" className="flex-1" onClick={() => setShowVerificationWarning(false)}>
+                  Cancel
+                </Button>
+                <button 
+                  onClick={handleUnlockVerification}
+                  className="flex-1 bg-red-600 text-white rounded-full font-bold py-3 hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30"
+                >
+                  I Understand, Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       {showDeleteModal && (

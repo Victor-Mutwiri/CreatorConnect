@@ -68,12 +68,19 @@ export interface PaymentMethods {
   crypto?: CryptoDetails;
 }
 
+export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
+
 export interface CreatorProfile {
   username: string;
   displayName: string;
   bio: string;
   location: string;
   categories: string[];
+  
+  // Private Legal Details for KYC
+  legalName?: string;
+  dob?: string;
+  mpesaNumber?: string;
   
   socials: {
     instagram?: string;
@@ -101,7 +108,9 @@ export interface CreatorProfile {
   };
 
   verification?: {
-    isIdentityVerified: boolean;
+    status: VerificationStatus; // New strict status
+    rejectionReason?: string;
+    isIdentityVerified: boolean; // Legacy boolean, kept for UI compatibility, derived from status
     isSocialVerified: boolean;
     trustScore: number; // 0-100
     bioCode?: string; // The code they need to put in bio

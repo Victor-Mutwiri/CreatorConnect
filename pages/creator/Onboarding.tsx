@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, ChevronRight, ChevronLeft, Instagram, Youtube, Sparkles, 
-  DollarSign, Package, ShieldCheck, Copy, Upload, AlertCircle
+  DollarSign, Package, Copy, AlertCircle
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -54,14 +55,14 @@ const Onboarding: React.FC = () => {
       packages: []
     },
     verification: {
+      status: 'unverified',
       isIdentityVerified: false,
       isSocialVerified: false,
-      trustScore: 20,
-      bioCode: `UBUNI-${Math.floor(1000 + Math.random() * 9000)}`
+      trustScore: 20
     }
   });
 
-  const totalSteps = 7;
+  const totalSteps = 6;
 
   const handleNext = () => {
     setError(null);
@@ -117,12 +118,8 @@ const Onboarding: React.FC = () => {
         onboardingCompleted: true
       });
       
-      // Redirect to their new public profile
-      if (user?.id) {
-        navigate(`/profile/${user.id}`);
-      } else {
-        navigate('/');
-      }
+      // Redirect to dashboard where the verification banner will guide them
+      navigate('/creator/dashboard');
     } catch (error) {
       console.error("Error saving profile", error);
     } finally {
@@ -569,91 +566,6 @@ const Onboarding: React.FC = () => {
     </div>
   );
 
-  const renderStep7 = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Verify your Identity</h2>
-        <p className="text-slate-600 dark:text-slate-400">Verified profiles get 3x more job offers.</p>
-      </div>
-
-      {/* Verification Badge Preview */}
-      <div className="bg-gradient-to-br from-brand-50 to-teal-50 dark:from-brand-900/30 dark:to-teal-900/30 p-6 rounded-xl border border-brand-100 dark:border-brand-800 flex items-center justify-between mb-8">
-        <div>
-          <h3 className="font-bold text-brand-900 dark:text-brand-300 flex items-center">
-            <ShieldCheck className="w-5 h-5 mr-2 text-brand-600 dark:text-brand-400" />
-            Trust Score
-          </h3>
-          <p className="text-sm text-brand-700 dark:text-brand-400 mt-1">
-            Complete verification to boost your trust score to 100%
-          </p>
-        </div>
-        <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">
-          {formData.verification?.trustScore}%
-        </div>
-      </div>
-
-      {/* Bio Code Method */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        <h4 className="font-bold text-slate-900 dark:text-white mb-2">Social Verification</h4>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-          To verify you own your social accounts, place this unique code in your Instagram or TikTok bio temporarily.
-        </p>
-        
-        <div className="flex items-center gap-2 mb-4">
-          <code className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-lg font-mono text-center text-lg tracking-widest text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-            {formData.verification?.bioCode}
-          </code>
-          <button 
-            onClick={() => {
-              navigator.clipboard.writeText(formData.verification?.bioCode || '');
-              // Toast notification would go here
-            }}
-            className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-          >
-            <Copy size={20} />
-          </button>
-        </div>
-        
-        <Button 
-           variant="outline" 
-           className="w-full"
-           onClick={() => {
-             // Simulate check
-             setFormData({
-               ...formData, 
-               verification: { 
-                 ...formData.verification!, 
-                 isSocialVerified: true,
-                 trustScore: (formData.verification?.trustScore || 20) + 40
-               }
-             });
-           }}
-           disabled={formData.verification?.isSocialVerified}
-        >
-           {formData.verification?.isSocialVerified ? (
-             <span className="flex items-center justify-center text-green-600 dark:text-green-400">
-               <Check size={18} className="mr-2" /> Verified
-             </span>
-           ) : 'Verify Code'}
-        </Button>
-      </div>
-
-      {/* ID Upload */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        <h4 className="font-bold text-slate-900 dark:text-white mb-2">Identity Verification</h4>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-          Upload a clear photo of your National ID or Passport.
-        </p>
-        
-        <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-          <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-          <span className="text-sm text-brand-600 font-medium">Click to upload document</span>
-        </div>
-      </div>
-
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
@@ -683,7 +595,6 @@ const Onboarding: React.FC = () => {
              {currentStep === 4 && renderStep4()}
              {currentStep === 5 && renderStep5()}
              {currentStep === 6 && renderStep6()}
-             {currentStep === 7 && renderStep7()}
 
              {error && (
                 <div className="mt-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2 text-red-600 dark:text-red-400 text-sm animate-in slide-in-from-top-2">

@@ -1,10 +1,12 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   BarChart3, CheckCircle, Clock, DollarSign, Bell, ArrowRight,
-  TrendingUp, Activity, Briefcase, XCircle, CheckSquare, AlertTriangle, Gavel
+  TrendingUp, Activity, Briefcase, XCircle, CheckSquare, AlertTriangle, Gavel, ShieldAlert
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
+import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
 import { mockContractService } from '../../services/mockContract';
 import { Contract, ContractStatus, Notification } from '../../types';
@@ -114,11 +116,13 @@ const Dashboard: React.FC = () => {
     if (user.profile.portfolio.images.length > 0) score += 30;
     if (user.profile.socials.instagram || user.profile.socials.tiktok) score += 20;
     if (user.profile.pricing?.packages?.length) score += 15;
-    if (user.profile.verification?.isIdentityVerified) score += 15;
+    if (user.profile.verification?.status === 'verified') score += 15;
     return score;
   };
 
   const completionScore = calculateCompletion();
+  const isVerified = user?.profile?.verification?.status === 'verified';
+  const verificationStatus = user?.profile?.verification?.status || 'unverified';
 
   if (loading) {
     return (
@@ -134,6 +138,32 @@ const Dashboard: React.FC = () => {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         
+        {/* Verification Warning Banner */}
+        {!isVerified && (
+          <div className="mb-8 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
+             <div className="flex items-start gap-4">
+               <div className="p-2 bg-orange-100 dark:bg-orange-800/30 rounded-full text-orange-600 dark:text-orange-400 mt-1">
+                 <ShieldAlert size={24} />
+               </div>
+               <div>
+                 <h3 className="font-bold text-orange-900 dark:text-orange-300">
+                   {verificationStatus === 'pending' ? 'Verification In Review' : 'Account Not Verified'}
+                 </h3>
+                 <p className="text-sm text-orange-800 dark:text-orange-400 mt-1">
+                   {verificationStatus === 'pending' 
+                     ? "Your verification details are currently under review. This usually takes up to 72 hours."
+                     : "Your profile is currently invisible to clients. Verify your identity to start getting job offers."}
+                 </p>
+               </div>
+             </div>
+             <Link to="/creator/settings">
+               <Button className="bg-orange-600 hover:bg-orange-700 text-white whitespace-nowrap">
+                 {verificationStatus === 'pending' ? 'View Status' : 'Verify Now'}
+               </Button>
+             </Link>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -187,9 +217,7 @@ const Dashboard: React.FC = () => {
               <div>
                 <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-0.5">Completion</p>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">
-                  {completedContracts.length + cancelledContracts.length > 0 
-                     ? Math.round((completedContracts.length / (completedContracts.length + cancelledContracts.length)) * 100)
-                     : 0}%
+                  {completionScore}%
                 </h3>
               </div>
             </div>
@@ -311,7 +339,7 @@ const Dashboard: React.FC = () => {
                   Upload Portfolio
                 </li>
                 <li className="flex items-center text-sm text-slate-600 dark:text-slate-400">
-                  {user?.profile?.verification?.isIdentityVerified ? <CheckCircle size={16} className="text-green-500 mr-2" /> : <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 mr-2" />}
+                  {isVerified ? <CheckCircle size={16} className="text-green-500 mr-2" /> : <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 mr-2" />}
                   Verify Identity
                 </li>
               </ul>
