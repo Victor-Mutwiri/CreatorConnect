@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   PlusCircle, Search, Briefcase, 
   TrendingUp, Bell, Clock,
   CreditCard, User as UserIcon, Send,
-  AlertTriangle, Gavel, Users, Heart, Star, CheckCircle
+  AlertTriangle, Gavel, Users, Heart, Star, CheckCircle, XCircle, Eye
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -491,6 +492,35 @@ const ClientDashboard: React.FC = () => {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         
+        {/* Account Status Banners (Suspension / Watchlist) */}
+        {user?.status === 'suspended' && (
+           <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
+              <div className="p-2 bg-red-100 dark:bg-red-800/30 rounded-full text-red-600 dark:text-red-400">
+                 <XCircle size={24} />
+              </div>
+              <div>
+                 <h3 className="font-bold text-red-900 dark:text-red-300">Account Suspended</h3>
+                 <p className="text-sm text-red-800 dark:text-red-400 mt-1">
+                    Your account has been suspended due to policy violations or unresolved disputes. Please contact support.
+                 </p>
+              </div>
+           </div>
+        )}
+
+        {user?.isWatchlisted && user?.status !== 'suspended' && (
+           <div className="mb-8 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
+              <div className="p-2 bg-orange-100 dark:bg-orange-800/30 rounded-full text-orange-600 dark:text-orange-400">
+                 <Eye size={24} />
+              </div>
+              <div>
+                 <h3 className="font-bold text-orange-900 dark:text-orange-300">Account Watchlisted</h3>
+                 <p className="text-sm text-orange-800 dark:text-orange-400 mt-1">
+                    Your account activity is being monitored by our trust & safety team due to recent reports.
+                 </p>
+              </div>
+           </div>
+        )}
+
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>

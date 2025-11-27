@@ -178,6 +178,7 @@ export interface User {
   role: UserRole;
   status?: UserStatus; // 'active', 'suspended', 'banned'
   isFlagged?: boolean; // For admin review
+  isWatchlisted?: boolean; // New: For admin monitoring
   flagReason?: string;
   avatarUrl?: string;
   createdAt: string;
@@ -335,4 +336,20 @@ export interface DashboardStats {
   totalEarnings: number;
   profileViews: number;
   completionPercentage: number;
+}
+
+// Admin Specific Types
+export interface AdminDispute {
+  id: string;
+  contractId: string;
+  contractTitle: string;
+  creatorId: string;
+  creatorName: string;
+  clientId: string;
+  clientName: string;
+  reason: string;
+  type: 'MILESTONE' | 'TERMINATION';
+  status: 'OPEN' | 'RESOLVED';
+  createdAt: string; // Time dispute was raised
+  startedAtAgo: string; // Formatted "20m ago"
 }
