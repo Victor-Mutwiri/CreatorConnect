@@ -202,9 +202,6 @@ export enum ContractStatus {
   NEGOTIATING = 'NEGOTIATING', // Counter-offer made
   ACCEPTED = 'ACCEPTED', // Both agreed
   ACTIVE = 'ACTIVE', // Work in progress
-  UNDER_REVIEW = 'UNDER_REVIEW', // Fixed contract work submitted
-  PAYMENT_VERIFY = 'PAYMENT_VERIFY', // Fixed contract payment sent
-  DISPUTED = 'DISPUTED', // Fixed contract disputed
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
   DECLINED = 'DECLINED'
@@ -308,18 +305,6 @@ export interface Contract {
   // Review Status
   isClientReviewed?: boolean; // Has the client reviewed the creator?
   isCreatorReviewed?: boolean; // Has the creator reviewed the client?
-
-  // Fixed Contract Specific State
-  submission?: MilestoneSubmission;
-  paymentProof?: MilestonePaymentProof;
-  revisionNotes?: string;
-  disputeReason?: string;
-  disputeResolution?: {
-    requestedBy: string;
-    requestedByName: string;
-    type: 'RESUME_WORK' | 'RETRY_PAYMENT';
-    message: string;
-  };
 }
 
 export interface Message {

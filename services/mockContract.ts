@@ -1,4 +1,3 @@
-
 import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof, Milestone } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
@@ -149,19 +148,7 @@ export const mockContractService = {
     return newContract;
   },
 
-  updateContractStatus: async (
-    contractId: string, 
-    status: ContractStatus, 
-    userId: string, 
-    userName: string, 
-    note?: string,
-    payload?: {
-      submission?: MilestoneSubmission,
-      paymentProof?: MilestonePaymentProof,
-      revisionNotes?: string,
-      disputeReason?: string
-    }
-  ): Promise<Contract> => {
+  updateContractStatus: async (contractId: string, status: ContractStatus, userId: string, userName: string, note?: string): Promise<Contract> => {
     await delay(600);
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
     const index = contracts.findIndex((c: Contract) => c.id === contractId);
@@ -180,28 +167,6 @@ export const mockContractService = {
        updateClientStats(updatedContract.clientId, { incrementCompleted: true });
     }
 
-    // HANDLE FIXED CONTRACT PAYLOADS
-    let attachment = undefined;
-    if (status === ContractStatus.UNDER_REVIEW && payload?.submission) {
-      updatedContract.submission = payload.submission;
-      note = `Work submitted: ${payload.submission.note || 'No notes'}`;
-      attachment = payload.submission.content;
-    }
-    if (status === ContractStatus.ACTIVE && payload?.revisionNotes) {
-      // Reverting from review to active (Changes Requested)
-      updatedContract.revisionNotes = payload.revisionNotes;
-      note = `Changes requested: ${payload.revisionNotes}`;
-    }
-    if (status === ContractStatus.PAYMENT_VERIFY && payload?.paymentProof) {
-      updatedContract.paymentProof = payload.paymentProof;
-      note = `Payment proof uploaded via ${payload.paymentProof.method}`;
-      attachment = payload.paymentProof.content;
-    }
-    if (status === ContractStatus.DISPUTED && payload?.disputeReason) {
-      updatedContract.disputeReason = payload.disputeReason;
-      note = `Dispute raised: ${payload.disputeReason}`;
-    }
-
     // Add history
     updatedContract.history.push({
       id: Math.random().toString(36).substr(2, 9),
@@ -209,8 +174,7 @@ export const mockContractService = {
       action: status.toLowerCase(),
       actorName: userName,
       actionBy: userId,
-      note,
-      attachment
+      note
     });
 
     contracts[index] = updatedContract;
@@ -220,119 +184,25 @@ export const mockContractService = {
     const isCreatorAction = userId === updatedContract.creatorId;
     const targetUserId = isCreatorAction ? updatedContract.clientId : updatedContract.creatorId;
     
-    let notifyTitle = 'Contract Update';
-    let notifyType: 'info' | 'success' | 'warning' | 'error' = 'info';
-
     if (status === ContractStatus.ACCEPTED) {
-       notifyTitle = 'Contract Accepted';
-       note = `${userName} has accepted the contract for "${updatedContract.title}". Work can begin!`;
-       notifyType = 'success';
+       createNotification(
+         targetUserId,
+         'Contract Accepted',
+         `${userName} has accepted the contract for "${updatedContract.title}". Work can begin!`,
+         'success',
+         `/creator/contracts/${updatedContract.id}`
+       );
     } else if (status === ContractStatus.DECLINED) {
-       notifyTitle = 'Contract Declined';
-       note = `${userName} has declined the contract for "${updatedContract.title}".`;
-       notifyType = 'error';
-    } else if (status === ContractStatus.UNDER_REVIEW) {
-       notifyTitle = 'Work Submitted for Review';
-       notifyType = 'info';
-    } else if (status === ContractStatus.PAYMENT_VERIFY) {
-       notifyTitle = 'Payment Sent - Verify Now';
-       notifyType = 'success';
-    } else if (status === ContractStatus.COMPLETED) {
-       notifyTitle = 'Payment Confirmed & Completed';
-       notifyType = 'success';
-    } else if (status === ContractStatus.DISPUTED) {
-       notifyTitle = 'Contract Disputed';
-       notifyType = 'error';
-    } else if (payload?.revisionNotes) {
-       notifyTitle = 'Changes Requested';
-       notifyType = 'warning';
+       createNotification(
+         targetUserId,
+         'Contract Declined',
+         `${userName} has declined the contract for "${updatedContract.title}".`,
+         'error',
+         `/creator/contracts/${updatedContract.id}`
+       );
     }
-
-    createNotification(
-       targetUserId,
-       notifyTitle,
-       note || `${userName} updated contract status to ${status}.`,
-       notifyType,
-       `/creator/contracts/${updatedContract.id}`
-    );
 
     return updatedContract;
-  },
-
-  proposeContractDisputeResolution: async (contractId: string, type: 'RESUME_WORK' | 'RETRY_PAYMENT', message: string, userId: string, userName: string): Promise<Contract> => {
-    await delay(600);
-    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
-    const index = contracts.findIndex((c: Contract) => c.id === contractId);
-    if (index === -1) throw new Error('Contract not found');
-
-    const contract = contracts[index];
-    
-    contract.disputeResolution = {
-      requestedBy: userId,
-      requestedByName: userName,
-      type,
-      message
-    };
-
-    contracts[index] = contract;
-    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
-
-    const isCreatorAction = userId === contract.creatorId;
-    const targetUserId = isCreatorAction ? contract.clientId : contract.creatorId;
-
-    createNotification(
-       targetUserId,
-       'Dispute Resolution Proposed',
-       `${userName} wants to resolve the dispute amicably.`,
-       'info',
-       `/creator/contracts/${contract.id}`
-    );
-
-    return contract;
-  },
-
-  acceptContractDisputeResolution: async (contractId: string, userId: string, userName: string): Promise<Contract> => {
-    await delay(600);
-    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
-    const index = contracts.findIndex((c: Contract) => c.id === contractId);
-    if (index === -1) throw new Error('Contract not found');
-
-    const contract = contracts[index];
-    const resolution = contract.disputeResolution;
-    if (!resolution) throw new Error('No pending resolution');
-
-    let newStatus: ContractStatus = ContractStatus.DISPUTED;
-    if (resolution.type === 'RESUME_WORK') newStatus = ContractStatus.ACTIVE;
-    if (resolution.type === 'RETRY_PAYMENT') {
-       newStatus = ContractStatus.UNDER_REVIEW;
-       delete contract.paymentProof;
-    }
-
-    contract.status = newStatus;
-    delete contract.disputeResolution;
-    
-    contract.history.push({
-      id: Math.random().toString(36).substr(2, 9),
-      date: new Date().toISOString(),
-      action: 'dispute_resolved_amicably',
-      actorName: userName,
-      actionBy: userId,
-      note: `Dispute resolved amicably. Status reverted to ${newStatus}.`
-    });
-
-    contracts[index] = contract;
-    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contracts));
-
-    const targetUserId = resolution.requestedBy;
-    createNotification(
-       targetUserId,
-       'Resolution Accepted',
-       `${userName} accepted your resolution proposal.`,
-       'success',
-       `/creator/contracts/${contract.id}`
-    );
-
-    return contract;
   },
 
   counterOffer: async (contractId: string, newTerms: ContractTerms, userId: string, userName: string): Promise<Contract> => {
@@ -558,6 +428,7 @@ export const mockContractService = {
     contract.terms.milestones[mIndex].status = newStatus;
     // Clear the resolution request
     delete contract.terms.milestones[mIndex].disputeResolution;
+    // Can optionally clear dispute reason or keep it for history
     
     contract.history.push({
       id: Math.random().toString(36).substr(2, 9),
