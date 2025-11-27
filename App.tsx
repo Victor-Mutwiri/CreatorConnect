@@ -19,6 +19,8 @@ import Contracts from './pages/creator/Contracts';
 import ContractDetail from './pages/creator/ContractDetail';
 import Settings from './pages/creator/Settings';
 import Notifications from './pages/Notifications';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import FraudWarningModal from './components/FraudWarningModal';
 import { UserRole } from './types';
 
@@ -33,15 +35,32 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
 
+  // Prevent Admin from accessing regular dashboard
+  if (user.role === UserRole.ADMIN) {
+    return <Navigate to="/portal/8f030ac9-93da-41cc-af88-d9342cd54e5d" replace />;
+  }
+
   // STRICT ONBOARDING CHECK
-  // If user hasn't completed onboarding and is trying to access anything other than onboarding pages,
-  // redirect them to their respective onboarding flow.
   if (!user.onboardingCompleted && !location.pathname.includes('onboarding')) {
      if (user.role === UserRole.CLIENT) {
        return <Navigate to="/client/onboarding" replace />;
-     } else {
+     } else if (user.role === UserRole.CREATOR) {
        return <Navigate to="/creator/onboarding" replace />;
      }
+  }
+
+  return <>{children}</>;
+};
+
+// Admin Guard
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-black text-green-500">Authenticating...</div>;
+  
+  if (!user || user.role !== UserRole.ADMIN) {
+    // If not admin, redirect to generic 404 or home to avoid leakage
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -65,6 +84,17 @@ const App: React.FC = () => {
             <Route path="/p/:username" element={<Profile />} />
             <Route path="/client/profile/:id" element={<ClientPublicProfile />} />
             
+            {/* Secret Admin Routes */}
+            <Route path="/portal/access-control" element={<AdminLogin />} />
+            <Route 
+              path="/portal/8f030ac9-93da-41cc-af88-d9342cd54e5d" 
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              } 
+            />
+
             <Route 
               path="/notifications" 
               element={

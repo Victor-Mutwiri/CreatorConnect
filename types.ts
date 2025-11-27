@@ -21,8 +21,11 @@ export interface TestimonialProps {
 
 export enum UserRole {
   CREATOR = 'CREATOR',
-  CLIENT = 'CLIENT'
+  CLIENT = 'CLIENT',
+  ADMIN = 'ADMIN'
 }
+
+export type UserStatus = 'active' | 'suspended' | 'banned';
 
 export interface ServicePackage {
   id: string;
@@ -173,6 +176,9 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
+  status?: UserStatus; // 'active', 'suspended', 'banned'
+  isFlagged?: boolean; // For admin review
+  flagReason?: string;
   avatarUrl?: string;
   createdAt: string;
   emailVerified?: boolean;

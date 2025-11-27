@@ -48,6 +48,11 @@ export const mockAuth = {
     await delay(800);
     const normalizedEmail = email.toLowerCase();
     
+    // Admin check - prevent signup as admin
+    if (role === UserRole.ADMIN) {
+      return { user: null, error: "Unauthorized role." };
+    }
+
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const existingUser = users.find((u: any) => u.email.toLowerCase() === normalizedEmail);
 
@@ -107,6 +112,8 @@ export const mockAuth = {
       email: normalizedEmail,
       name,
       role,
+      status: 'active', // Default status
+      isFlagged: false,
       createdAt: new Date().toISOString(),
       avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
       emailVerified: false,
@@ -130,11 +137,39 @@ export const mockAuth = {
     await delay(800);
     const normalizedEmail = email.toLowerCase();
 
+    // --- HARDCODED ADMIN BACKDOOR ---
+    if (normalizedEmail === 'super@ubuni.co.ke' && password === 'admin123') {
+      const adminUser: User = {
+        id: 'admin-super-id',
+        email: 'super@ubuni.co.ke',
+        name: 'Super Admin',
+        role: UserRole.ADMIN,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        emailVerified: true,
+        phoneVerified: true,
+        onboardingCompleted: true,
+        hasSignedLegalAgreement: true
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
+      return { user: adminUser, error: null };
+    }
+    // --------------------------------
+
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const user = users.find((u: any) => u.email.toLowerCase() === normalizedEmail && u.password === password);
 
     if (!user) {
       return { user: null, error: 'Invalid email or password.' };
+    }
+
+    // Check Status
+    if (user.status === 'banned') {
+      return { user: null, error: 'Your account has been permanently banned due to policy violations.' };
+    }
+    
+    if (user.status === 'suspended') {
+      return { user: null, error: 'Your account is temporarily suspended. Please contact support.' };
     }
 
     // Remove password from session object
@@ -156,6 +191,13 @@ export const mockAuth = {
 
   async updateUserProfile(userId: string, updates: Partial<User>): Promise<User | null> {
     await delay(600);
+    
+    // Check if Admin session (mock)
+    const currentSession = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
+    if (currentSession.role === UserRole.ADMIN) {
+       return currentSession; // No profile updates for admin mock
+    }
+
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const userIndex = users.findIndex((u: User) => u.id === userId);
 
@@ -189,7 +231,6 @@ export const mockAuth = {
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
     
     // Update session if it's the current user
-    const currentSession = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
     if (currentSession.id === userId) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(updatedUser));
     }
@@ -325,8 +366,8 @@ export const mockAuth = {
     await delay(600);
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     
-    // STRICTLY filter only users with CREATOR role
-    let creators = users.filter((u: User) => u.role === UserRole.CREATOR);
+    // STRICTLY filter only users with CREATOR role AND active status
+    let creators = users.filter((u: User) => u.role === UserRole.CREATOR && u.status !== 'banned' && u.status !== 'suspended');
 
     // NEW RULE: Only return creators who are VERIFIED
     creators = creators.filter((c: User) => c.profile?.verification?.status === 'verified');

@@ -1,15 +1,38 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Sparkles, Twitter, Instagram, Linkedin, Facebook } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { APP_NAME } from '../constants';
 
 const Footer: React.FC = () => {
+  const [secretClicks, setSecretClicks] = useState(0);
+  const navigate = useNavigate();
+
+  const handleSecretTrigger = () => {
+    setSecretClicks(prev => {
+      const newCount = prev + 1;
+      if (newCount === 5) {
+        // Trigger the secret redirect
+        navigate('/portal/access-control');
+        return 0;
+      }
+      return newCount;
+    });
+    
+    // Reset count if not clicked rapidly (reset after 1 second of inactivity)
+    setTimeout(() => setSecretClicks(0), 1000);
+  };
+
   return (
     <footer className="bg-slate-900 text-white pt-20 pb-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-1 md:col-span-1">
-            <div className="flex items-center space-x-2 mb-6">
-              <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
+            <div 
+              className="flex items-center space-x-2 mb-6 cursor-default select-none"
+              onClick={handleSecretTrigger}
+            >
+              <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center transition-transform active:scale-95">
                 <Sparkles size={16} />
               </div>
               <span className="text-xl font-bold">{APP_NAME}</span>
