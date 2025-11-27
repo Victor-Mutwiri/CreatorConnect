@@ -404,5 +404,64 @@ export const mockAdminService = {
 
     // Sort by Earnings descending
     return stats.sort((a: any, b: any) => b.earnings - a.earnings);
+  },
+
+  // 12. Get Client Behavior Report
+  getClientPerformanceReport: async (): Promise<any> => {
+    await delay(700);
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+    
+    // Filter only clients
+    const clients = users.filter((u: User) => u.role === 'CLIENT');
+    
+    const stats = clients.map((client: User) => {
+        const myContracts = contracts.filter((c: Contract) => c.clientId === client.id);
+        
+        const totalContracts = myContracts.length;
+        // Contracts that resulted in a hire (Accepted, Active, Completed, Cancelled)
+        const hiredContracts = myContracts.filter((c: Contract) => 
+            ['ACCEPTED', 'ACTIVE', 'COMPLETED', 'CANCELLED'].includes(c.status)
+        ).length;
+        
+        const disputeCount = myContracts.filter((c: Contract) => 
+            c.status === ContractStatus.DISPUTED || c.terms.milestones?.some(m => m.status === 'DISPUTED')
+        ).length;
+
+        // Calculate Spending
+        let spent = 0;
+        myContracts.forEach((c: Contract) => {
+            if (c.terms.paymentType === 'FIXED' && c.status === ContractStatus.COMPLETED) {
+                spent += c.terms.amount;
+            } else if (c.terms.paymentType === 'MILESTONE' && c.terms.milestones) {
+                const paid = c.terms.milestones.filter((m: Milestone) => m.status === 'PAID');
+                spent += paid.reduce((acc: number, m: Milestone) => acc + m.amount, 0);
+            }
+        });
+
+        // Hiring Rate
+        const hiringRate = totalContracts > 0 ? Math.round((hiredContracts / totalContracts) * 100) : 0;
+
+        return {
+            id: client.id,
+            name: client.clientProfile?.businessName || client.name,
+            email: client.email,
+            avatarUrl: client.avatarUrl,
+            status: client.status,
+            type: client.clientProfile?.clientType || 'INDIVIDUAL',
+            trustScore: client.clientProfile?.stats?.trustScore || 20,
+            averageRating: client.clientProfile?.averageRating || 0,
+            totalReviews: client.clientProfile?.totalReviews || 0,
+            totalContracts,
+            hiredContracts,
+            hiringRate,
+            spent,
+            disputeCount,
+            joinedAt: client.createdAt
+        };
+    });
+
+    // Sort by Spend descending
+    return stats.sort((a: any, b: any) => b.spent - a.spent);
   }
 };
