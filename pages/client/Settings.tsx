@@ -1,10 +1,9 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Briefcase, Lock, Palette, CheckCircle, 
-  AlertTriangle, Sun, Moon, Globe, MapPin, Building
+  AlertTriangle, Sun, Moon, Globe, MapPin, Building, Shield
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -73,23 +72,24 @@ const ClientSettings: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Business Information</h3>
         
-        <div className="mb-6">
-           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Client Type</label>
-           <div className="flex gap-3">
-             {[ClientType.INDIVIDUAL, ClientType.BUSINESS, ClientType.COMPANY].map(type => (
-               <button
-                 key={type}
-                 onClick={() => setFormData({...formData, clientType: type})}
-                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                   formData.clientType === type
-                     ? 'bg-brand-50 dark:bg-brand-900/20 border-brand-500 text-brand-700 dark:text-brand-400'
-                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                 }`}
-               >
-                 {type.charAt(0) + type.slice(1).toLowerCase()}
-               </button>
-             ))}
+        <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+           <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Account Type</label>
+           <div className="flex items-center gap-3">
+             <div className="flex items-center px-4 py-2 rounded-lg bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-400 font-bold">
+               {formData.clientType === ClientType.INDIVIDUAL && <User size={18} className="mr-2" />}
+               {formData.clientType === ClientType.BUSINESS && <Briefcase size={18} className="mr-2" />}
+               {formData.clientType === ClientType.COMPANY && <Building size={18} className="mr-2" />}
+               {formData.clientType ? formData.clientType.charAt(0) + formData.clientType.slice(1).toLowerCase() : 'Not Set'}
+             </div>
+             <div className="flex items-center text-xs text-slate-400 dark:text-slate-500">
+               <Lock size={14} className="mr-1" />
+               Locked
+             </div>
            </div>
+           <p className="text-xs text-slate-400 mt-2 flex items-center">
+             <Shield size={12} className="mr-1" />
+             Account type cannot be changed to maintain verification integrity. Contact support for assistance.
+           </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-6">

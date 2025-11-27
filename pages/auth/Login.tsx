@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthLayout from '../../components/AuthLayout';
@@ -27,6 +28,17 @@ const Login: React.FC = () => {
         setError(result.error);
       } else if (result.user) {
         
+        // CRITICAL: Check onboarding status immediately
+        // If not completed, force them to restart onboarding flow.
+        if (!result.user.onboardingCompleted) {
+           if (result.user.role === UserRole.CLIENT) {
+             navigate('/client/onboarding');
+           } else {
+             navigate('/creator/onboarding');
+           }
+           return;
+        }
+
         // Priority 1: Redirect back if user was forced to login (e.g. from "Hire Me")
         if (location.state?.from) {
           navigate(location.state.from);

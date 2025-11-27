@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import LandingPage from './pages/LandingPage';
@@ -19,15 +20,28 @@ import ContractDetail from './pages/creator/ContractDetail';
 import Settings from './pages/creator/Settings';
 import Notifications from './pages/Notifications';
 import FraudWarningModal from './components/FraudWarningModal';
+import { UserRole } from './types';
 
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
   
   if (isLoading) return <div className="min-h-screen flex items-center justify-center dark:bg-slate-950 dark:text-white">Loading...</div>;
   
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // STRICT ONBOARDING CHECK
+  // If user hasn't completed onboarding and is trying to access anything other than onboarding pages,
+  // redirect them to their respective onboarding flow.
+  if (!user.onboardingCompleted && !location.pathname.includes('onboarding')) {
+     if (user.role === UserRole.CLIENT) {
+       return <Navigate to="/client/onboarding" replace />;
+     } else {
+       return <Navigate to="/creator/onboarding" replace />;
+     }
   }
 
   return <>{children}</>;
