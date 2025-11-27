@@ -112,6 +112,7 @@ export interface CreatorProfile {
     rejectionReason?: string;
     isIdentityVerified: boolean; // Legacy boolean, kept for UI compatibility, derived from status
     isSocialVerified: boolean;
+    verifiedPlatforms?: string[]; // List of specific platforms verified e.g., ['instagram', 'twitter']
     trustScore: number; // 0-100
     bioCode?: string; // The code they need to put in bio
   };

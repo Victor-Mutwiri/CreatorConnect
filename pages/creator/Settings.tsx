@@ -5,7 +5,7 @@ import {
   User, Bell, Lock, Palette, Save, CheckCircle, 
   Instagram, Youtube, Trash2, Plus, Moon, Sun, AlertTriangle, CreditCard,
   Smartphone, Building, Bitcoin, ShieldCheck, HelpCircle, EyeOff, Loader,
-  Copy, Check
+  Copy, Check, Facebook, Twitter
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -229,7 +229,7 @@ const Settings: React.FC = () => {
         <div className="space-y-4">
           <div className="relative">
              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Instagram className="h-5 w-5 text-slate-400" />
+                <Instagram className="h-5 w-5 text-pink-500" />
              </div>
              <input 
                 type="text"
@@ -244,7 +244,7 @@ const Settings: React.FC = () => {
           </div>
           <div className="relative">
              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Youtube className="h-5 w-5 text-slate-400" />
+                <Youtube className="h-5 w-5 text-red-600" />
              </div>
              <input 
                 type="text"
@@ -254,6 +254,54 @@ const Settings: React.FC = () => {
                 onChange={(e) => setFormData({
                   ...formData, 
                   socials: {...formData.socials, youtube: e.target.value}
+                })}
+             />
+          </div>
+          <div className="relative">
+             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Facebook className="h-5 w-5 text-blue-600" />
+             </div>
+             <input 
+                type="text"
+                placeholder="Facebook Page URL"
+                className="block w-full pl-10 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
+                value={formData.socials?.facebook || ''}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  socials: {...formData.socials, facebook: e.target.value}
+                })}
+             />
+          </div>
+          <div className="relative">
+             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Twitter className="h-5 w-5 text-slate-800 dark:text-slate-200" />
+             </div>
+             <input 
+                type="text"
+                placeholder="X (Twitter) Username"
+                className="block w-full pl-10 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
+                value={formData.socials?.twitter || ''}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  socials: {...formData.socials, twitter: e.target.value}
+                })}
+             />
+          </div>
+          {/* TikTok - Using SVG as Lucide might not have it in older versions, but here using placeholder logic or simple input */}
+          <div className="relative">
+             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-black dark:text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                </svg>
+             </div>
+             <input 
+                type="text"
+                placeholder="TikTok Username"
+                className="block w-full pl-10 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
+                value={formData.socials?.tiktok || ''}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  socials: {...formData.socials, tiktok: e.target.value}
                 })}
              />
           </div>

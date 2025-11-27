@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   MapPin, CheckCircle, Star, Instagram, Youtube, Twitter, Facebook, 
-  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare, Copy, Link as LinkIcon
+  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare, Copy, Link as LinkIcon, Check
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -12,6 +12,47 @@ import { mockAuth } from '../../services/mockAuth';
 import { mockContractService } from '../../services/mockContract';
 import { User, CreatorProfile, ServicePackage, ContractStatus, Contract } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+
+// Verification Badge Component
+const VerificationBadge: React.FC<{ 
+  platform: 'instagram' | 'facebook' | 'twitter' | 'tiktok' | 'youtube'; 
+  url?: string;
+  isVerified?: boolean; 
+}> = ({ platform, url, isVerified }) => {
+  if (!url) return null;
+
+  const styles = {
+    instagram: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white',
+    facebook: 'bg-blue-600 text-white',
+    twitter: 'bg-black dark:bg-white text-white dark:text-black',
+    tiktok: 'bg-black text-white border border-slate-800',
+    youtube: 'bg-red-600 text-white'
+  };
+
+  const icons = {
+    instagram: <Instagram size={16} />,
+    facebook: <Facebook size={16} />,
+    twitter: <Twitter size={16} />,
+    tiktok: <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>,
+    youtube: <Youtube size={16} />
+  };
+
+  return (
+    <a 
+      href={url} 
+      target="_blank" 
+      rel="noreferrer" 
+      className={`relative p-2 rounded-lg transition-transform hover:scale-105 flex items-center justify-center ${isVerified ? styles[platform] : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+    >
+      {icons[platform]}
+      {isVerified && (
+        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center border border-slate-100 dark:border-slate-800">
+           <Check size={8} className="text-green-500 font-bold" />
+        </div>
+      )}
+    </a>
+  );
+};
 
 const Profile: React.FC = () => {
   const { id, username } = useParams<{ id?: string; username?: string }>();
@@ -99,7 +140,8 @@ const Profile: React.FC = () => {
 
   const profile = user.profile;
   const isOwner = currentUser?.id === user.id;
-  const isVerified = profile.verification?.status === 'verified';
+  const isIdentityVerified = profile.verification?.status === 'verified';
+  const isSocialVerified = profile.verification?.isSocialVerified;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -146,8 +188,17 @@ const Profile: React.FC = () => {
                 <div className="mt-4">
                   <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-2">
                     {profile.displayName}
-                    {isVerified && (
-                      <CheckCircle className="text-brand-500 fill-brand-100 dark:fill-brand-900" size={24} />
+                    
+                    {/* Identity Verification Badge with Tooltip */}
+                    {isIdentityVerified && (
+                      <div className="relative group cursor-pointer">
+                        <CheckCircle className="text-brand-500 fill-brand-100 dark:fill-brand-900" size={24} />
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-30 text-center">
+                          <p className="font-bold mb-1">Identity Verified</p>
+                          <p className="text-slate-300">Real Person, Account Owner</p>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+                        </div>
+                      </div>
                     )}
                   </h1>
                   <p className="text-slate-500 dark:text-slate-400 font-medium">@{profile.username}</p>
@@ -168,22 +219,13 @@ const Profile: React.FC = () => {
                   <span className="text-slate-500 dark:text-slate-400 text-sm">({profile.totalReviews || 0} reviews)</span>
                 </div>
 
-                <div className="mt-6 flex justify-center space-x-3">
-                  {profile.socials.instagram && (
-                    <a href={`https://instagram.com/${profile.socials.instagram}`} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-pink-600 bg-slate-50 dark:bg-slate-800 rounded-lg transition-colors">
-                      <Instagram size={20} />
-                    </a>
-                  )}
-                  {profile.socials.tiktok && (
-                    <a href="#" className="p-2 text-slate-400 hover:text-black dark:hover:text-white bg-slate-50 dark:bg-slate-800 rounded-lg transition-colors">
-                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>
-                    </a>
-                  )}
-                  {profile.socials.youtube && (
-                    <a href={profile.socials.youtube} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 dark:bg-slate-800 rounded-lg transition-colors">
-                      <Youtube size={20} />
-                    </a>
-                  )}
+                {/* Social Media Badges */}
+                <div className="mt-6 flex justify-center gap-3">
+                  <VerificationBadge platform="instagram" url={profile.socials.instagram ? `https://instagram.com/${profile.socials.instagram}` : undefined} isVerified={isSocialVerified} />
+                  <VerificationBadge platform="tiktok" url={profile.socials.tiktok ? `https://tiktok.com/@${profile.socials.tiktok}` : undefined} isVerified={isSocialVerified} />
+                  <VerificationBadge platform="youtube" url={profile.socials.youtube} isVerified={isSocialVerified} />
+                  <VerificationBadge platform="facebook" url={profile.socials.facebook} isVerified={isSocialVerified} />
+                  <VerificationBadge platform="twitter" url={profile.socials.twitter ? `https://twitter.com/${profile.socials.twitter}` : undefined} isVerified={isSocialVerified} />
                 </div>
               </div>
 

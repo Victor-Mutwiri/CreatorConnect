@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, ChevronRight, ChevronLeft, Instagram, Youtube, Sparkles, 
-  DollarSign, Package, Copy, AlertCircle
+  DollarSign, Package, Copy, AlertCircle, Facebook, Twitter
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -46,7 +46,7 @@ const Onboarding: React.FC = () => {
     bio: '',
     location: 'Nairobi, Kenya',
     categories: [],
-    socials: { instagram: '', tiktok: '', youtube: '', twitter: '' },
+    socials: { instagram: '', tiktok: '', youtube: '', twitter: '', facebook: '' },
     portfolio: { images: [], links: [''] },
     experience: { years: '0-1', languages: ['English', 'Swahili'], skills: [] },
     pricing: {
@@ -239,13 +239,14 @@ const Onboarding: React.FC = () => {
       </div>
 
       <div className="space-y-4">
+        {/* Instagram */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Instagram className="h-5 w-5 text-pink-600" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-24 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
+            className="block w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
             placeholder="Instagram Username"
             value={formData.socials?.instagram}
             onChange={(e) => setFormData({
@@ -255,6 +256,7 @@ const Onboarding: React.FC = () => {
           />
         </div>
 
+        {/* TikTok */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg className="h-5 w-5 text-black dark:text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -263,7 +265,7 @@ const Onboarding: React.FC = () => {
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-24 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
+            className="block w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
             placeholder="TikTok Username"
             value={formData.socials?.tiktok}
             onChange={(e) => setFormData({
@@ -273,18 +275,53 @@ const Onboarding: React.FC = () => {
           />
         </div>
 
+        {/* YouTube */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Youtube className="h-5 w-5 text-red-600" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-24 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
+            className="block w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
             placeholder="YouTube Channel URL"
             value={formData.socials?.youtube}
             onChange={(e) => setFormData({
               ...formData, 
               socials: {...formData.socials, youtube: e.target.value}
+            })}
+          />
+        </div>
+
+        {/* Facebook */}
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Facebook className="h-5 w-5 text-blue-600" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
+            placeholder="Facebook Page URL"
+            value={formData.socials?.facebook}
+            onChange={(e) => setFormData({
+              ...formData, 
+              socials: {...formData.socials, facebook: e.target.value}
+            })}
+          />
+        </div>
+
+        {/* X / Twitter */}
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Twitter className="h-5 w-5 text-slate-800 dark:text-slate-300" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 focus:border-brand-500 dark:text-white"
+            placeholder="X (Twitter) Username"
+            value={formData.socials?.twitter}
+            onChange={(e) => setFormData({
+              ...formData, 
+              socials: {...formData.socials, twitter: e.target.value}
             })}
           />
         </div>
