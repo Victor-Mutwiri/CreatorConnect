@@ -35,9 +35,10 @@ const AdminDashboard: React.FC = () => {
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
 
   // Analytics State
-  const [analyticsView, setAnalyticsView] = useState<'CREATOR' | 'CLIENT'>('CREATOR');
+  const [analyticsView, setAnalyticsView] = useState<'PLATFORM' | 'CREATOR' | 'CLIENT'>('PLATFORM');
   const [creatorStats, setCreatorStats] = useState<any[]>([]);
   const [clientStats, setClientStats] = useState<any[]>([]);
+  const [platformStats, setPlatformStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [selectedStat, setSelectedStat] = useState<any | null>(null); // Generic detail modal state
 
@@ -103,10 +104,12 @@ const AdminDashboard: React.FC = () => {
 
   const fetchAnalytics = async () => {
       setLoadingStats(true);
-      const [creators, clients] = await Promise.all([
+      const [platform, creators, clients] = await Promise.all([
+          mockAdminService.getPlatformOverviewReport(),
           mockAdminService.getCreatorPerformanceReport(),
           mockAdminService.getClientPerformanceReport()
       ]);
+      setPlatformStats(platform);
       setCreatorStats(creators);
       setClientStats(clients);
       setLoadingStats(false);
@@ -233,6 +236,30 @@ const AdminDashboard: React.FC = () => {
     }, 1500);
   };
 
+  // Simple Chart Component
+  const SimpleBarChart = ({ data, color, valuePrefix = '' }: { data: { label: string, value: number }[], color: string, valuePrefix?: string }) => {
+    if (!data || data.length === 0) return null;
+    const maxValue = Math.max(...data.map(d => d.value), 1);
+    
+    return (
+      <div className="flex items-end space-x-2 h-32 mt-4">
+        {data.map((item, i) => (
+          <div key={i} className="flex-1 flex flex-col justify-end items-center group relative">
+             <div 
+               className={`w-full ${color} rounded-t-sm hover:opacity-80 transition-all relative`} 
+               style={{ height: `${Math.max((item.value / maxValue) * 100, 5)}%` }}
+             >
+               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 shadow-lg pointer-events-none transition-opacity">
+                  {valuePrefix}{item.value.toLocaleString()}
+               </div>
+             </div>
+             <span className="text-[10px] text-slate-500 mt-1">{item.label}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex font-sans transition-colors duration-300">
       
@@ -336,6 +363,12 @@ const AdminDashboard: React.FC = () => {
                    <div className="flex items-center gap-3">
                       <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
                          <button 
+                           onClick={() => setAnalyticsView('PLATFORM')} 
+                           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${analyticsView === 'PLATFORM' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                         >
+                           Platform Overview
+                         </button>
+                         <button 
                            onClick={() => setAnalyticsView('CREATOR')} 
                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${analyticsView === 'CREATOR' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                          >
@@ -353,6 +386,116 @@ const AdminDashboard: React.FC = () => {
                       </button>
                    </div>
                 </div>
+
+                {analyticsView === 'PLATFORM' && platformStats ? (
+                   <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                      {/* KPI Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                         <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 text-green-500"><DollarSign size={40} /></div>
+                            <p className="text-xs text-slate-500 uppercase font-bold mb-1">Total Platform Revenue</p>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">KES {platformStats.financials.revenue.toLocaleString()}</h3>
+                            <p className="text-xs text-slate-400 mt-1">Vol: KES {platformStats.financials.volume.toLocaleString()}</p>
+                         </div>
+                         <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 text-blue-500"><Activity size={40} /></div>
+                            <p className="text-xs text-slate-500 uppercase font-bold mb-1">Total Deals Closed</p>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{platformStats.deals.closed}</h3>
+                            <p className="text-xs text-green-500 mt-1 font-medium">{platformStats.deals.active} Active Now</p>
+                         </div>
+                         <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 text-purple-500"><Users size={40} /></div>
+                            <p className="text-xs text-slate-500 uppercase font-bold mb-1">Total Users</p>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{platformStats.users.total}</h3>
+                            <p className="text-xs text-blue-500 mt-1 font-medium">+{platformStats.users.signupsToday} Today</p>
+                         </div>
+                         <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 text-orange-500"><ShieldCheck size={40} /></div>
+                            <p className="text-xs text-slate-500 uppercase font-bold mb-1">Verification Rate</p>
+                            <div className="flex justify-between items-end">
+                               <div>
+                                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                     {platformStats.users.creators > 0 ? Math.round((platformStats.users.verifiedCreators / platformStats.users.creators) * 100) : 0}%
+                                  </h3>
+                                  <p className="text-xs text-slate-400">Creators</p>
+                               </div>
+                               <div className="text-right">
+                                  <h3 className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                                     {platformStats.users.clients > 0 ? Math.round((platformStats.users.verifiedClients / platformStats.users.clients) * 100) : 0}%
+                                  </h3>
+                                  <p className="text-xs text-slate-400">Clients</p>
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* Charts Row */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Weekly Signups</h3>
+                            <SimpleBarChart data={platformStats.trends.signups} color="bg-blue-500" />
+                         </div>
+                         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Revenue Trend</h3>
+                            <SimpleBarChart data={platformStats.trends.revenue} color="bg-green-500" valuePrefix="KES " />
+                         </div>
+                      </div>
+
+                      {/* Details Row */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                            <h3 className="font-bold text-slate-900 dark:text-white mb-4">User Demographics</h3>
+                            <div className="space-y-4">
+                               <div>
+                                  <div className="flex justify-between text-sm mb-1">
+                                     <span className="text-slate-600 dark:text-slate-400">Creators</span>
+                                     <span className="font-bold text-slate-900 dark:text-white">{platformStats.users.creators}</span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                     <div className="bg-brand-500 h-2 rounded-full" style={{ width: `${(platformStats.users.creators / platformStats.users.total) * 100}%` }}></div>
+                                  </div>
+                               </div>
+                               <div>
+                                  <div className="flex justify-between text-sm mb-1">
+                                     <span className="text-slate-600 dark:text-slate-400">Clients</span>
+                                     <span className="font-bold text-slate-900 dark:text-white">{platformStats.users.clients}</span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                     <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${(platformStats.users.clients / platformStats.users.total) * 100}%` }}></div>
+                                  </div>
+                               </div>
+                            </div>
+                         </div>
+                         
+                         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                            <h3 className="font-bold text-slate-900 dark:text-white mb-4">Deal Status</h3>
+                            <div className="space-y-3">
+                               <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                     <span className="text-sm text-slate-700 dark:text-slate-300">Closed (Won)</span>
+                                  </div>
+                                  <span className="font-bold text-slate-900 dark:text-white">{platformStats.deals.closed}</span>
+                               </div>
+                               <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                     <span className="text-sm text-slate-700 dark:text-slate-300">Active / In Progress</span>
+                                  </div>
+                                  <span className="font-bold text-slate-900 dark:text-white">{platformStats.deals.active}</span>
+                               </div>
+                               <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                     <div className="w-3 h-3 rounded-full bg-slate-300"></div>
+                                     <span className="text-sm text-slate-700 dark:text-slate-300">Total Created</span>
+                                  </div>
+                                  <span className="font-bold text-slate-900 dark:text-white">{platformStats.deals.total}</span>
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+                ) : null}
 
                 {analyticsView === 'CREATOR' ? (
                    <>
@@ -461,7 +604,9 @@ const AdminDashboard: React.FC = () => {
                          </div>
                       </div>
                    </>
-                ) : (
+                ) : null}
+                
+                {analyticsView === 'CLIENT' ? (
                    <>
                       {/* Client Summary Cards */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-right-4">
@@ -572,7 +717,7 @@ const AdminDashboard: React.FC = () => {
                          </div>
                       </div>
                    </>
-                )}
+                ) : null}
              </div>
           )}
 

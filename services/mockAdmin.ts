@@ -463,5 +463,85 @@ export const mockAdminService = {
 
     // Sort by Spend descending
     return stats.sort((a: any, b: any) => b.spent - a.spent);
+  },
+
+  // 13. Get Platform Overview Report
+  getPlatformOverviewReport: async (): Promise<any> => {
+    await delay(600);
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+
+    // 1. User Metrics
+    const totalUsers = users.length;
+    const creators = users.filter((u: User) => u.role === 'CREATOR');
+    const clients = users.filter((u: User) => u.role === 'CLIENT');
+    
+    const verifiedCreators = creators.filter((u: User) => u.profile?.verification?.status === 'verified').length;
+    const verifiedClients = clients.filter((u: User) => u.clientProfile?.isVerified).length;
+
+    const today = new Date();
+    const signupsToday = users.filter((u: User) => new Date(u.createdAt).toDateString() === today.toDateString()).length;
+
+    // 2. Deal Metrics
+    const completedContracts = contracts.filter((c: Contract) => c.status === 'COMPLETED');
+    const dealsClosed = completedContracts.length;
+    const activeDeals = contracts.filter((c: Contract) => ['ACTIVE', 'ACCEPTED', 'IN_PROGRESS'].includes(c.status)).length;
+    
+    // 3. Revenue Metrics (Platform Fee simulation - 10%)
+    let totalTransactionVolume = 0;
+    completedContracts.forEach((c: Contract) => {
+        if (c.terms.paymentType === 'FIXED') {
+            totalTransactionVolume += c.terms.amount;
+        } else if (c.terms.paymentType === 'MILESTONE' && c.terms.milestones) {
+            const paid = c.terms.milestones.filter((m: Milestone) => m.status === 'PAID');
+            totalTransactionVolume += paid.reduce((acc: number, m: Milestone) => acc + m.amount, 0);
+        }
+    });
+    
+    const platformRevenue = totalTransactionVolume * 0.10; 
+
+    // Mock Trend Data (Last 7 days)
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const signupTrend = Array.from({length: 7}, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return {
+            label: days[d.getDay()],
+            value: Math.floor(Math.random() * 15) + 2 // Random 2-17 signups
+        };
+    });
+
+    const revenueTrend = Array.from({length: 7}, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return {
+            label: days[d.getDay()],
+            value: Math.floor(Math.random() * 50000) + 5000 // Random revenue
+        };
+    });
+
+    return {
+        users: {
+            total: totalUsers,
+            creators: creators.length,
+            clients: clients.length,
+            verifiedCreators,
+            verifiedClients,
+            signupsToday
+        },
+        deals: {
+            total: contracts.length,
+            closed: dealsClosed,
+            active: activeDeals
+        },
+        financials: {
+            volume: totalTransactionVolume,
+            revenue: platformRevenue
+        },
+        trends: {
+            signups: signupTrend,
+            revenue: revenueTrend
+        }
+    };
   }
 };
