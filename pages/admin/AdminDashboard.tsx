@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, Database, LogOut, Activity, Settings, Sun, Moon, Lock, 
   CheckCircle, Search, Filter, MoreVertical, XCircle, AlertTriangle, 
-  RefreshCcw, UserX, UserCheck, Key, Plus, ShieldCheck, Loader, Gavel, Clock, Eye
+  RefreshCcw, UserX, UserCheck, Key, Plus, ShieldCheck, Loader, Gavel, Clock, Eye, FileText
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -32,6 +32,9 @@ const AdminDashboard: React.FC = () => {
   const [userFilter, setUserFilter] = useState<'ALL' | 'CREATOR' | 'CLIENT' | 'PENDING_VERIFICATION' | 'FLAGGED' | 'BANNED'>('ALL');
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+  
+  // Verification Review State
+  const [verificationReviewUser, setVerificationReviewUser] = useState<User | null>(null);
 
   // Dispute State
   const [disputes, setDisputes] = useState<AdminDispute[]>([]);
@@ -82,7 +85,10 @@ const AdminDashboard: React.FC = () => {
     if (userFilter === 'FLAGGED') result = result.filter(u => u.isFlagged);
     if (userFilter === 'BANNED') result = result.filter(u => u.status === 'banned');
     if (userFilter === 'PENDING_VERIFICATION') {
-        result = result.filter(u => u.role === UserRole.CREATOR && u.profile?.verification?.status === 'pending');
+        result = result.filter(u => 
+          (u.role === UserRole.CREATOR && u.profile?.verification?.status === 'pending') ||
+          (u.role === UserRole.CLIENT && u.clientProfile?.verificationStatus === 'pending')
+        );
     }
 
     // Filter by Search
@@ -92,7 +98,8 @@ const AdminDashboard: React.FC = () => {
         u.name.toLowerCase().includes(q) || 
         u.email.toLowerCase().includes(q) || 
         u.id.toLowerCase().includes(q) ||
-        (u.role === UserRole.CREATOR && u.profile?.mpesaNumber?.includes(q))
+        (u.role === UserRole.CREATOR && u.profile?.mpesaNumber?.includes(q)) ||
+        (u.role === UserRole.CLIENT && u.clientProfile?.businessName?.toLowerCase().includes(q))
       );
     }
 
@@ -114,12 +121,14 @@ const AdminDashboard: React.FC = () => {
 
   const handleVerifyUser = async (userId: string) => {
     setActionMenuOpen(null);
+    setVerificationReviewUser(null);
     await mockAdminService.verifyUser(userId);
     fetchUsers();
   };
 
   const handleRejectVerification = async (userId: string) => {
     setActionMenuOpen(null);
+    setVerificationReviewUser(null);
     await mockAdminService.rejectVerification(userId);
     fetchUsers();
   };
@@ -180,7 +189,11 @@ const AdminDashboard: React.FC = () => {
     }, 1500);
   };
 
-  const pendingVerificationCount = users.filter(u => u.role === UserRole.CREATOR && u.profile?.verification?.status === 'pending').length;
+  const pendingVerificationCount = users.filter(u => 
+    (u.role === UserRole.CREATOR && u.profile?.verification?.status === 'pending') ||
+    (u.role === UserRole.CLIENT && u.clientProfile?.verificationStatus === 'pending')
+  ).length;
+  
   const activeDisputesCount = disputes.length;
 
   return (
@@ -396,8 +409,8 @@ const AdminDashboard: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                            {filteredUsers.length > 0 ? filteredUsers.map(u => {
-                              const isVerificationPending = u.role === UserRole.CREATOR && u.profile?.verification?.status === 'pending';
-                              const isVerified = u.role === UserRole.CREATOR && u.profile?.verification?.status === 'verified';
+                              const isVerificationPending = (u.role === UserRole.CREATOR && u.profile?.verification?.status === 'pending') || (u.role === UserRole.CLIENT && u.clientProfile?.verificationStatus === 'pending');
+                              const isVerified = (u.role === UserRole.CREATOR && u.profile?.verification?.status === 'verified') || (u.role === UserRole.CLIENT && u.clientProfile?.isVerified);
                               
                               return (
                                 <tr key={u.id} className={`transition-colors ${isVerificationPending ? 'bg-orange-50/50 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
@@ -469,17 +482,15 @@ const AdminDashboard: React.FC = () => {
                                                 <>
                                                     <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-900/50">Verification</div>
                                                     <button 
-                                                        onClick={() => handleVerifyUser(u.id)}
-                                                        className="w-full text-left px-4 py-2 text-sm hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 flex items-center font-medium"
+                                                        onClick={() => {
+                                                          setVerificationReviewUser(u);
+                                                          setActionMenuOpen(null);
+                                                        }}
+                                                        className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center font-medium"
                                                     >
-                                                        <CheckCircle size={14} className="mr-2" /> Approve Identity
+                                                        <FileText size={14} className="mr-2" /> Review Details
                                                     </button>
-                                                    <button 
-                                                        onClick={() => handleRejectVerification(u.id)}
-                                                        className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center font-medium border-b border-slate-100 dark:border-slate-700"
-                                                    >
-                                                        <XCircle size={14} className="mr-2" /> Reject Identity
-                                                    </button>
+                                                    <div className="border-b border-slate-100 dark:border-slate-700 my-1"></div>
                                                 </>
                                             )}
 
@@ -788,6 +799,97 @@ const AdminDashboard: React.FC = () => {
                </div>
             </div>
          </div>
+      )}
+
+      {/* VERIFICATION REVIEW MODAL */}
+      {verificationReviewUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                {/* Header */}
+                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                    <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
+                        <ShieldCheck size={20} className="mr-2 text-blue-600" /> Verification Review
+                    </h3>
+                    <button onClick={() => setVerificationReviewUser(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                        <XCircle size={24} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 space-y-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                            {verificationReviewUser.avatarUrl ? (
+                                <img src={verificationReviewUser.avatarUrl} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center font-bold text-2xl">{verificationReviewUser.name[0]}</div>
+                            )}
+                        </div>
+                        <div>
+                            <h4 className="text-xl font-bold text-slate-900 dark:text-white">{verificationReviewUser.name}</h4>
+                            <p className="text-sm text-slate-500">{verificationReviewUser.email}</p>
+                            <span className="inline-block px-2 py-0.5 mt-1 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 uppercase">
+                                {verificationReviewUser.role}
+                            </span>
+                        </div>
+                    </div>
+
+                    {verificationReviewUser.role === UserRole.CREATOR && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Legal Name (M-Pesa)</label>
+                                <p className="text-lg font-medium text-slate-900 dark:text-white">{verificationReviewUser.profile?.legalName || 'N/A'}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
+                                    <p className="font-mono font-medium text-slate-900 dark:text-white">{verificationReviewUser.profile?.mpesaNumber || 'N/A'}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Date of Birth</label>
+                                    <p className="font-medium text-slate-900 dark:text-white">{verificationReviewUser.profile?.dob || 'N/A'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {verificationReviewUser.role === UserRole.CLIENT && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Business Name</label>
+                                <p className="text-lg font-medium text-slate-900 dark:text-white">{verificationReviewUser.clientProfile?.businessName || 'N/A'}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Reg. Number</label>
+                                    <p className="font-mono font-medium text-slate-900 dark:text-white">{verificationReviewUser.clientProfile?.registrationNumber || 'N/A'}</p>
+                                </div>
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Tax PIN</label>
+                                    <p className="font-mono font-medium text-slate-900 dark:text-white">{verificationReviewUser.clientProfile?.taxPin || 'N/A'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Actions */}
+                <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+                    <Button variant="ghost" className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => {
+                        handleRejectVerification(verificationReviewUser.id);
+                        setVerificationReviewUser(null);
+                    }}>
+                        Reject
+                    </Button>
+                    <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => {
+                        handleVerifyUser(verificationReviewUser.id);
+                        setVerificationReviewUser(null);
+                    }}>
+                        Approve Verification
+                    </Button>
+                </div>
+            </div>
+        </div>
       )}
 
     </div>

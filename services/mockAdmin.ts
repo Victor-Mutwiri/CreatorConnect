@@ -81,6 +81,7 @@ export const mockAdminService = {
 
     const user = users[index];
     
+    // Creator Logic
     if (user.profile) {
        user.profile.verification = {
          status: 'unverified',
@@ -90,8 +91,14 @@ export const mockAdminService = {
        };
     }
     
+    // Client Logic
     if (user.clientProfile) {
        user.clientProfile.isVerified = false;
+       user.clientProfile.verificationStatus = 'unverified';
+       if (user.clientProfile.stats) {
+          // Reduce trust score if previously verified
+          user.clientProfile.stats.trustScore = Math.max(0, (user.clientProfile.stats.trustScore || 20) - 20);
+       }
     }
 
     users[index] = user;
@@ -111,6 +118,7 @@ export const mockAdminService = {
 
     const user = users[index];
     
+    // Creator Logic
     if (user.profile) {
        user.profile.verification = {
          ...user.profile.verification,
@@ -120,16 +128,30 @@ export const mockAdminService = {
        };
     }
     
+    // Client Logic
     if (user.clientProfile) {
        user.clientProfile.isVerified = true;
+       user.clientProfile.verificationStatus = 'verified';
+       
        if (!user.clientProfile.stats) {
-          user.clientProfile.stats = { contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', reliabilityScore: 0, avgResponseTime: '-', disputesWon: 0, disputesLost: 0, trustScore: 20 };
+          user.clientProfile.stats = { 
+            contractsSent: 0, contractsCompleted: 0, hiringRate: '0%', 
+            reliabilityScore: 0, avgResponseTime: '-', disputesWon: 0, disputesLost: 0, trustScore: 20 
+          };
        }
+       // Boost Trust Score for verification
        user.clientProfile.stats.trustScore = Math.min(100, (user.clientProfile.stats.trustScore || 0) + 20);
     }
 
     users[index] = user;
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    
+    createNotification(
+      user.id,
+      'Verification Approved',
+      'Your identity verification request has been approved. You now have the Verified badge.',
+      'success'
+    );
     
     const { password, ...safeUser } = user;
     return safeUser;
@@ -145,6 +167,7 @@ export const mockAdminService = {
 
     const user = users[index];
     
+    // Creator Logic
     if (user.profile) {
        user.profile.verification = {
          ...user.profile.verification,
@@ -153,9 +176,22 @@ export const mockAdminService = {
        };
     }
 
+    // Client Logic
+    if (user.clientProfile) {
+       user.clientProfile.isVerified = false;
+       user.clientProfile.verificationStatus = 'rejected';
+    }
+
     users[index] = user;
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
     
+    createNotification(
+      user.id,
+      'Verification Rejected',
+      'Your verification request was rejected. Please check your details and try again.',
+      'error'
+    );
+
     const { password, ...safeUser } = user;
     return safeUser;
   },
@@ -277,7 +313,7 @@ export const mockAdminService = {
 
       if (isCreatorTarget && isSevereAction) {
         // SCENARIO: Creator at fault (Severe). 
-        // Logic: Force Complete so Client is okay, and Creator gets "paid" in system records (stats update) even if they are banned from accessing it further.
+        // Logic: Force Complete so Client is okay, and Creator gets "paid" in system records (stats update) even if they are banned.
         
         contract.status = ContractStatus.COMPLETED;
         historyNote += " | Creator punished. Contract marked COMPLETED to preserve stats.";

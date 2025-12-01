@@ -163,7 +163,13 @@ export interface ClientProfile {
   description: string;
   industry?: string;
   budgetRange?: string; // e.g., "KES 10k - 50k"
-  isVerified?: boolean;
+  isVerified?: boolean; // Legacy boolean for simple checks
+  verificationStatus?: VerificationStatus; // New strict status for workflow
+  
+  // Private KYC for Clients
+  registrationNumber?: string; // Business Reg No or ID Number
+  taxPin?: string; // KRA PIN
+  
   stats?: ClientStats;
   reviews?: Review[];
   savedCreatorIds?: string[]; // IDs of favorite creators

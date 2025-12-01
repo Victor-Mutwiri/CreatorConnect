@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Briefcase, Lock, Palette, CheckCircle, 
-  AlertTriangle, Sun, Moon, Globe, MapPin, Building, Shield
+  AlertTriangle, Sun, Moon, Globe, MapPin, Building, Shield, ShieldCheck, Loader, FileText
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -17,7 +17,7 @@ const ClientSettings: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'appearance'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'verification' | 'account' | 'appearance'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   
@@ -45,6 +45,30 @@ const ClientSettings: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to save", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleVerificationSubmit = async () => {
+    if (!formData.registrationNumber || !formData.taxPin) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updatedProfile = {
+        ...formData,
+        verificationStatus: 'pending' as const,
+        isVerified: false
+      };
+      await updateProfile({ clientProfile: updatedProfile as ClientProfile });
+      setFormData(updatedProfile);
+      setSuccessMsg('Verification submitted! Review pending.');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (error) {
+      console.error("Failed to submit verification", error);
     } finally {
       setIsSaving(false);
     }
@@ -180,6 +204,93 @@ const ClientSettings: React.FC = () => {
     </div>
   );
 
+  const renderVerificationTab = () => {
+    const status = formData.verificationStatus || 'unverified';
+    const isLocked = status === 'pending' || status === 'verified';
+
+    return (
+      <div className="space-y-8 animate-in fade-in">
+        {/* Status Banner */}
+        <div className={`p-6 rounded-2xl border ${
+          status === 'verified' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+          status === 'pending' ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' :
+          status === 'rejected' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+          'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+        }`}>
+           <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-full ${
+                 status === 'verified' ? 'bg-green-100 text-green-600' :
+                 status === 'pending' ? 'bg-orange-100 text-orange-600' :
+                 status === 'rejected' ? 'bg-red-100 text-red-600' :
+                 'bg-slate-200 text-slate-500'
+              }`}>
+                 {status === 'verified' ? <ShieldCheck size={28} /> :
+                  status === 'pending' ? <Loader size={28} className="animate-spin" /> :
+                  status === 'rejected' ? <AlertTriangle size={28} /> :
+                  <Lock size={28} />}
+              </div>
+              <div className="flex-1">
+                 <h3 className="text-lg font-bold text-slate-900 dark:text-white capitalize">
+                    Business Status: {status}
+                 </h3>
+                 <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                    {status === 'verified' && "Your business is verified! You have increased trust and visibility."}
+                    {status === 'pending' && "We are reviewing your business details. This typically takes 48 hours."}
+                    {status === 'rejected' && "Your verification was rejected. Please ensure details match your official documents."}
+                    {status === 'unverified' && "Verify your business to build trust with creators and unlock features."}
+                 </p>
+              </div>
+           </div>
+        </div>
+
+        {/* Verification Form */}
+        <div className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative ${isLocked ? 'opacity-70 pointer-events-none' : ''}`}>
+           {isLocked && <div className="absolute inset-0 z-10" />} 
+           
+           <div className="flex items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mr-auto flex items-center">
+                 <FileText size={20} className="mr-2 text-brand-600"/> Official Business Details
+              </h3>
+           </div>
+
+           <div className="grid gap-6">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-sm rounded-xl border border-blue-100 dark:border-blue-800 flex gap-3">
+                 <Lock className="flex-shrink-0 mt-0.5" size={16} />
+                 <p>
+                    These details are used for verification and billing purposes only. They are not displayed publicly on your profile.
+                 </p>
+              </div>
+
+              <Input 
+                 label="Business Registration Number / ID Number"
+                 placeholder="e.g. PVT-123456"
+                 value={formData.registrationNumber || ''}
+                 onChange={(e) => setFormData({...formData, registrationNumber: e.target.value})}
+                 disabled={isLocked}
+              />
+
+              <Input 
+                 label="KRA PIN / Tax ID"
+                 placeholder="e.g. P051234567Z"
+                 value={formData.taxPin || ''}
+                 onChange={(e) => setFormData({...formData, taxPin: e.target.value})}
+                 disabled={isLocked}
+              />
+           </div>
+        </div>
+
+        {/* Submit Action */}
+        {!isLocked && (
+           <div className="flex justify-end">
+              <Button onClick={handleVerificationSubmit} disabled={isSaving}>
+                 {isSaving ? 'Submitting...' : 'Submit Verification Request'}
+              </Button>
+           </div>
+        )}
+      </div>
+    );
+  };
+
   const renderAppearanceTab = () => (
     <div className="space-y-6 animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -200,7 +311,7 @@ const ClientSettings: React.FC = () => {
            
            <button 
              onClick={toggleTheme}
-             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                theme === 'dark' ? 'bg-brand-600' : 'bg-slate-300'
              }`}
            >
@@ -237,6 +348,19 @@ const ClientSettings: React.FC = () => {
               <Building size={18} className="mr-3" /> Business Info
             </button>
             <button
+              onClick={() => setActiveTab('verification')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === 'verification' 
+                  ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400' 
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900'
+              }`}
+            >
+              <ShieldCheck size={18} className="mr-3" /> Verification
+              {(formData.verificationStatus !== 'verified') && (
+                 <span className="ml-auto w-2 h-2 rounded-full bg-red-500"></span>
+              )}
+            </button>
+            <button
               onClick={() => setActiveTab('appearance')}
               className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === 'appearance' 
@@ -261,6 +385,7 @@ const ClientSettings: React.FC = () => {
           {/* Main Content Area */}
           <div className="flex-1">
              {activeTab === 'profile' && renderProfileTab()}
+             {activeTab === 'verification' && renderVerificationTab()}
              {activeTab === 'appearance' && renderAppearanceTab()}
              {activeTab === 'account' && (
                 <div className="space-y-8 animate-in fade-in">

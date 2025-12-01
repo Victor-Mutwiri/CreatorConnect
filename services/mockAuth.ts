@@ -92,6 +92,8 @@ export const mockAuth = {
       businessName: name,
       location: 'Kenya',
       description: 'New client account.',
+      isVerified: false,
+      verificationStatus: 'unverified',
       stats: { 
         contractsSent: 0, 
         contractsCompleted: 0, 
@@ -210,6 +212,11 @@ export const mockAuth = {
     if (updates.clientProfile) {
        updatedUser.clientProfile = { ...(users[userIndex].clientProfile || {}), ...updates.clientProfile };
        
+       // Sync boolean property for backward compatibility if verification status updates
+       if (updates.clientProfile.verificationStatus) {
+         updatedUser.clientProfile.isVerified = updates.clientProfile.verificationStatus === 'verified';
+       }
+
        // Recalculate Trust Score if client profile updated
        if (updatedUser.role === UserRole.CLIENT) {
          if (!updatedUser.clientProfile.stats) {
