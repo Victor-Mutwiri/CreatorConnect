@@ -214,13 +214,36 @@ export const mockAdminService = {
     return safeUser;
   },
 
-  // 7. Force Logout
+  // 7. Toggle Watchlist (New)
+  toggleWatchlistUser: async (userId: string, isWatchlisted: boolean, reason?: string): Promise<User | null> => {
+    await delay(300);
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const index = users.findIndex((u: User) => u.id === userId);
+    
+    if (index === -1) return null;
+
+    users[index].isWatchlisted = isWatchlisted;
+
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    
+    // Notification
+    if (isWatchlisted) {
+       createNotification(userId, 'Account Watchlisted', `Your account has been placed on a watchlist. ${reason || 'Activity is being monitored.'}`, 'warning');
+    } else {
+       createNotification(userId, 'Watchlist Removed', 'Your account has been removed from the watchlist. Thank you for maintaining community standards.', 'success');
+    }
+
+    const { password, ...safeUser } = users[index];
+    return safeUser;
+  },
+
+  // 8. Force Logout
   forceLogout: async (userId: string): Promise<void> => {
     await delay(200);
     console.log(`Force logout triggered for ${userId}`);
   },
 
-  // 8. Get Active Disputes (New)
+  // 9. Get Active Disputes (New)
   getActiveDisputes: async (): Promise<AdminDispute[]> => {
     await delay(500);
     const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
@@ -275,7 +298,7 @@ export const mockAdminService = {
     return disputes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
-  // 9. Resolve Dispute with Advanced Logic
+  // 10. Resolve Dispute with Advanced Logic
   resolveDispute: async (
     disputeId: string, 
     contractId: string, 

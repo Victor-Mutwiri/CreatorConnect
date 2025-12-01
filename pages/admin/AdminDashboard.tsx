@@ -29,7 +29,7 @@ const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [userFilter, setUserFilter] = useState<'ALL' | 'CREATOR' | 'CLIENT' | 'PENDING_VERIFICATION' | 'FLAGGED' | 'BANNED'>('ALL');
+  const [userFilter, setUserFilter] = useState<'ALL' | 'CREATOR' | 'CLIENT' | 'PENDING_VERIFICATION' | 'FLAGGED' | 'WATCHLIST' | 'BANNED'>('ALL');
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
   
@@ -83,6 +83,7 @@ const AdminDashboard: React.FC = () => {
     if (userFilter === 'CREATOR') result = result.filter(u => u.role === UserRole.CREATOR);
     if (userFilter === 'CLIENT') result = result.filter(u => u.role === UserRole.CLIENT);
     if (userFilter === 'FLAGGED') result = result.filter(u => u.isFlagged);
+    if (userFilter === 'WATCHLIST') result = result.filter(u => u.isWatchlisted);
     if (userFilter === 'BANNED') result = result.filter(u => u.status === 'banned');
     if (userFilter === 'PENDING_VERIFICATION') {
         result = result.filter(u => 
@@ -142,6 +143,12 @@ const AdminDashboard: React.FC = () => {
   const handleFlagUser = async (userId: string, currentFlag: boolean) => {
     setActionMenuOpen(null);
     await mockAdminService.toggleFlagUser(userId, !currentFlag, !currentFlag ? "Flagged by admin" : undefined);
+    fetchUsers();
+  };
+
+  const handleToggleWatchlist = async (userId: string, currentStatus: boolean) => {
+    setActionMenuOpen(null);
+    await mockAdminService.toggleWatchlistUser(userId, !currentStatus, !currentStatus ? "Manual admin action" : undefined);
     fetchUsers();
   };
 
@@ -376,7 +383,7 @@ const AdminDashboard: React.FC = () => {
 
                {/* Filters */}
                <div className="flex space-x-2 border-b border-slate-200 dark:border-slate-700 pb-1 overflow-x-auto">
-                  {['ALL', 'PENDING_VERIFICATION', 'CREATOR', 'CLIENT', 'FLAGGED', 'BANNED'].map(filter => (
+                  {['ALL', 'PENDING_VERIFICATION', 'CREATOR', 'CLIENT', 'FLAGGED', 'WATCHLIST', 'BANNED'].map(filter => (
                      <button
                         key={filter}
                         onClick={() => setUserFilter(filter as any)}
@@ -493,6 +500,13 @@ const AdminDashboard: React.FC = () => {
                                                     <div className="border-b border-slate-100 dark:border-slate-700 my-1"></div>
                                                 </>
                                             )}
+
+                                            <button 
+                                                onClick={() => handleToggleWatchlist(u.id, !!u.isWatchlisted)}
+                                                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center"
+                                            >
+                                                <Eye size={14} className="mr-2" /> {u.isWatchlisted ? 'Remove from Watchlist' : 'Add to Watchlist'}
+                                            </button>
 
                                             <button 
                                                 onClick={() => handleFlagUser(u.id, !!u.isFlagged)}
