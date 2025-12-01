@@ -29,7 +29,7 @@ const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [userFilter, setUserFilter] = useState<'ALL' | 'CREATOR' | 'CLIENT' | 'PENDING_VERIFICATION' | 'FLAGGED' | 'WATCHLIST' | 'BANNED'>('ALL');
+  const [userFilter, setUserFilter] = useState<'ALL' | 'CREATOR' | 'CLIENT' | 'PENDING_VERIFICATION' | 'FLAGGED' | 'WATCHLIST' | 'SUSPENDED' | 'BANNED'>('ALL');
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
   
@@ -84,6 +84,7 @@ const AdminDashboard: React.FC = () => {
     if (userFilter === 'CLIENT') result = result.filter(u => u.role === UserRole.CLIENT);
     if (userFilter === 'FLAGGED') result = result.filter(u => u.isFlagged);
     if (userFilter === 'WATCHLIST') result = result.filter(u => u.isWatchlisted);
+    if (userFilter === 'SUSPENDED') result = result.filter(u => u.status === 'suspended');
     if (userFilter === 'BANNED') result = result.filter(u => u.status === 'banned');
     if (userFilter === 'PENDING_VERIFICATION') {
         result = result.filter(u => 
@@ -383,7 +384,7 @@ const AdminDashboard: React.FC = () => {
 
                {/* Filters */}
                <div className="flex space-x-2 border-b border-slate-200 dark:border-slate-700 pb-1 overflow-x-auto">
-                  {['ALL', 'PENDING_VERIFICATION', 'CREATOR', 'CLIENT', 'FLAGGED', 'WATCHLIST', 'BANNED'].map(filter => (
+                  {['ALL', 'PENDING_VERIFICATION', 'CREATOR', 'CLIENT', 'FLAGGED', 'WATCHLIST', 'SUSPENDED', 'BANNED'].map(filter => (
                      <button
                         key={filter}
                         onClick={() => setUserFilter(filter as any)}
@@ -515,14 +516,25 @@ const AdminDashboard: React.FC = () => {
                                                 <AlertTriangle size={14} className="mr-2" /> {u.isFlagged ? 'Unflag User' : 'Flag for Review'}
                                             </button>
                                             
-                                            {u.status === 'active' ? (
+                                            {u.status === 'active' && (
                                                 <button 
                                                     onClick={() => handleUserStatusChange(u.id, 'suspended')}
                                                     className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-orange-600 dark:text-orange-400 flex items-center"
                                                 >
                                                     <UserX size={14} className="mr-2" /> Suspend
                                                 </button>
-                                            ) : (
+                                            )}
+
+                                            {u.status === 'suspended' && (
+                                                <button 
+                                                    onClick={() => handleUserStatusChange(u.id, 'active')}
+                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-green-600 dark:text-green-400 flex items-center"
+                                                >
+                                                    <UserCheck size={14} className="mr-2" /> Remove Suspension
+                                                </button>
+                                            )}
+
+                                            {u.status === 'banned' && (
                                                 <button 
                                                     onClick={() => handleUserStatusChange(u.id, 'active')}
                                                     className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-green-600 dark:text-green-400 flex items-center"

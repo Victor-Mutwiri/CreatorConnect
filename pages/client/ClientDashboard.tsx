@@ -271,7 +271,7 @@ const ClientDashboard: React.FC = () => {
 
   // Additional Variables for Dashboard
   const isVerified = user?.clientProfile?.isVerified || false;
-  const verificationStatus = isVerified ? 'verified' : 'unverified';
+  const verificationStatus = user?.clientProfile?.verificationStatus || (isVerified ? 'verified' : 'unverified');
   const closedCount = completedContracts.length + contracts.filter(c => c.status === ContractStatus.CANCELLED).length;
 
   const calculateCompletion = () => {
@@ -684,93 +684,44 @@ const ClientDashboard: React.FC = () => {
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* Active Contracts */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                <h3 className="font-bold text-slate-900 dark:text-white text-lg">Active Contracts</h3>
-                <Link to="/creator/contracts" className="text-sm text-brand-600 hover:text-brand-700 font-medium">View All</Link>
-              </div>
-              
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {activeContracts.length > 0 ? activeContracts.map(contract => (
-                  <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <Link to={`/client/profile/${contract.clientId}`} className="flex items-center space-x-3 group">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                          {contract.clientAvatar ? (
-                            <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="w-full h-full flex items-center justify-center font-bold text-slate-500">{contract.clientName[0]}</span>
-                          )}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{contract.title}</h4>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{contract.clientName}</p>
-                        </div>
-                      </Link>
-                      <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold px-3 py-1 rounded-full uppercase">
-                        {contract.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-4">
-                      <div className="text-sm text-slate-600 dark:text-slate-400">
-                        <span className="font-semibold">KES {contract.terms.amount.toLocaleString()}</span>
-                        <span className="mx-2">•</span>
-                        <span>Due in {contract.terms.durationDays} days</span>
-                      </div>
-                      <Link to={`/creator/contracts/${contract.id}`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex items-center">
-                        Manage <ArrowRight size={16} className="ml-1" />
-                      </Link>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-                    <p>No active contracts yet.</p>
-                  </div>
-                )}
-              </div>
+            {/* Navigation Tabs */}
+            <div className="flex space-x-2 border-b border-slate-200 dark:border-slate-800 pb-1 mb-6 overflow-x-auto">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeTab === 'overview' 
+                    ? 'border-brand-600 text-brand-600 dark:text-brand-400' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('search')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeTab === 'search' 
+                    ? 'border-brand-600 text-brand-600 dark:text-brand-400' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                Find Talent
+              </button>
+              <button
+                onClick={() => setActiveTab('contracts')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeTab === 'contracts' 
+                    ? 'border-brand-600 text-brand-600 dark:text-brand-400' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                My Contracts
+              </button>
             </div>
 
-            {/* Pending Requests */}
-            {pendingContracts.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                  <h3 className="font-bold text-slate-900 dark:text-white text-lg">Pending Offers</h3>
-                </div>
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {pendingContracts.map(contract => (
-                    <div key={contract.id} className="p-6 bg-orange-50/30 dark:bg-orange-900/10">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <Link to={`/client/profile/${contract.clientId}`} className="flex items-center space-x-3 group">
-                          <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold overflow-hidden">
-                             {contract.clientAvatar ? (
-                                <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
-                             ) : (
-                                contract.clientName[0]
-                             )}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{contract.title}</h4>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">From {contract.clientName}</p>
-                          </div>
-                        </Link>
-                        <div className="flex items-center space-x-3">
-                           <div className="text-right mr-2 hidden sm:block">
-                             <div className="font-bold text-slate-900 dark:text-white">KES {contract.terms.amount.toLocaleString()}</div>
-                             <div className="text-xs text-orange-600 dark:text-orange-400 font-medium uppercase">{contract.status.replace('_', ' ')}</div>
-                           </div>
-                           <Link to={`/creator/contracts/${contract.id}`}>
-                             <button className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm rounded-lg hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors">
-                               View Offer
-                             </button>
-                           </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Tab Content */}
+            {activeTab === 'overview' && renderOverview()}
+            {activeTab === 'search' && renderSearch()}
+            {activeTab === 'contracts' && renderContracts()}
           </div>
 
           {/* Right Sidebar */}
