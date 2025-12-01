@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   MapPin, CheckCircle, Star, Instagram, Youtube, Twitter, Facebook, 
-  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare, Copy, Link as LinkIcon, Check
+  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare, Copy, Link as LinkIcon, Check, ShieldAlert
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -142,6 +142,9 @@ const Profile: React.FC = () => {
   const isOwner = currentUser?.id === user.id;
   const isIdentityVerified = profile.verification?.status === 'verified';
   const isSocialVerified = profile.verification?.isSocialVerified;
+  
+  // Check if account is restricted (banned or suspended)
+  const isRestricted = user.status === 'suspended' || user.status === 'banned';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -261,12 +264,24 @@ const Profile: React.FC = () => {
               {/* Added rounded-b-2xl to maintain bottom corners since parent overflow is visible */}
               <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 rounded-b-2xl">
                 {!isOwner ? (
-                  <>
-                    <Button onClick={handleHireMe} className="w-full mb-3 shadow-brand-500/20">
-                      Hire Me
-                    </Button>
-                    <Button variant="outline" className="w-full bg-white dark:bg-slate-800">Message</Button>
-                  </>
+                  isRestricted ? (
+                    <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-800">
+                      <div className="flex justify-center mb-2 text-red-600 dark:text-red-400">
+                         <ShieldAlert size={24} />
+                      </div>
+                      <p className="text-red-700 dark:text-red-300 font-bold text-sm">Unavailable</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1 capitalize">
+                        This account is currently {user.status}.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <Button onClick={handleHireMe} className="w-full mb-3 shadow-brand-500/20">
+                        Hire Me
+                      </Button>
+                      <Button variant="outline" className="w-full bg-white dark:bg-slate-800">Message</Button>
+                    </>
+                  )
                 ) : (
                   <Link to="/creator/settings">
                     <Button variant="outline" className="w-full">Edit Profile</Button>
@@ -382,7 +397,7 @@ const Profile: React.FC = () => {
                            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
                              KES {pkg.price.toLocaleString()}
                            </div>
-                           <Button size="sm" variant="outline" className="w-full" onClick={handleHireMe}>
+                           <Button size="sm" variant="outline" className="w-full" onClick={handleHireMe} disabled={isRestricted}>
                              Select
                            </Button>
                         </div>

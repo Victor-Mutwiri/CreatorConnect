@@ -206,6 +206,25 @@ const CreateContract: React.FC = () => {
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!creator) return <div className="p-20 text-center dark:text-white">Creator not found</div>;
 
+  // Block creation if creator is restricted
+  if (creator.status === 'suspended' || creator.status === 'banned') {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <Navbar />
+        <div className="max-w-2xl mx-auto px-4 py-24 text-center flex flex-col items-center justify-center min-h-[60vh]">
+           <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6 text-red-600 dark:text-red-400">
+              <ShieldAlert size={40} />
+           </div>
+           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Creator Unavailable</h1>
+           <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-md">
+             We cannot proceed with this contract because the creator's account has been restricted ({creator.status}) due to a policy violation.
+           </p>
+           <Button onClick={() => navigate(-1)}>Go Back</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
