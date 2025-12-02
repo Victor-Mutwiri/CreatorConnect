@@ -71,7 +71,21 @@ export const mockContractService = {
     await delay(500);
     seedData(userId);
     const allContracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
-    return allContracts.filter((c: Contract) => c.creatorId === userId || c.clientId === userId);
+    const userContracts = allContracts.filter((c: Contract) => c.creatorId === userId || c.clientId === userId);
+
+    // Sorting Logic: Active contracts first, then by Date Descending (Newest first)
+    return userContracts.sort((a: Contract, b: Contract) => {
+        const isActiveA = [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(a.status);
+        const isActiveB = [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(b.status);
+
+        // Priority 1: Active Status (Active comes before Inactive)
+        if (isActiveA && !isActiveB) return -1;
+        if (!isActiveA && isActiveB) return 1;
+
+        // Priority 2: Date (Latest first)
+        // We use createdAt to ensure the "latest contract" logic applies
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   },
 
   getContractById: async (id: string): Promise<Contract | null> => {
