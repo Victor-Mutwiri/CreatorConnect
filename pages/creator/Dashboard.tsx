@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   BarChart3, CheckCircle, Clock, DollarSign, Bell, ArrowRight,
-  TrendingUp, Activity, Briefcase, XCircle, CheckSquare, AlertTriangle, Gavel, ShieldAlert, Eye, Flag
+  TrendingUp, Activity, Briefcase, XCircle, CheckSquare, AlertTriangle, Gavel, ShieldAlert, Eye, Flag, Loader
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -123,6 +123,43 @@ const Dashboard: React.FC = () => {
   const completionScore = calculateCompletion();
   const isVerified = user?.profile?.verification?.status === 'verified';
   const verificationStatus = user?.profile?.verification?.status || 'unverified';
+
+  // Helper to determine the "Next Action" status for a contract
+  const getContractActionStatus = (contract: Contract) => {
+    if (contract.endRequest?.status === 'pending') {
+       return { text: 'End Request Pending', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: AlertTriangle };
+    }
+
+    // Find the first active milestone
+    const activeMilestone = contract.terms.milestones?.find(m => 
+      m.status !== 'PAID' && m.status !== 'CANCELLED'
+    );
+
+    if (!activeMilestone) {
+      return { text: 'All Milestones Paid', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: CheckCircle };
+    }
+
+    if (activeMilestone.status === 'DISPUTED') {
+      return { text: 'Dispute Raised', color: 'text-red-600 bg-red-50 dark:bg-red-900/20', icon: AlertTriangle };
+    }
+
+    if (activeMilestone.status === 'PAYMENT_VERIFY') {
+      return { text: 'Verify Payment', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: DollarSign, animate: true };
+    }
+
+    if (activeMilestone.status === 'IN_PROGRESS') {
+      if (activeMilestone.revisionNotes) {
+        return { text: 'Revision Requested', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: AlertTriangle, animate: true };
+      }
+      return { text: 'Awaiting Submission', color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20', icon: Clock };
+    }
+
+    if (activeMilestone.status === 'UNDER_REVIEW') {
+      return { text: 'Client Reviewing', color: 'text-slate-500 bg-slate-100 dark:bg-slate-800', icon: Loader };
+    }
+
+    return { text: 'On Track', color: 'text-slate-500 bg-slate-100 dark:bg-slate-800', icon: Activity };
+  };
 
   if (loading) {
     return (
@@ -294,38 +331,46 @@ const Dashboard: React.FC = () => {
               </div>
               
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {activeContracts.length > 0 ? activeContracts.map(contract => (
-                  <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <Link to={`/client/profile/${contract.clientId}`} className="flex items-center space-x-3 group">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                          {contract.clientAvatar ? (
-                            <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="w-full h-full flex items-center justify-center font-bold text-slate-500">{contract.clientName[0]}</span>
-                          )}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{contract.title}</h4>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{contract.clientName}</p>
-                        </div>
-                      </Link>
-                      <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold px-3 py-1 rounded-full uppercase">
-                        {contract.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-4">
-                      <div className="text-sm text-slate-600 dark:text-slate-400">
-                        <span className="font-semibold">KES {contract.terms.amount.toLocaleString()}</span>
-                        <span className="mx-2">•</span>
-                        <span>Due in {contract.terms.durationDays} days</span>
+                {activeContracts.length > 0 ? activeContracts.map(contract => {
+                  const statusInfo = getContractActionStatus(contract);
+                  const StatusIcon = statusInfo.icon;
+
+                  return (
+                    <div key={contract.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <Link to={`/client/profile/${contract.clientId}`} className="flex items-center space-x-3 group">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                            {contract.clientAvatar ? (
+                              <img src={contract.clientAvatar} alt={contract.clientName} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="w-full h-full flex items-center justify-center font-bold text-slate-500">{contract.clientName[0]}</span>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{contract.title}</h4>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{contract.clientName}</p>
+                          </div>
+                        </Link>
+                        
+                        {/* Dynamic Action Status Badge */}
+                        <span className={`flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full uppercase ${statusInfo.color} ${statusInfo.animate ? 'animate-pulse' : ''}`}>
+                           <StatusIcon size={12} />
+                           {statusInfo.text}
+                        </span>
                       </div>
-                      <Link to={`/creator/contracts/${contract.id}`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex items-center">
-                        Manage <ArrowRight size={16} className="ml-1" />
-                      </Link>
+                      <div className="flex justify-between items-center mt-4">
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                          <span className="font-semibold">KES {contract.terms.amount.toLocaleString()}</span>
+                          <span className="mx-2">•</span>
+                          <span>Due in {contract.terms.durationDays} days</span>
+                        </div>
+                        <Link to={`/creator/contracts/${contract.id}`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex items-center">
+                          Manage <ArrowRight size={16} className="ml-1" />
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                )) : (
+                  );
+                }) : (
                   <div className="p-8 text-center text-slate-500 dark:text-slate-400">
                     <p>No active contracts yet.</p>
                   </div>

@@ -6,7 +6,7 @@ import {
   TrendingUp, Bell, Clock,
   CreditCard, User as UserIcon, Send,
   AlertTriangle, Gavel, Users, Heart, Star, CheckCircle, XCircle, Eye, ShieldAlert,
-  DollarSign, Activity, CheckSquare, ArrowRight, Flag
+  DollarSign, Activity, CheckSquare, ArrowRight, Flag, Loader
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -306,6 +306,40 @@ const ClientDashboard: React.FC = () => {
     ? creators.filter(c => isCreatorSaved(c.id))
     : creators;
 
+  // Helper to determine the "Next Action" status for a contract (Client View)
+  const getContractActionStatus = (contract: Contract) => {
+    if (contract.endRequest?.status === 'pending') {
+       return { text: 'End Request Pending', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: AlertTriangle };
+    }
+
+    // Find the first active milestone
+    const activeMilestone = contract.terms.milestones?.find(m => 
+      m.status !== 'PAID' && m.status !== 'CANCELLED'
+    );
+
+    if (!activeMilestone) {
+      return { text: 'All Milestones Paid', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: CheckCircle };
+    }
+
+    if (activeMilestone.status === 'DISPUTED') {
+      return { text: 'Dispute Raised', color: 'text-red-600 bg-red-50 dark:bg-red-900/20', icon: AlertTriangle };
+    }
+
+    if (activeMilestone.status === 'UNDER_REVIEW') {
+      return { text: 'Needs Approval', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: CheckSquare, animate: true };
+    }
+
+    if (activeMilestone.status === 'PAYMENT_VERIFY') {
+      return { text: 'Payment Verification Pending', color: 'text-slate-500 bg-slate-100 dark:bg-slate-800', icon: Clock };
+    }
+
+    if (activeMilestone.status === 'IN_PROGRESS') {
+      return { text: 'Work in Progress', color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20', icon: Loader };
+    }
+
+    return { text: 'On Track', color: 'text-slate-500 bg-slate-100 dark:bg-slate-800', icon: Activity };
+  };
+
   if (loading) {
     return (
        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
@@ -406,22 +440,30 @@ const ClientDashboard: React.FC = () => {
                 <button onClick={() => setActiveTab('contracts')} className="text-xs font-medium text-brand-600 hover:text-brand-500">View All</button>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {activeContracts.length > 0 ? activeContracts.map(contract => (
-                  <div key={contract.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-0.5">{contract.title}</h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Hired: {contract.creatorName}</p>
-                      </div>
-                      <div className="text-right">
-                         <div className="text-sm font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
-                         <div className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase mt-0.5">
-                           On Track
-                         </div>
+                {activeContracts.length > 0 ? activeContracts.map(contract => {
+                  const statusInfo = getContractActionStatus(contract);
+                  const StatusIcon = statusInfo.icon;
+
+                  return (
+                    <div key={contract.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-0.5">{contract.title}</h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Hired: {contract.creatorName}</p>
+                        </div>
+                        <div className="text-right">
+                           <div className="text-sm font-bold text-slate-900 dark:text-white">{contract.terms.currency} {contract.terms.amount.toLocaleString()}</div>
+                           
+                           {/* Dynamic Status Badge */}
+                           <div className={`flex items-center justify-end gap-1 text-[10px] font-bold uppercase mt-1 ${statusInfo.color.replace('bg-', 'text-').split(' ')[0]} ${statusInfo.animate ? 'animate-pulse' : ''}`}>
+                             <StatusIcon size={10} />
+                             {statusInfo.text}
+                           </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )) : (
+                  );
+                }) : (
                   <div className="p-8 text-center text-slate-500 dark:text-slate-400 text-sm">
                     No active campaigns. Post a job to get started!
                   </div>
