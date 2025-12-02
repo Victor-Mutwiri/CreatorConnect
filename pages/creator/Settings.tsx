@@ -5,7 +5,7 @@ import {
   User, Bell, Lock, Palette, Save, CheckCircle, 
   Instagram, Youtube, Trash2, Plus, Moon, Sun, AlertTriangle, CreditCard,
   Smartphone, Building, Bitcoin, ShieldCheck, HelpCircle, EyeOff, Loader,
-  Copy, Check, Facebook, Twitter, Link as LinkIcon, Clock
+  Copy, Check, Facebook, Twitter, Link as LinkIcon, Clock, ExternalLink
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -43,6 +43,10 @@ const Settings: React.FC = () => {
 
   // Verification Edit Warning
   const [showVerificationWarning, setShowVerificationWarning] = useState(false);
+
+  // Social Verification Modal State
+  const [showSocialModal, setShowSocialModal] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<CreatorProfile>>({});
@@ -128,30 +132,36 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleSocialVerifyRequest = async (platform: string) => {
-    if (!user) return;
+  // Called when "Yes" is clicked in the modal
+  const confirmSocialVerification = async () => {
+    if (!user || !selectedPlatform) return;
     
-    const confirmMsg = `Have you added your Ubuni Profile Link to your ${platform} bio?\n\nOur team will review this within 48 hours. Please do not remove the link until verified.`;
-    
-    if (window.confirm(confirmMsg)) {
-        try {
-            await mockAuth.requestSocialVerification(user.id, platform);
-            
-            // Update local state immediately for UI feedback
-            setFormData(prev => ({
-                ...prev,
-                verification: {
-                    ...prev.verification!,
-                    pendingSocials: [...(prev.verification?.pendingSocials || []), platform]
-                }
-            }));
-            
-            setSuccessMsg('Verification requested!');
-            setTimeout(() => setSuccessMsg(''), 3000);
-        } catch (e) {
-            console.error(e);
-        }
+    try {
+        await mockAuth.requestSocialVerification(user.id, selectedPlatform);
+        
+        // Update local state immediately for UI feedback
+        setFormData(prev => ({
+            ...prev,
+            verification: {
+                ...prev.verification!,
+                pendingSocials: [...(prev.verification?.pendingSocials || []), selectedPlatform]
+            }
+        }));
+        
+        setSuccessMsg('Verification requested!');
+        setTimeout(() => setSuccessMsg(''), 3000);
+        
+        // Close modal
+        setShowSocialModal(false);
+        setSelectedPlatform(null);
+    } catch (e) {
+        console.error(e);
     }
+  };
+
+  const initiateSocialVerification = (platform: string) => {
+    setSelectedPlatform(platform);
+    setShowSocialModal(true);
   };
 
   const renderProfileTab = () => (
@@ -445,7 +455,7 @@ const Settings: React.FC = () => {
                                     </span>
                                 ) : (
                                     <button 
-                                        onClick={() => handleSocialVerifyRequest(platform.key)}
+                                        onClick={() => initiateSocialVerification(platform.key)}
                                         className="text-xs bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-1.5 rounded-lg font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors"
                                     >
                                         Verify Now
@@ -918,6 +928,44 @@ const Settings: React.FC = () => {
                   className="flex-1 bg-red-600 text-white rounded-full font-bold py-3 hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30"
                 >
                   I Understand, Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Social Media Verification Modal */}
+      {showSocialModal && selectedPlatform && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
+            <div className="p-6">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 dark:text-blue-400">
+                <LinkIcon size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-center">Verify Link in Bio</h3>
+              
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl mb-6 text-sm text-slate-600 dark:text-slate-300 leading-relaxed border border-slate-100 dark:border-slate-700">
+                <p>
+                  Have you added your Ubuni Profile Link to your <span className="font-bold text-slate-900 dark:text-white capitalize">{selectedPlatform}</span> bio?
+                </p>
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Our team will review this within 48 hours. Please do not remove the link until you receive the verified badge.
+                </p>
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <Button 
+                  onClick={confirmSocialVerification}
+                  className="w-full justify-center"
+                >
+                  Yes, Request Review
+                </Button>
+                <button 
+                  onClick={() => { setShowSocialModal(false); setSelectedPlatform(null); }}
+                  className="w-full py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
