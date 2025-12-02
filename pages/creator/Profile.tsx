@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   MapPin, CheckCircle, Star, Instagram, Youtube, Twitter, Facebook, 
-  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare, Copy, Link as LinkIcon, Check, ShieldAlert
+  MessageCircle, Share2, Briefcase, Globe, Shield, Clock, CheckSquare, Copy, Link as LinkIcon, Check, ShieldAlert, ShieldCheck, User as UserIcon
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -142,6 +142,7 @@ const Profile: React.FC = () => {
   const isOwner = currentUser?.id === user.id;
   const isIdentityVerified = profile.verification?.status === 'verified';
   const isSocialVerified = profile.verification?.isSocialVerified;
+  const trustScore = profile.verification?.trustScore || 0;
   
   // Check if account is restricted (banned or suspended)
   const isRestricted = user.status === 'suspended' || user.status === 'banned';
@@ -245,20 +246,6 @@ const Profile: React.FC = () => {
                   <Briefcase size={18} className="mr-3 text-slate-400" />
                   <span>{profile.experience.years} Years Exp.</span>
                 </div>
-                
-                {profile.verification?.trustScore && (
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex justify-between items-center mb-2">
-                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center">
-                         <Shield size={14} className="mr-1.5 text-brand-600" /> Trust Score
-                       </span>
-                       <span className="text-sm font-bold text-brand-600">{profile.verification.trustScore}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
-                      <div className="bg-brand-500 h-1.5 rounded-full" style={{ width: `${profile.verification.trustScore}%` }}></div>
-                    </div>
-                  </div>
-                )}
               </div>
               
               {/* Added rounded-b-2xl to maintain bottom corners since parent overflow is visible */}
@@ -287,6 +274,60 @@ const Profile: React.FC = () => {
                     <Button variant="outline" className="w-full">Edit Profile</Button>
                   </Link>
                 )}
+              </div>
+            </div>
+
+            {/* Trust & Verification Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
+              <div className="flex items-center justify-between mb-4">
+                 <h3 className="font-bold text-slate-900 dark:text-white flex items-center">
+                  <ShieldCheck size={20} className="mr-2 text-brand-600" />
+                  Trust Score
+                 </h3>
+                 <span className={`text-2xl font-black ${trustScore >= 80 ? 'text-green-600' : trustScore >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>
+                   {trustScore}%
+                 </span>
+              </div>
+
+              <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 mb-6">
+                <div 
+                  className={`h-2.5 rounded-full transition-all duration-1000 ${trustScore >= 80 ? 'bg-green-500' : trustScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                  style={{ width: `${trustScore}%` }}
+                ></div>
+              </div>
+
+              <div className="space-y-3">
+                 {/* Identity */}
+                 <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 dark:text-slate-400 flex items-center"><UserIcon size={14} className="mr-2"/> Identity</span>
+                    {isIdentityVerified ? (
+                      <span className="text-green-600 font-bold text-xs bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded flex items-center"><CheckCircle size={10} className="mr-1"/> Verified</span>
+                    ) : (
+                      <span className="text-slate-400 font-bold text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">Unverified</span>
+                    )}
+                 </div>
+                 
+                 {/* Socials */}
+                 <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 dark:text-slate-400 flex items-center"><Globe size={14} className="mr-2"/> Social Audience</span>
+                    {isSocialVerified ? (
+                      <span className="text-green-600 font-bold text-xs bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded flex items-center"><CheckCircle size={10} className="mr-1"/> Verified</span>
+                    ) : (
+                      <span className="text-slate-400 font-bold text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">Unverified</span>
+                    )}
+                 </div>
+
+                 {/* Reviews */}
+                 <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 dark:text-slate-400 flex items-center"><Star size={14} className="mr-2"/> Client Rating</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{profile.averageRating || 'N/A'} / 5.0</span>
+                 </div>
+
+                 {/* Jobs */}
+                 <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 dark:text-slate-400 flex items-center"><Briefcase size={14} className="mr-2"/> Jobs Done</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{completedCount}</span>
+                 </div>
               </div>
             </div>
 
