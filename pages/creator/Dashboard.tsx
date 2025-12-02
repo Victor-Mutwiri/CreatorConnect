@@ -136,7 +136,7 @@ const Dashboard: React.FC = () => {
     );
 
     if (!activeMilestone) {
-      return { text: 'All Milestones Paid', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: CheckCircle };
+      return { text: 'All Milestones Paid. End Contract!', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: CheckCircle };
     }
 
     if (activeMilestone.status === 'DISPUTED') {
