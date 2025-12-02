@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Sparkles, User as UserIcon, LogOut, Settings, LayoutDashboard, FileText, Sun, Moon, Bell } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -12,7 +13,7 @@ const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [hasUnreadNotes, setHasUnreadNotes] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -30,12 +31,13 @@ const Navbar: React.FC = () => {
     const checkNotes = async () => {
       if (user) {
         const notes = await mockContractService.getNotifications(user.id);
-        setHasUnreadNotes(notes.some(n => !n.read));
+        const count = notes.filter(n => !n.read).length;
+        setUnreadCount(count);
       }
     };
     checkNotes();
     // Poll for notifications occasionally
-    const interval = setInterval(checkNotes, 10000);
+    const interval = setInterval(checkNotes, 5000); // 5 seconds polling for responsiveness
     return () => clearInterval(interval);
   }, [user]);
 
@@ -44,6 +46,15 @@ const Navbar: React.FC = () => {
     navigate('/');
     setIsOpen(false);
     setUserMenuOpen(false);
+  };
+
+  const handleMarkAllRead = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (user) {
+        await mockContractService.markAllNotificationsRead(user.id);
+        setUnreadCount(0);
+    }
   };
 
   const isCreator = user?.role === UserRole.CREATOR;
@@ -86,12 +97,19 @@ const Navbar: React.FC = () => {
                  <Link to={isCreator ? "/creator/dashboard" : "/client/dashboard"} className="text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium">
                    Dashboard
                  </Link>
-                 <Link to="/notifications" className="text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium relative">
+                 <Link to="/notifications" className="text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium relative flex items-center">
                    Notifications
-                   {hasUnreadNotes && (
-                     <span className="absolute -top-1 -right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+                   {unreadCount > 0 && (
+                     <span className="ml-1.5 min-w-[18px] h-[18px] bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                     </span>
                    )}
                  </Link>
+                 {isClient && (
+                    <Link to="/client/dashboard" onClick={() => {/* Hack to trigger tab switch if needed, currently just link */}} className="text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium">
+                        Find Talent
+                    </Link>
+                 )}
               </>
             )}
           </div>
@@ -125,7 +143,7 @@ const Navbar: React.FC = () => {
 
                  {/* Dropdown */}
                  {userMenuOpen && (
-                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 py-2 animate-in fade-in slide-in-from-top-2">
+                   <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 py-2 animate-in fade-in slide-in-from-top-2">
                      <div className="px-4 py-2 border-b border-slate-50 dark:border-slate-800">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">{user.name}</p>
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
@@ -138,13 +156,31 @@ const Navbar: React.FC = () => {
                      
                      <Link 
                        to="/notifications"
-                       className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                       className="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 justify-between group"
                        onClick={() => setUserMenuOpen(false)}
                      >
-                       <Bell size={16} className="mr-2 text-slate-400" />
-                       Notifications
-                       {hasUnreadNotes && <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>}
+                       <div className="flex items-center">
+                          <Bell size={16} className="mr-2 text-slate-400" />
+                          Notifications
+                       </div>
+                       {unreadCount > 0 && (
+                          <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {unreadCount}
+                          </span>
+                       )}
                      </Link>
+                     
+                     {/* Mark Read Action inside Dropdown */}
+                     {unreadCount > 0 && (
+                        <div className="px-4 pb-2 -mt-1">
+                            <button 
+                                onClick={handleMarkAllRead}
+                                className="text-[10px] text-brand-600 hover:text-brand-700 font-bold ml-6 pl-0.5"
+                            >
+                                Mark all as read
+                            </button>
+                        </div>
+                     )}
 
                      {isCreator && (
                        <>
@@ -272,12 +308,18 @@ const Navbar: React.FC = () => {
                   </Link>
                    <Link 
                     to="/notifications"
-                    className="flex items-center space-x-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg"
+                    className="flex items-center space-x-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg justify-between"
                     onClick={() => setIsOpen(false)}
                   >
-                     <Bell size={20} className="text-slate-500" />
-                     <span className="font-medium text-slate-900 dark:text-white">Notifications</span>
-                     {hasUnreadNotes && <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>}
+                     <div className="flex items-center">
+                        <Bell size={20} className="text-slate-500 mr-3" />
+                        <span className="font-medium text-slate-900 dark:text-white">Notifications</span>
+                     </div>
+                     {unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                           {unreadCount}
+                        </span>
+                     )}
                   </Link>
                    <Link 
                     to={isCreator ? "/creator/settings" : "/client/settings"}

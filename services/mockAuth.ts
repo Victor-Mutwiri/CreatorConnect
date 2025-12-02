@@ -132,6 +132,21 @@ export const mockAuth = {
     // Set session
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
 
+    // NEW: Welcome Notification
+    // Manually pushing to DB to avoid circular dependency with mockContract
+    const notifications = JSON.parse(localStorage.getItem('ubuni_notifications_db') || '[]');
+    notifications.push({
+      id: `n-${Date.now()}-welcome`,
+      userId: newUser.id,
+      title: 'Welcome to Ubuni Connect! 🚀',
+      message: `Hi ${name.split(' ')[0]}, we're thrilled to have you. Complete your profile to start exploring.`,
+      type: 'success',
+      read: false,
+      date: new Date().toISOString(),
+      link: role === UserRole.CREATOR ? '/creator/settings' : '/client/settings'
+    });
+    localStorage.setItem('ubuni_notifications_db', JSON.stringify(notifications));
+
     return { user: newUser, error: null };
   },
 

@@ -29,10 +29,8 @@ const Notifications: React.FC = () => {
   };
 
   const markAllRead = async () => {
-    // In a real app, this would be a batch API call
-    for (const n of notifications) {
-      if (!n.read) await mockContractService.markNotificationRead(n.id);
-    }
+    if (!user) return;
+    await mockContractService.markAllNotificationsRead(user.id);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
@@ -50,7 +48,7 @@ const Notifications: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Navbar />
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center">
             <Bell className="mr-3" /> Notifications
@@ -58,7 +56,7 @@ const Notifications: React.FC = () => {
           {notifications.some(n => !n.read) && (
             <button 
               onClick={markAllRead}
-              className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+              className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 transition-colors"
             >
               Mark all as read
             </button>

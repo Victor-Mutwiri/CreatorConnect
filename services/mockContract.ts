@@ -1,3 +1,4 @@
+
 import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof, Milestone } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
@@ -681,6 +682,23 @@ export const mockContractService = {
 
     messages.push(newMessage);
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+
+    // NEW: Notify Recipient about new message
+    if (senderId !== 'system') {
+        const contracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '[]');
+        const contract = contracts.find((c: any) => c.id === contractId);
+        if (contract) {
+            const targetUserId = senderId === contract.creatorId ? contract.clientId : contract.creatorId;
+            createNotification(
+                targetUserId,
+                `New Message`,
+                `${senderName}: ${content.substring(0, 40)}${content.length > 40 ? '...' : ''}`,
+                'info',
+                `/creator/contracts/${contractId}`
+            );
+        }
+    }
+
     return newMessage;
   },
 
@@ -696,6 +714,22 @@ export const mockContractService = {
     if (index !== -1) {
       notes[index].read = true;
       localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notes));
+    }
+  },
+
+  markAllNotificationsRead: async (userId: string) => {
+    const notes = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
+    let hasChanges = false;
+    const updatedNotes = notes.map((n: Notification) => {
+        if (n.userId === userId && !n.read) {
+            hasChanges = true;
+            return { ...n, read: true };
+        }
+        return n;
+    });
+    
+    if (hasChanges) {
+        localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updatedNotes));
     }
   }
 };
