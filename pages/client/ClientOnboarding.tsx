@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -18,14 +19,26 @@ const ClientOnboarding: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<Partial<ClientProfile>>({
-    clientType: ClientType.INDIVIDUAL,
-    businessName: '',
-    website: '',
-    location: '',
-    description: '',
-    industry: '',
-    budgetRange: 'KES 10k - 50k',
+  // Initialize with existing profile data if available
+  const [formData, setFormData] = useState<Partial<ClientProfile>>(() => {
+    const defaultProfile: Partial<ClientProfile> = {
+      clientType: ClientType.INDIVIDUAL,
+      businessName: '',
+      website: '',
+      location: '',
+      description: '',
+      industry: '',
+      budgetRange: 'KES 10k - 50k',
+    };
+
+    if (user?.clientProfile) {
+      return {
+        ...defaultProfile,
+        ...user.clientProfile
+      };
+    }
+
+    return defaultProfile;
   });
 
   const totalSteps = 3;

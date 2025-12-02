@@ -39,27 +39,45 @@ const Onboarding: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form State
-  const [formData, setFormData] = useState<Partial<CreatorProfile>>({
-    displayName: user?.name || '',
-    username: '',
-    bio: '',
-    location: 'Nairobi, Kenya',
-    categories: [],
-    socials: { instagram: '', tiktok: '', youtube: '', twitter: '', facebook: '' },
-    portfolio: { images: [], links: [''] },
-    experience: { years: '0-1', languages: ['English', 'Swahili'], skills: [] },
-    pricing: {
-      model: 'negotiable',
-      currency: 'KES',
-      packages: []
-    },
-    verification: {
-      status: 'unverified',
-      isIdentityVerified: false,
-      isSocialVerified: false,
-      trustScore: 20
+  // Form State - Initialize with existing profile data if available
+  const [formData, setFormData] = useState<Partial<CreatorProfile>>(() => {
+    const defaultProfile: Partial<CreatorProfile> = {
+      displayName: user?.name || '',
+      username: '',
+      bio: '',
+      location: 'Nairobi, Kenya',
+      categories: [],
+      socials: { instagram: '', tiktok: '', youtube: '', twitter: '', facebook: '' },
+      portfolio: { images: [], links: [''] },
+      experience: { years: '0-1', languages: ['English', 'Swahili'], skills: [] },
+      pricing: {
+        model: 'negotiable',
+        currency: 'KES',
+        packages: []
+      },
+      verification: {
+        status: 'unverified',
+        isIdentityVerified: false,
+        isSocialVerified: false,
+        trustScore: 20
+      }
+    };
+
+    if (user?.profile) {
+      // Merge existing profile with defaults to ensure all fields exist
+      return {
+        ...defaultProfile,
+        ...user.profile,
+        // Deep merge nested objects to avoid overwriting with defaults if partially set
+        socials: { ...defaultProfile.socials, ...(user.profile.socials || {}) },
+        portfolio: { ...defaultProfile.portfolio, ...(user.profile.portfolio || {}) },
+        experience: { ...defaultProfile.experience, ...(user.profile.experience || {}) },
+        pricing: { ...defaultProfile.pricing, ...(user.profile.pricing || {}) },
+        verification: { ...defaultProfile.verification, ...(user.profile.verification || {}) }
+      };
     }
+
+    return defaultProfile;
   });
 
   const totalSteps = 6;
@@ -106,8 +124,9 @@ const Onboarding: React.FC = () => {
   const handleFinish = async () => {
     setIsSubmitting(true);
     try {
-      // Mock stats generation for onboarding
-      const socialStats = {
+      // Mock stats generation for onboarding if they don't exist
+      const existingStats = user?.profile?.socialStats;
+      const socialStats = existingStats || {
         totalFollowers: '12.5K',
         engagementRate: '4.8%',
         avgViews: '2.3K'
@@ -350,6 +369,29 @@ const Onboarding: React.FC = () => {
           });
         }} 
       />
+
+      {formData.portfolio?.images && formData.portfolio.images.length > 0 && (
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {formData.portfolio.images.map((img, idx) => (
+            <div key={idx} className="relative group aspect-square bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+              <img src={img} alt={`Portfolio ${idx}`} className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => setFormData({
+                  ...formData,
+                  portfolio: {
+                    ...formData.portfolio!,
+                    images: formData.portfolio?.images.filter((_, i) => i !== idx) || []
+                  }
+                })}
+                className="absolute top-1 right-1 bg-white/90 text-slate-600 rounded-full p-1 hover:text-red-600 transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="mt-6">
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">External Portfolio Links</label>
