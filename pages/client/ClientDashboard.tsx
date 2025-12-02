@@ -6,7 +6,7 @@ import {
   TrendingUp, Bell, Clock,
   CreditCard, User as UserIcon, Send,
   AlertTriangle, Gavel, Users, Heart, Star, CheckCircle, XCircle, Eye, ShieldAlert,
-  DollarSign, Activity, CheckSquare, ArrowRight
+  DollarSign, Activity, CheckSquare, ArrowRight, Flag
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -550,7 +550,7 @@ const ClientDashboard: React.FC = () => {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         
-        {/* Account Status Banners (Suspension / Watchlist / Ban) */}
+        {/* Account Status Banners (Suspension / Flagged / Watchlist / Ban) */}
         
         {user?.status === 'banned' && (
            <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
@@ -575,6 +575,20 @@ const ClientDashboard: React.FC = () => {
                  <h3 className="font-bold text-orange-900 dark:text-orange-300">Account Suspended</h3>
                  <p className="text-sm text-orange-800 dark:text-orange-400 mt-1">
                     Your account has been suspended due to policy violations or unresolved disputes. You are not visible to clients. Please check your notifications for details.
+                 </p>
+              </div>
+           </div>
+        )}
+
+        {user?.isFlagged && user?.status !== 'suspended' && user?.status !== 'banned' && (
+           <div className="mb-8 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl flex items-center gap-4 animate-in slide-in-from-top-4">
+              <div className="p-2 bg-rose-100 dark:bg-rose-800/30 rounded-full text-rose-600 dark:text-rose-400">
+                 <Flag size={24} />
+              </div>
+              <div>
+                 <h3 className="font-bold text-rose-900 dark:text-rose-300">Account Flagged for Review</h3>
+                 <p className="text-sm text-rose-800 dark:text-rose-400 mt-1">
+                    Your account has been flagged{user.flagReason ? `: ${user.flagReason}` : '.'} Our team is reviewing your activity.
                  </p>
               </div>
            </div>
