@@ -366,10 +366,10 @@ export const mockAuth = {
     await delay(600);
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     
-    // STRICTLY filter only users with CREATOR role AND active status
+    // STRICTLY filter only users with CREATOR role AND active status (Not banned/suspended)
     let creators = users.filter((u: User) => u.role === UserRole.CREATOR && u.status !== 'banned' && u.status !== 'suspended');
 
-    // NEW RULE: Only return creators who are VERIFIED
+    // Filter creators who are VERIFIED
     creators = creators.filter((c: User) => c.profile?.verification?.status === 'verified');
 
     if (query) {
@@ -377,7 +377,9 @@ export const mockAuth = {
       creators = creators.filter((c: User) => 
         c.name.toLowerCase().includes(q) || 
         c.profile?.bio?.toLowerCase().includes(q) ||
-        c.profile?.categories?.some(cat => cat.toLowerCase().includes(q))
+        c.profile?.categories?.some(cat => cat.toLowerCase().includes(q)) ||
+        // Also search in skills
+        c.profile?.experience?.skills?.some(skill => skill.toLowerCase().includes(q))
       );
     }
 
@@ -391,7 +393,7 @@ export const mockAuth = {
   },
 
   async toggleSavedCreator(clientId: string, creatorId: string): Promise<User | null> {
-    await delay(300);
+    // await delay(100); // Fast toggle
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const clientIndex = users.findIndex((u: User) => u.id === clientId);
 
@@ -412,10 +414,12 @@ export const mockAuth = {
     users[clientIndex] = client;
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
 
-    // Update Session
+    // Update Session Immediately to reflect in UI
     const currentSession = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
     if (currentSession.id === clientId) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(client));
+      // Merge updates
+      currentSession.clientProfile = { ...currentSession.clientProfile, savedCreatorIds: client.clientProfile.savedCreatorIds };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(currentSession));
     }
 
     return client;

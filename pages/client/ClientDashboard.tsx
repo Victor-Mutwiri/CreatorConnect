@@ -53,8 +53,8 @@ const CreatorCard: React.FC<CreatorCardProps> = ({ creator, saved, onToggleSave 
                 e.preventDefault();
                 onToggleSave(creator.id);
               }}
-              className={`p-1.5 rounded-full backdrop-blur-md transition-all ${
-                saved ? 'bg-brand-500 text-white' : 'bg-white/80 text-slate-600 hover:text-red-500'
+              className={`p-1.5 rounded-full backdrop-blur-md transition-all shadow-sm ${
+                saved ? 'bg-red-500 text-white' : 'bg-white/90 text-slate-600 hover:text-red-500'
               }`}
             >
               <Heart size={16} fill={saved ? "currentColor" : "none"} />
@@ -184,6 +184,7 @@ const ClientDashboard: React.FC = () => {
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -212,10 +213,24 @@ const ClientDashboard: React.FC = () => {
 
   const toggleSaveCreator = async (creatorId: string) => {
     if (!user) return;
-    const updatedUser = await mockAuth.toggleSavedCreator(user.id, creatorId);
-    if (updatedUser) {
-       await updateProfile({}); 
+    
+    // Optimistic Update locally
+    const currentSaved = user.clientProfile?.savedCreatorIds || [];
+    const isAlreadySaved = currentSaved.includes(creatorId);
+    let newSavedIds = [];
+    if (isAlreadySaved) {
+       newSavedIds = currentSaved.filter(id => id !== creatorId);
+    } else {
+       newSavedIds = [...currentSaved, creatorId];
     }
+    
+    // Update local context first for responsiveness
+    await updateProfile({
+       clientProfile: { ...user.clientProfile!, savedCreatorIds: newSavedIds }
+    });
+
+    // Persist to DB
+    await mockAuth.toggleSavedCreator(user.id, creatorId);
   };
 
   const isCreatorSaved = (creatorId: string) => {
@@ -285,6 +300,11 @@ const ClientDashboard: React.FC = () => {
     return score;
   };
   const completionScore = calculateCompletion();
+
+  // Filter creators based on showSavedOnly
+  const displayedCreators = showSavedOnly 
+    ? creators.filter(c => isCreatorSaved(c.id))
+    : creators;
 
   if (loading) {
     return (
@@ -468,20 +488,37 @@ const ClientDashboard: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text" 
-            placeholder="Search creators by name, bio, or skill..." 
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-white"
+            placeholder="Search by name, skill (e.g. React, Photography) or bio..." 
+            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-white transition-all shadow-sm focus:shadow-md"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex overflow-x-auto pb-2 md:pb-0 gap-2">
+        <div className="flex overflow-x-auto pb-2 md:pb-0 gap-2 items-center">
+          {/* Favorites Filter */}
+          <button
+            onClick={() => setShowSavedOnly(!showSavedOnly)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors border flex items-center gap-2 ${
+              showSavedOnly
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
+                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-red-300'
+            }`}
+          >
+            <Heart size={16} fill={showSavedOnly ? "currentColor" : "none"} /> Saved
+          </button>
+          
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
           {CATEGORIES.map(cat => (
             <button
               key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => {
+                setSelectedCategory(cat);
+                setShowSavedOnly(false); // Reset saved filter when changing category
+              }}
               className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors border ${
                 selectedCategory === cat
-                  ? 'bg-brand-600 text-white border-brand-600'
+                  ? 'bg-brand-600 text-white border-brand-600 shadow-brand-500/20 shadow-lg'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-brand-300'
               }`}
             >
@@ -492,9 +529,9 @@ const ClientDashboard: React.FC = () => {
       </div>
 
       {/* Results */}
-      {creators.length > 0 ? (
+      {displayedCreators.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {creators.map(creator => (
+          {displayedCreators.map(creator => (
             <CreatorCard 
               key={creator.id} 
               creator={creator} 
@@ -504,12 +541,21 @@ const ClientDashboard: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-20">
-          <div className="inline-flex p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
-            <Search size={32} className="text-slate-400" />
+        <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 border-dashed">
+          <div className="inline-flex p-4 bg-white dark:bg-slate-800 rounded-full mb-4 shadow-sm">
+            {showSavedOnly ? <Heart size={32} className="text-red-300" /> : <Search size={32} className="text-slate-300" />}
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">No creators found</h3>
-          <p className="text-slate-500 dark:text-slate-400">Try adjusting your search terms or category.</p>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            {showSavedOnly ? 'No saved creators' : 'No creators found'}
+          </h3>
+          <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
+            {showSavedOnly 
+              ? "You haven't saved any creators yet. Browse the list and click the heart icon to save them for later." 
+              : "Try adjusting your search terms or category filter to find the talent you need."}
+          </p>
+          {showSavedOnly && (
+             <Button variant="outline" className="mt-4" onClick={() => setShowSavedOnly(false)}>Browse All</Button>
+          )}
         </div>
       )}
     </div>
