@@ -334,81 +334,80 @@ export const mockAdminService = {
 
       // --- LOGIC BRANCHES ---
 
-      if (isCreatorTarget && isSevereAction) {
-        // SCENARIO: Creator at fault (Severe). 
-        // Logic: Force Complete so Client is okay, and Creator gets "paid" in system records (stats update) even if they are banned.
+      if (isSevereAction) {
         
-        contract.status = ContractStatus.COMPLETED;
-        historyNote += " | Creator punished. Contract marked COMPLETED to preserve stats.";
+        if (isCreatorTarget) {
+          // --- CASE 1: Creator at Fault (Severe) ---
+          // Creator banned/suspended for lying/misconduct.
+          // Logic: Force Complete so Client is okay. Creator still gets credit in stats (paid) even if banned.
+          
+          contract.status = ContractStatus.COMPLETED;
+          historyNote += " | Creator punished. Contract marked COMPLETED to preserve stats.";
 
-        // Handle Milestone: Force it to PAID
-        if (contract.terms.milestones) {
-           const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
-           if (mIndex !== -1) {
-              contract.terms.milestones[mIndex].status = 'PAID';
-              contract.terms.milestones[mIndex].disputeReason = `Resolved (Creator Fault): ${adminNote}`;
-           }
-        }
+          // Handle Milestone: Force it to PAID
+          if (contract.terms.milestones) {
+             const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
+             if (mIndex !== -1) {
+                contract.terms.milestones[mIndex].status = 'PAID';
+                contract.terms.milestones[mIndex].disputeReason = `Resolved (Creator Fault): ${adminNote}`;
+             }
+          }
 
-        // Update Client Stats: Give credit for completed job
-        const clientIndex = users.findIndex((u: User) => u.id === contract.clientId);
-        if (clientIndex !== -1 && users[clientIndex].clientProfile?.stats) {
-           users[clientIndex].clientProfile.stats.contractsCompleted += 1;
-           users[clientIndex].clientProfile.stats.disputesWon += 1;
-           localStorage.setItem(USERS_KEY, JSON.stringify(users));
-        }
+          // Update Client Stats: Give credit for completed job & Won Dispute
+          const clientIndex = users.findIndex((u: User) => u.id === contract.clientId);
+          if (clientIndex !== -1 && users[clientIndex].clientProfile?.stats) {
+             users[clientIndex].clientProfile.stats.contractsCompleted += 1;
+             users[clientIndex].clientProfile.stats.disputesWon += 1;
+             localStorage.setItem(USERS_KEY, JSON.stringify(users));
+          }
 
-      } else if (!isCreatorTarget && !isSevereAction) {
-        // SCENARIO: Client at fault (Mild/Warning).
-        // Logic: Give client a second chance to pay. Revert to 'UNDER_REVIEW' or 'PAYMENT_VERIFY' state?
-        
-        // Contract remains ACTIVE/ACCEPTED.
-        historyNote += " | Client warned. Milestone reset for retry.";
+        } else {
+          // --- CASE 2: Client at Fault (Severe) ---
+          // Client banned/suspended for fraud/lying about payment.
+          // Logic: Contract Cancelled. Money not counted.
+          
+          contract.status = ContractStatus.CANCELLED;
+          historyNote += " | Client banned. Contract CANCELLED.";
 
-        if (contract.terms.milestones) {
-           const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
-           if (mIndex !== -1) {
-              contract.terms.milestones[mIndex].status = 'UNDER_REVIEW'; 
-              // Clear the bad payment proof
-              delete contract.terms.milestones[mIndex].paymentProof;
-              contract.terms.milestones[mIndex].disputeReason = `Retry Allowed: ${adminNote}`;
-           }
-        }
-
-      } else if (!isCreatorTarget && isSevereAction) {
-        // SCENARIO: Client at fault (Severe/Ban).
-        // Logic: Client banned. Contract terminated. Money not counted.
-        
-        contract.status = ContractStatus.CANCELLED;
-        historyNote += " | Client banned. Contract CANCELLED.";
-
-        if (contract.terms.milestones) {
-           const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
-           if (mIndex !== -1) {
-              contract.terms.milestones[mIndex].status = 'CANCELLED';
-              contract.terms.milestones[mIndex].disputeReason = `Terminated (Client Fault): ${adminNote}`;
-           }
-        }
-        
-        // Update Client Stats: Dispute Lost
-        const clientIndex = users.findIndex((u: User) => u.id === contract.clientId);
-        if (clientIndex !== -1 && users[clientIndex].clientProfile?.stats) {
-           users[clientIndex].clientProfile.stats.disputesLost += 1;
-           localStorage.setItem(USERS_KEY, JSON.stringify(users));
+          if (contract.terms.milestones) {
+             const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
+             if (mIndex !== -1) {
+                // Only cancel the disputed milestone. Previous paid ones remain.
+                contract.terms.milestones[mIndex].status = 'CANCELLED';
+                contract.terms.milestones[mIndex].disputeReason = `Terminated (Client Fault): ${adminNote}`;
+             }
+          }
+          
+          // Update Client Stats: Dispute Lost
+          const clientIndex = users.findIndex((u: User) => u.id === contract.clientId);
+          if (clientIndex !== -1 && users[clientIndex].clientProfile?.stats) {
+             users[clientIndex].clientProfile.stats.disputesLost += 1;
+             localStorage.setItem(USERS_KEY, JSON.stringify(users));
+          }
         }
 
       } else {
-        // Default fallback
+        // --- CASE 3: Warning/Watchlist (Second Chance) ---
+        // Applies to BOTH Creator or Client being the target of the warning.
+        // Logic: Reset flow to allow Client to upload proof again (or correct a mistake).
+        
+        historyNote += " | Admin intervention (Reset). Flow reverted to Payment Upload.";
+
         if (contract.terms.milestones) {
            const mIndex = contract.terms.milestones.findIndex((m: any) => m.id === disputeId);
            if (mIndex !== -1) {
-              contract.terms.milestones[mIndex].status = 'IN_PROGRESS';
-              contract.terms.milestones[mIndex].disputeReason = `Resolved (Warning): ${adminNote}`;
+              // Revert to 'UNDER_REVIEW' so the Client sees "Approve & Pay" again
+              contract.terms.milestones[mIndex].status = 'UNDER_REVIEW'; 
+              
+              // CRITICAL: Delete the disputed payment proof to force a new upload
+              delete contract.terms.milestones[mIndex].paymentProof;
+              
+              contract.terms.milestones[mIndex].disputeReason = `Admin Reset: ${adminNote}`;
            }
         }
       }
 
-      // Handle End Request Disputes
+      // Handle End Request Disputes if relevant (Fallback if ID matched an end request)
       if (disputeId.startsWith('end-') && contract.endRequest) {
          if (isSevereAction) {
             contract.status = ContractStatus.CANCELLED;
