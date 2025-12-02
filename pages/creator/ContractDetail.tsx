@@ -181,7 +181,16 @@ const ContractDetail: React.FC = () => {
             status: 'PENDING' // Reset status for new negotiation
          }));
       } else {
-        sanitizedTerms.milestones = [];
+        // FIXED Contract Logic:
+        // Automatically generate/regenerate the single "Project Deliverable" milestone 
+        // to ensure the work submission flow exists.
+        sanitizedTerms.milestones = [{
+          id: `ms-${Date.now()}-fixed`,
+          title: 'Complete Project Delivery',
+          description: 'Final delivery of all agreed items.',
+          amount: sanitizedTerms.amount, // Ensure milestone amount matches total contract value
+          status: 'PENDING'
+        }];
       }
 
       const updated = await mockContractService.counterOffer(
