@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   PlusCircle, Search, Briefcase, 
   TrendingUp, Bell, Clock,
@@ -173,6 +173,7 @@ const StatCard: React.FC<{
 
 const ClientDashboard: React.FC = () => {
   const { user, updateProfile } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(true);
   
@@ -282,6 +283,10 @@ const ClientDashboard: React.FC = () => {
       case ContractStatus.DECLINED: return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
       default: return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
     }
+  };
+
+  const handleReviewClick = (contractId: string) => {
+    navigate(`/creator/contracts/${contractId}`, { state: { openReview: true } });
   };
 
   // Additional Variables for Dashboard
@@ -607,11 +612,32 @@ const ClientDashboard: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {contracts.length > 0 ? contracts.map(contract => (
+            {contracts.length > 0 ? contracts.map(contract => {
+               const isCompleted = contract.status === ContractStatus.COMPLETED;
+               // Since this is the Client Contracts list, check if Client has reviewed
+               const needsReview = isCompleted && !contract.isClientReviewed;
+
+               return (
                <div key={contract.id} className="p-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h4 className="font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h4>
+                        {/* LEAVE REVIEW BADGE */}
+                        {needsReview && (
+                           <button 
+                             onClick={(e) => {
+                               e.preventDefault();
+                               e.stopPropagation();
+                               handleReviewClick(contract.id);
+                             }}
+                             className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors border border-yellow-200 dark:border-yellow-800 animate-pulse"
+                           >
+                             <Star size={10} fill="currentColor" />
+                             LEAVE REVIEW
+                           </button>
+                        )}
+                      </div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">Creator: {contract.creatorName}</p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -624,7 +650,7 @@ const ClientDashboard: React.FC = () => {
                     </div>
                   </div>
                </div>
-            )) : (
+            )}) : (
                <div className="p-12 text-center text-slate-500">No contracts found.</div>
             )}
           </div>

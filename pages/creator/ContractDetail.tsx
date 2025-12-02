@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, DollarSign, Clock, FileText, Send, 
   CheckCircle, XCircle, RefreshCw, MessageCircle, Paperclip, Shield, Info, AlertTriangle, Star,
@@ -19,6 +19,7 @@ const ContractDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [contract, setContract] = useState<Contract | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -117,6 +118,22 @@ const ContractDetail: React.FC = () => {
     };
     fetchDetails();
   }, [id, user]);
+
+  // Check for auto-open review modal from navigation state
+  useEffect(() => {
+    if (location.state && (location.state as any).openReview && !loading && contract) {
+       // Only open if valid
+       const isCompleted = contract.status === ContractStatus.COMPLETED;
+       const isCreator = user?.id === contract.creatorId;
+       const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
+       
+       if (isCompleted && !hasReviewed) {
+         setShowRatingModal(true);
+         // Clear state to prevent reopening on refresh (optional, but good practice)
+         window.history.replaceState({}, document.title);
+       }
+    }
+  }, [location, loading, contract, user]);
 
   useEffect(() => {
     scrollToBottom();
