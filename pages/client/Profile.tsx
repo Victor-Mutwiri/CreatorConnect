@@ -3,14 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Globe, CheckCircle, ShieldCheck, Star, 
-  Clock, Award, AlertTriangle, UserCheck
+  Clock, Award, AlertTriangle, UserCheck, XCircle, Percent, Briefcase
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import Button from '../../components/Button';
 import { mockAuth } from '../../services/mockAuth';
 import { mockContractService } from '../../services/mockContract';
-import { User, ContractStatus } from '../../types';
+import { User, ContractStatus, Contract } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 const ClientPublicProfile: React.FC = () => {
@@ -22,6 +22,10 @@ const ClientPublicProfile: React.FC = () => {
   // Dynamic Stats
   const [contractsSent, setContractsSent] = useState(0);
   const [hiringRate, setHiringRate] = useState("0%");
+  
+  // Metric States for Trust Score Breakdown
+  const [completionRate, setCompletionRate] = useState(0);
+  const [disputeRate, setDisputeRate] = useState(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -45,6 +49,18 @@ const ClientPublicProfile: React.FC = () => {
              ).length;
              const rate = Math.round((successfulContracts / totalContracts) * 100);
              setHiringRate(`${rate}%`);
+
+             // Completion Rate
+             const completedCount = contractsData.filter(c => c.status === ContractStatus.COMPLETED).length;
+             const calcCompletion = Math.round((completedCount / totalContracts) * 100);
+             setCompletionRate(calcCompletion);
+
+             // Dispute Rate (Disputes / Total Contracts)
+             // Using stats from profile if available, or calculating based on data
+             const disputesLost = clientData?.clientProfile?.stats?.disputesLost || 0;
+             // Ensure we don't exceed 100%
+             const calcDispute = Math.min(100, Math.round((disputesLost / totalContracts) * 100));
+             setDisputeRate(calcDispute);
           }
         }
       }
@@ -74,11 +90,6 @@ const ClientPublicProfile: React.FC = () => {
 
   const profile = client.clientProfile;
   const trustScore = profile.stats?.trustScore || 0;
-  
-  // Calculate specific trust breakdown values for display
-  const reliabilityPoints = Math.round(((profile.stats?.reliabilityScore || 0) / 100) * 15);
-  const ratingPoints = Math.round(((profile.averageRating || 0) / 5) * 15);
-  const disputeCount = profile.stats?.disputesLost || 0;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -164,8 +175,8 @@ const ClientPublicProfile: React.FC = () => {
                     <ShieldCheck size={20} className="mr-2 text-brand-600" />
                     Trust Score
                    </h3>
-                   <span className={`text-2xl font-black ${trustScore >= 80 ? 'text-green-600' : trustScore >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>
-                     {trustScore}
+                   <span className={`text-3xl font-black ${trustScore >= 80 ? 'text-green-600' : trustScore >= 50 ? 'text-yellow-600' : 'text-red-500'}`}>
+                     {trustScore}%
                    </span>
                 </div>
 
@@ -176,38 +187,52 @@ const ClientPublicProfile: React.FC = () => {
                   ></div>
                 </div>
 
-                {/* Breakdown */}
-                <div className="space-y-3 relative z-10">
+                {/* Breakdown Metrics */}
+                <div className="space-y-4 relative z-10 border-t border-slate-100 dark:border-slate-800 pt-4">
+                  
+                  {/* Metric 1: Identity */}
                   <div className="flex justify-between items-center text-sm">
                      <div className="flex items-center text-slate-600 dark:text-slate-300">
-                        <UserCheck size={14} className="mr-2 text-slate-400" /> Verified Identity
+                        <UserCheck size={14} className="mr-2 text-slate-400" /> Identity
                      </div>
-                     <span className={`font-bold ${profile.isVerified ? 'text-green-600' : 'text-slate-400'}`}>
-                       {profile.isVerified ? '+20' : '0'} pts
-                     </span>
+                     {profile.isVerified ? (
+                       <span className="flex items-center font-bold text-green-600 text-xs bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded">
+                         <CheckCircle size={10} className="mr-1" /> Verified
+                       </span>
+                     ) : (
+                       <span className="flex items-center font-bold text-slate-400 text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                         Unverified
+                       </span>
+                     )}
                   </div>
+
+                   {/* Metric 2: Ratings */}
                    <div className="flex justify-between items-center text-sm">
                      <div className="flex items-center text-slate-600 dark:text-slate-300">
-                        <Star size={14} className="mr-2 text-slate-400" /> Ratings & Reliability
+                        <Star size={14} className="mr-2 text-slate-400" /> Avg Rating
                      </div>
                      <span className="font-bold text-slate-900 dark:text-white">
-                       +{reliabilityPoints + ratingPoints} pts
+                       {profile.averageRating ? `${profile.averageRating} / 5.0` : 'N/A'}
                      </span>
                   </div>
+
+                   {/* Metric 3: Completed Jobs */}
                    <div className="flex justify-between items-center text-sm">
                      <div className="flex items-center text-slate-600 dark:text-slate-300">
-                        <Award size={14} className="mr-2 text-slate-400" /> Completed Jobs
+                        <Briefcase size={14} className="mr-2 text-slate-400" /> Job Completion
                      </div>
-                     <span className="font-bold text-slate-900 dark:text-white">
-                       {profile.stats?.contractsCompleted ? `+${profile.stats.contractsCompleted >= 10 ? 30 : profile.stats.contractsCompleted >= 5 ? 20 : 10}` : '0'} pts
+                     <span className={`font-bold ${completionRate > 80 ? 'text-green-600' : completionRate > 50 ? 'text-yellow-600' : 'text-slate-500'}`}>
+                       {completionRate}%
                      </span>
                   </div>
+
+                   {/* Metric 4: Dispute Rate */}
                    <div className="flex justify-between items-center text-sm">
                      <div className="flex items-center text-slate-600 dark:text-slate-300">
-                        <AlertTriangle size={14} className="mr-2 text-slate-400" /> Dispute History
+                        <AlertTriangle size={14} className="mr-2 text-slate-400" /> Dispute Rate
                      </div>
-                     <span className={`font-bold ${disputeCount > 0 ? 'text-red-500' : 'text-green-600'}`}>
-                       {disputeCount > 0 ? `-${disputeCount * 10}` : '+20'} pts
+                     <span className={`font-bold ${disputeRate === 0 ? 'text-green-600' : 'text-red-500'}`}>
+                       {disputeRate}%
                      </span>
                   </div>
                 </div>
