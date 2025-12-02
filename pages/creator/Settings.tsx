@@ -5,7 +5,7 @@ import {
   User, Bell, Lock, Palette, Save, CheckCircle, 
   Instagram, Youtube, Trash2, Plus, Moon, Sun, AlertTriangle, CreditCard,
   Smartphone, Building, Bitcoin, ShieldCheck, HelpCircle, EyeOff, Loader,
-  Copy, Check, Facebook, Twitter
+  Copy, Check, Facebook, Twitter, Link as LinkIcon, Clock
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Button from '../../components/Button';
@@ -13,6 +13,7 @@ import Input from '../../components/Input';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CreatorProfile } from '../../types';
+import { mockAuth } from '../../services/mockAuth';
 
 const CATEGORIES = [
   "Lifestyle", "Fashion", "Beauty", "Tech", "Travel", "Food", 
@@ -127,37 +128,30 @@ const Settings: React.FC = () => {
     }
   };
 
-  // Generate a random bio code if not present
-  useEffect(() => {
-    if (activeTab === 'verification' && !formData.verification?.bioCode) {
-      setFormData(prev => ({
-        ...prev,
-        verification: {
-          ...prev.verification!,
-          bioCode: `UBUNI-${Math.floor(1000 + Math.random() * 9000)}`
+  const handleSocialVerifyRequest = async (platform: string) => {
+    if (!user) return;
+    
+    const confirmMsg = `Have you added your Ubuni Profile Link to your ${platform} bio?\n\nOur team will review this within 48 hours. Please do not remove the link until verified.`;
+    
+    if (window.confirm(confirmMsg)) {
+        try {
+            await mockAuth.requestSocialVerification(user.id, platform);
+            
+            // Update local state immediately for UI feedback
+            setFormData(prev => ({
+                ...prev,
+                verification: {
+                    ...prev.verification!,
+                    pendingSocials: [...(prev.verification?.pendingSocials || []), platform]
+                }
+            }));
+            
+            setSuccessMsg('Verification requested!');
+            setTimeout(() => setSuccessMsg(''), 3000);
+        } catch (e) {
+            console.error(e);
         }
-      }));
     }
-  }, [activeTab, formData.verification]);
-
-  const verifySocials = async () => {
-    // Simulate verification
-    setIsSaving(true);
-    setTimeout(async () => {
-      const updatedProfile = {
-        ...formData,
-        verification: {
-          ...formData.verification!,
-          isSocialVerified: true,
-          trustScore: (formData.verification?.trustScore || 20) + 20
-        }
-      };
-      await updateProfile({ profile: updatedProfile as CreatorProfile });
-      setFormData(updatedProfile);
-      setSuccessMsg('Socials Verified!');
-      setIsSaving(false);
-      setTimeout(() => setSuccessMsg(''), 3000);
-    }, 1000);
   };
 
   const renderProfileTab = () => (
@@ -326,6 +320,18 @@ const Settings: React.FC = () => {
     const status = formData.verification?.status || 'unverified';
     const isIdentityLocked = status === 'pending' || status === 'verified';
     const isSocialVerified = formData.verification?.isSocialVerified;
+    
+    // Construct Profile Link
+    const baseUrl = window.location.origin + window.location.pathname; // Should handle hash router
+    const profileLink = `${window.location.origin}/#/p/${formData.username}`;
+
+    const socialPlatforms = [
+        { key: 'instagram', label: 'Instagram', icon: <Instagram size={18} className="text-pink-500" /> },
+        { key: 'tiktok', label: 'TikTok', icon: <svg className="h-[18px] w-[18px] text-black dark:text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg> },
+        { key: 'youtube', label: 'YouTube', icon: <Youtube size={18} className="text-red-600" /> },
+        { key: 'twitter', label: 'X (Twitter)', icon: <Twitter size={18} className="text-slate-800 dark:text-slate-200" /> },
+        { key: 'facebook', label: 'Facebook', icon: <Facebook size={18} className="text-blue-600" /> },
+    ];
 
     return (
       <div className="space-y-8 animate-in fade-in">
@@ -371,11 +377,11 @@ const Settings: React.FC = () => {
            </div>
         </div>
 
-        {/* SECTION 1: Social Media Verification */}
+        {/* SECTION 1: Social Media Verification (Link in Bio Method) */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
            <div className="flex items-center mb-6">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white mr-auto flex items-center">
-                 <Instagram size={20} className="mr-2 text-pink-500"/> Social Media Ownership
+                 <LinkIcon size={20} className="mr-2 text-brand-500"/> Social Media Verification
               </h3>
               {isSocialVerified && (
                  <span className="flex items-center text-xs text-green-600 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full font-bold">
@@ -386,32 +392,76 @@ const Settings: React.FC = () => {
 
            <div className="space-y-6">
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-                    To verify ownership, copy the code below and paste it into your Instagram or TikTok bio temporarily.
+                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4 font-medium">
+                    To verify ownership, please add your <span className="text-brand-600 dark:text-brand-400 font-bold">Ubuni Profile Link</span> to your social media bio.
                  </p>
-                 <div className="flex items-center gap-2 mb-4">
-                    <code className="flex-1 bg-white dark:bg-slate-900 p-3 rounded-lg font-mono text-center text-lg tracking-widest text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                       {formData.verification?.bioCode || '...'}
+                 <div className="flex items-center gap-2 mb-6">
+                    <code className="flex-1 bg-white dark:bg-slate-900 p-3 rounded-lg font-mono text-center text-sm text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 truncate">
+                       {profileLink}
                     </code>
                     <button 
                        onClick={() => {
-                          navigator.clipboard.writeText(formData.verification?.bioCode || '');
-                          setSuccessMsg('Code copied!');
+                          navigator.clipboard.writeText(profileLink);
+                          setSuccessMsg('Link copied!');
                           setTimeout(() => setSuccessMsg(''), 2000);
                        }}
                        className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                       title="Copy Link"
                     >
                        <Copy size={20} />
                     </button>
                  </div>
-                 <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={verifySocials}
-                    disabled={isSocialVerified || isSaving}
-                 >
-                    {isSocialVerified ? 'Ownership Confirmed' : (isSaving ? 'Checking Bio...' : 'Verify Code')}
-                 </Button>
+
+                 {/* Platform List */}
+                 <div className="space-y-3">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-2">Your Platforms</p>
+                    {socialPlatforms.map(platform => {
+                        // @ts-ignore
+                        const hasLink = !!formData.socials?.[platform.key];
+                        // @ts-ignore
+                        const handle = formData.socials?.[platform.key];
+                        const isVerified = formData.verification?.verifiedPlatforms?.includes(platform.key);
+                        const isPending = formData.verification?.pendingSocials?.includes(platform.key);
+
+                        if (!hasLink) return null; // Don't show if they haven't added the link yet
+
+                        return (
+                            <div key={platform.key} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-3">
+                                    {platform.icon}
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{platform.label}</p>
+                                        <p className="text-xs text-slate-500 truncate max-w-[150px]">{handle}</p>
+                                    </div>
+                                </div>
+                                
+                                {isVerified ? (
+                                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-full font-bold flex items-center">
+                                        <CheckCircle size={12} className="mr-1" /> Verified
+                                    </span>
+                                ) : isPending ? (
+                                    <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-3 py-1.5 rounded-full font-bold flex items-center animate-pulse">
+                                        <Clock size={12} className="mr-1" /> Reviewing
+                                    </span>
+                                ) : (
+                                    <button 
+                                        onClick={() => handleSocialVerifyRequest(platform.key)}
+                                        className="text-xs bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-1.5 rounded-lg font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors"
+                                    >
+                                        Verify Now
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                    
+                    {/* Empty State Hint */}
+                    {(!formData.socials || Object.values(formData.socials).every(v => !v)) && (
+                        <div className="text-center p-4 text-sm text-slate-500 dark:text-slate-400 italic">
+                            Add social media links in the "Profile Info" tab to verify them.
+                        </div>
+                    )}
+                 </div>
               </div>
            </div>
         </div>

@@ -80,6 +80,8 @@ export const mockAuth = {
         status: 'unverified',
         isIdentityVerified: false, 
         isSocialVerified: false, 
+        verifiedPlatforms: [],
+        pendingSocials: [],
         trustScore: 0 
       },
       averageRating: 0,
@@ -251,6 +253,39 @@ export const mockAuth = {
     }
 
     return updatedUser;
+  },
+
+  async requestSocialVerification(userId: string, platform: string): Promise<User | null> {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const userIndex = users.findIndex((u: User) => u.id === userId);
+    
+    if (userIndex === -1) return null;
+    
+    const user = users[userIndex];
+    if (!user.profile) return null; // Should be a creator
+
+    // Ensure structure exists
+    if (!user.profile.verification) {
+        user.profile.verification = { status: 'unverified', isIdentityVerified: false, isSocialVerified: false, trustScore: 0, pendingSocials: [], verifiedPlatforms: [] };
+    }
+    if (!user.profile.verification.pendingSocials) user.profile.verification.pendingSocials = [];
+
+    // Add to pending if not already there and not verified
+    if (!user.profile.verification.pendingSocials.includes(platform) && 
+        !user.profile.verification.verifiedPlatforms?.includes(platform)) {
+        user.profile.verification.pendingSocials.push(platform);
+    }
+
+    users[userIndex] = user;
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    
+    // Update Session
+    const currentSession = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
+    if (currentSession.id === userId) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    }
+
+    return user;
   },
 
   async signLegalAgreement(userId: string): Promise<User | null> {
