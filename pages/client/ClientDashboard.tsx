@@ -686,12 +686,25 @@ const ClientDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
             <p className="text-slate-600 dark:text-slate-400">Welcome back, {user?.name.split(' ')[0]}! Here's what's happening.</p>
           </div>
-          <Link to="/creator/contracts">
-            <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-5 py-2.5 rounded-full font-medium hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors shadow-lg shadow-slate-900/20 flex items-center">
-              <Briefcase size={18} className="mr-2" />
-              View Contracts
-            </button>
-          </Link>
+          <div className="flex gap-3">
+             <button 
+               onClick={() => setActiveTab('search')}
+               className={`px-5 py-2.5 rounded-full font-medium transition-colors flex items-center shadow-lg ${
+                 activeTab === 'search' 
+                   ? 'bg-brand-600 text-white shadow-brand-500/20' 
+                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+               }`}
+             >
+               <Search size={18} className="mr-2" />
+               Find Talent
+             </button>
+             <Link to="/creator/contracts">
+                <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-5 py-2.5 rounded-full font-medium hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors shadow-lg shadow-slate-900/20 flex items-center">
+                  <Briefcase size={18} className="mr-2" />
+                  View Contracts
+                </button>
+             </Link>
+          </div>
         </div>
 
         {/* Stats Grid - Updated to be more compact */}
@@ -755,16 +768,6 @@ const ClientDashboard: React.FC = () => {
                 }`}
               >
                 Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('search')}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-                  activeTab === 'search' 
-                    ? 'border-brand-600 text-brand-600 dark:text-brand-400' 
-                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
-              >
-                Find Talent
               </button>
               <button
                 onClick={() => setActiveTab('contracts')}
