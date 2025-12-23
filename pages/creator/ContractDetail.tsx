@@ -517,25 +517,19 @@ const ContractDetail: React.FC = () => {
   const handleGrossUp = () => {
     if (!contract) return;
     
-    // NEW LOGIC: Use current modal selections if open, otherwise fallback to contract terms
+    // Use modal terms if open, else fallback
     const activePaymentMethod = showCounterModal ? counterTerms.paymentMethod : contract.terms.paymentMethod;
     const isEscrow = activePaymentMethod === 'ESCROW';
     
-    // Commission (8% if Escrow, 0% if Direct)
     const platformCommissionRate = isEscrow ? 0.08 : 0;
-    // Tax (5% or 20%)
     const taxRate = taxResidency === 'resident' ? 0.05 : 0.20;
     
-    // To ensure the creator gets the "Current Amount" as their Take-home:
-    // TakeHome = Gross * (1 - Commission) * (1 - Tax)
-    // Therefore: Gross = TakeHome / ((1 - Commission) * (1 - Tax))
     const multiplier = 1 / ((1 - platformCommissionRate) * (1 - taxRate));
     
     const currentBaseAmount = showCounterModal ? counterTerms.amount : contract.terms.amount;
     const newGrossAmount = Math.ceil(currentBaseAmount * multiplier);
     
     if (showCounterModal) {
-       // Adjusting inside the modal
        const updatedTerms = JSON.parse(JSON.stringify(counterTerms));
        updatedTerms.amount = newGrossAmount;
        if (updatedTerms.paymentType === 'MILESTONE' && updatedTerms.milestones) {
@@ -547,7 +541,6 @@ const ContractDetail: React.FC = () => {
        }
        setCounterTerms(updatedTerms);
     } else {
-       // Triggering adjustment from the dashboard view
        const newTerms = JSON.parse(JSON.stringify(contract.terms));
        newTerms.amount = newGrossAmount;
        if (newTerms.paymentType === 'MILESTONE' && newTerms.milestones) {
@@ -575,24 +568,17 @@ const ContractDetail: React.FC = () => {
   const hasActiveDispute = contract.terms.milestones?.some(m => m.status === 'DISPUTED');
   const pendingEndRequest = contract.endRequest?.status === 'pending';
   
-  // Logic Fix: Block client end contract if creator is currently working (IN_PROGRESS)
   const isCreatorWorking = contract.terms.milestones?.some(m => m.status === 'IN_PROGRESS');
   const disableEndContractInit = isClientViewer && isCreatorWorking;
 
   let canTakeAction = false;
-  let statusMessage = "";
   if (contract.status === ContractStatus.SENT) {
-    if (isCreator) canTakeAction = true; else statusMessage = "Waiting for response";
+    if (isCreator) canTakeAction = true;
   } else if (contract.status === ContractStatus.NEGOTIATING) {
     if (lastHistoryItem?.actionBy && lastHistoryItem.actionBy !== user?.id) {
        canTakeAction = true;
-       statusMessage = "Your turn to respond";
-    } else if (lastHistoryItem?.actionBy === user?.id) {
-       statusMessage = "Waiting for review";
-    } else canTakeAction = true; 
+    }
   }
-
-  const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
 
   // Escrow Calculation Helpers for Client View
   const escrowFee = contract.terms.paymentMethod === 'ESCROW' ? Math.round(contract.terms.amount * 0.03) : 0;
@@ -632,14 +618,12 @@ const ContractDetail: React.FC = () => {
                const isCancelled = ms.status === 'CANCELLED';
                const usedRevisions = ms.revisionsUsed || 0;
                const revisionsLeft = revisionLimit === Infinity ? Infinity : revisionLimit - usedRevisions;
-               const hasPendingResolution = !!ms.disputeResolution;
-               const iProposedResolution = ms.disputeResolution?.requestedBy === user?.id;
 
                return (
                   <div key={ms.id} className={`relative p-5 rounded-xl border ${isInProgress || isReview || isPaymentVerify ? 'bg-white dark:bg-slate-900 border-brand-200 shadow-md ring-1 ring-brand-500/30' : isPaid ? 'bg-green-50 dark:bg-green-900/20 border-green-200' : isDisputed ? 'bg-red-50 dark:bg-red-900/20 border-red-200' : isCancelled ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 opacity-50 grayscale' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 opacity-70'}`}>
                      <div className={`absolute -left-[41px] top-6 w-6 h-6 rounded-full border-4 flex items-center justify-center ${isPaid ? 'bg-green-500 border-green-100' : isDisputed ? 'bg-red-500 border-red-100' : isCancelled ? 'bg-slate-200 border-slate-100' : (isInProgress || isReview || isPaymentVerify) ? 'bg-brand-500 border-brand-100' : 'bg-slate-300 border-slate-100'}`}>
                         {isPaid && <CheckCircle size={12} className="text-white" />}
-                        {isLocked && <Lock size={10} className="text-slate-500" />}
+                        {isLocked && <Lock size={10} className="text-slate-50" />}
                         {isDisputed && <XCircle size={12} className="text-white" />}
                         {isCancelled && <XCircle size={12} className="text-white opacity-50" />}
                         {(isInProgress || isReview || isPaymentVerify) && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
@@ -700,7 +684,7 @@ const ContractDetail: React.FC = () => {
   const renderCreatorEarningsBreakdown = () => {
     if (!contract || !isCreator) return null;
     
-    // Counter-offer is only allowed during negotiation
+    // Counter-offer check UI
     if (!canTakeAction && isPending) {
        return (
          <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 text-center animate-in fade-in">
@@ -736,10 +720,6 @@ const ContractDetail: React.FC = () => {
               <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 relative group"><p className="text-xs text-slate-500 mb-1 flex items-center">Platform Fee {isEscrow && <Info size={10} className="ml-1 opacity-50" />}</p><p className={`font-bold ${platformCommission > 0 ? 'text-red-500' : 'text-slate-400'}`}>{contract.terms.currency} {platformCommission.toLocaleString()}</p>{isEscrow && <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">8% Ubuni Connect platform commission for secured Escrow transactions.</div>}</div>
               <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200"><p className="text-xs text-slate-500 mb-1">Est. WHT Tax</p><p className="font-bold text-slate-600">{contract.terms.currency} {estimatedTax.toLocaleString()}</p></div>
               <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100"><p className="text-xs text-green-700 mb-1">Net Take-home</p><p className="font-bold text-green-800">{contract.terms.currency} {estimatedTakeHome.toLocaleString()}</p></div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button className="text-sm text-slate-500 px-3 py-2" onClick={() => setShowTaxDetails(false)}>Dismiss</button>
-              <Button size="sm" variant="outline" onClick={handleGrossUp}>Adjust Price to Cover Fees</Button>
             </div>
           </div>
         )}
@@ -777,9 +757,6 @@ const ContractDetail: React.FC = () => {
                                  <button className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">How does this work?</button>
                               </div>
                            </div>
-                           <p className="text-[10px] text-red-600 dark:text-red-400 mt-4 flex items-center gap-1">
-                              <AlertTriangle size={12} /> Failure to fund will result in automatic contract termination. Repeated cancellations may lead to account suspension.
-                           </p>
                         </div>
                      </div>
                   </div>
@@ -884,12 +861,33 @@ const ContractDetail: React.FC = () => {
 
           {renderCreatorEarningsBreakdown()}
 
-          {/* NEGOTIATION ACTIONS - ONLY VISIBLE IF PENDING */}
+          {/* NEGOTIATION ACTIONS - STRICT TURN BASED LOCK */}
           {isPending && canTakeAction && (
-            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4"><div><p className="font-bold text-slate-900 dark:text-white">Action Required</p><p className="text-xs text-slate-500">Please respond to this proposal.</p></div><div className="flex gap-2"><button onClick={() => setShowCounterModal(true)} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 flex items-center"><RefreshCw size={16} className="mr-2" />Counter Offer</button><button onClick={() => handleStatusChange(ContractStatus.DECLINED)} className="px-4 py-2 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 flex items-center"><XCircle size={16} className="mr-2" />Decline</button><Button onClick={() => handleStatusChange(ContractStatus.ACCEPTED)} className="flex items-center"><CheckCircle size={16} className="mr-2" />Accept Contract</Button></div></div>
+            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border-2 border-brand-200 dark:border-brand-800 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4">
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <RefreshCw size={16} className="text-brand-600" /> Action Required
+                </p>
+                <p className="text-xs text-slate-500">Respond to this proposal to move forward.</p>
+              </div>
+              <div className="flex gap-2">
+                {/* STRICT LOCK: Adjust Price is now part of the conditional Action Bar only */}
+                {isCreator && (
+                  <button 
+                    onClick={handleGrossUp}
+                    className="px-4 py-2 bg-blue-50 text-blue-700 font-bold rounded-lg hover:bg-blue-100 flex items-center text-sm border border-blue-200"
+                  >
+                    <Wand2 size={16} className="mr-2" /> Adjust Price
+                  </button>
+                )}
+                <button onClick={() => setShowCounterModal(true)} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 flex items-center text-sm"><RefreshCw size={16} className="mr-2" />Counter Offer</button>
+                <button onClick={() => handleStatusChange(ContractStatus.DECLINED)} className="px-4 py-2 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 flex items-center text-sm"><XCircle size={16} className="mr-2" />Decline</button>
+                <Button onClick={() => handleStatusChange(ContractStatus.ACCEPTED)} className="flex items-center text-sm"><CheckCircle size={16} className="mr-2" />Accept Contract</Button>
+              </div>
+            </div>
           )}
           
-          {/* ACTIVE CONTRACT ACTIONS - NO COUNTER OFFER ALLOWED */}
+          {/* ACTIVE CONTRACT ACTIONS - NO COUNTER OFFER OR ADJUST PRICE ALLOWED */}
           {isActive && !pendingEndRequest && (
             <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex items-center justify-between">
                <div>
@@ -952,7 +950,7 @@ const ContractDetail: React.FC = () => {
               <div className="grid grid-cols-2 gap-4"><button onClick={() => toggleCounterPaymentType('FIXED')} className={`p-4 rounded-xl border text-center transition-all ${counterTerms.paymentType === 'FIXED' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><DollarSign className="mx-auto mb-2" size={24} /><div className="font-bold">Fixed</div></button><button onClick={() => toggleCounterPaymentType('MILESTONE')} className={`p-4 rounded-xl border text-center transition-all ${counterTerms.paymentType === 'MILESTONE' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><Flag className="mx-auto mb-2" size={24} /><div className="font-bold">Milestone</div></button></div>
               {counterTerms.paymentType === 'FIXED' ? <Input label="Total Amount (KES)" type="number" value={counterTerms.amount} onChange={(e) => setCounterTerms({...counterTerms, amount: parseInt(e.target.value)})} /> : (
                 <div className="space-y-4"><div className="flex justify-between items-center"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label><span className="text-sm font-bold text-brand-600">Total: KES {counterTerms.amount.toLocaleString()}</span></div>
-                  {counterTerms.milestones?.map((ms, idx) => (<div key={idx} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row gap-4 items-start"><div className="flex-1 w-full space-y-3"><div className="flex flex-col md:flex-row gap-4"><Input label="Milestone Title" value={ms.title} onChange={(e) => updateCounterMilestone(idx, 'title', e.target.value)} /><Input label="Amount (KES)" type="number" value={ms.amount || ''} onChange={(e) => updateCounterMilestone(idx, 'amount', Number(e.target.value))} /></div><Input label="Description" value={ms.description} onChange={(e) => updateCounterMilestone(idx, 'description', e.target.value)} /></div><button onClick={() => removeCounterMilestone(idx)} className="text-slate-400 hover:text-red-500 p-2 mt-2"><Trash2 size={20} /></button></div>))}
+                  {counterTerms.milestones?.map((ms, idx) => (<div key={idx} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row gap-4 items-start"><div className="flex-1 w-full space-y-3"><div className="flex flex-col md:flex-row gap-4"><Input label="Milestone Title" value={ms.title} onChange={(e) => { const newM = [...counterTerms.milestones!]; newM[idx].title = e.target.value; setCounterTerms({...counterTerms, milestones: newM}); }} /><Input label="Amount (KES)" type="number" value={ms.amount || ''} onChange={(e) => { const newM = [...counterTerms.milestones!]; newM[idx].amount = Number(e.target.value); setCounterTerms({...counterTerms, milestones: newM}); }} /></div><Input label="Description" value={ms.description} onChange={(e) => { const newM = [...counterTerms.milestones!]; newM[idx].description = e.target.value; setCounterTerms({...counterTerms, milestones: newM}); }} /></div><button onClick={() => removeCounterMilestone(idx)} className="text-slate-400 hover:text-red-500 p-2 mt-2"><Trash2 size={20} /></button></div>))}
                   <button onClick={addCounterMilestone} className="flex items-center text-sm font-bold text-brand-600 hover:text-brand-700 mt-2"><Plus size={16} className="mr-1" /> Add Milestone</button>
                 </div>
               )}
@@ -1091,7 +1089,7 @@ const ContractDetail: React.FC = () => {
       {showRatingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Rate Experience</h3><button onClick={() => setShowRatingModal(false)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
+            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Rate Experience</h3><button onClick={() => setShowRatingModal(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={24} /></button></div>
             <div className="p-8 text-center space-y-6">
               <p>How was your experience with <span className="font-bold">{isCreator ? contract.clientName : contract.creatorName}</span>?</p>
               <div className="flex justify-center gap-2">{[1, 2, 3, 4, 5].map((star) => (<button key={star} onClick={() => setRating(star)}><Star size={32} fill={star <= rating ? "#eab308" : "none"} className={star <= rating ? "text-yellow-500" : "text-slate-300"} /></button>))}</div>
