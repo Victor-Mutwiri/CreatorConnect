@@ -574,6 +574,10 @@ const ContractDetail: React.FC = () => {
   const isClientViewer = user?.id === contract.clientId;
   const hasActiveDispute = contract.terms.milestones?.some(m => m.status === 'DISPUTED');
   const pendingEndRequest = contract.endRequest?.status === 'pending';
+  
+  // Logic Fix: Block client end contract if creator is currently working (IN_PROGRESS)
+  const isCreatorWorking = contract.terms.milestones?.some(m => m.status === 'IN_PROGRESS');
+  const disableEndContractInit = isClientViewer && isCreatorWorking;
 
   let canTakeAction = false;
   let statusMessage = "";
@@ -696,7 +700,7 @@ const ContractDetail: React.FC = () => {
   const renderCreatorEarningsBreakdown = () => {
     if (!contract || !isCreator) return null;
     
-    // NEW: Turn-based check to prevent double-countering
+    // Counter-offer is only allowed during negotiation
     if (!canTakeAction && isPending) {
        return (
          <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 text-center animate-in fade-in">
@@ -798,6 +802,46 @@ const ContractDetail: React.FC = () => {
             </div>
           )}
 
+          {/* MUTUAL END REQUEST RESPONSE UI */}
+          {pendingEndRequest && (
+            <div className="animate-in slide-in-from-top-2 p-6 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 rounded-2xl shadow-md">
+               <div className="flex items-start gap-4">
+                  <div className="p-3 bg-amber-100 dark:bg-amber-800/50 rounded-full text-amber-600">
+                     <AlertTriangle size={24} />
+                  </div>
+                  <div className="flex-1">
+                     <h3 className="text-lg font-bold text-amber-900 dark:text-amber-300">End Contract Request Pending</h3>
+                     <p className="text-sm text-amber-800 dark:text-amber-400 mt-1">
+                        <strong>{contract.endRequest?.requesterName}</strong> has requested to end this contract.
+                        <br/><span className="italic mt-1 block">"Reason: {contract.endRequest?.reason}"</span>
+                     </p>
+                     
+                     {contract.endRequest?.requesterId !== user?.id ? (
+                        <div className="mt-4 flex gap-3">
+                           <button 
+                             onClick={() => handleResolveEndRequest(true)}
+                             className="px-6 py-2 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700 shadow-md"
+                           >
+                             Approve & End Contract
+                           </button>
+                           <button 
+                             onClick={() => setShowRejectEndModal(true)}
+                             className="px-6 py-2 bg-white border border-amber-300 text-amber-700 font-bold rounded-lg hover:bg-amber-50"
+                           >
+                             Reject Request
+                           </button>
+                        </div>
+                     ) : (
+                        <div className="mt-4 inline-flex items-center px-4 py-2 bg-white/50 dark:bg-slate-800/50 rounded-lg text-sm font-medium text-amber-700 dark:text-amber-400">
+                           <Loader size={16} className="mr-2 animate-spin" />
+                           Waiting for response from {isCreator ? 'Client' : 'Creator'}...
+                        </div>
+                     )}
+                  </div>
+               </div>
+            </div>
+          )}
+
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex justify-between items-start mb-4">
               <div><h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h1>{isClientViewer ? <p className="text-slate-500">Creator: <Link to={`/profile/${contract.creatorId}`} className="font-semibold text-slate-700 hover:text-brand-600">{contract.creatorName}</Link></p> : <p className="text-slate-500">Client: <Link to={`/client/profile/${contract.clientId}`} className="font-semibold text-slate-700 hover:text-brand-600">{contract.clientName}</Link></p>}</div>
@@ -840,12 +884,41 @@ const ContractDetail: React.FC = () => {
 
           {renderCreatorEarningsBreakdown()}
 
+          {/* NEGOTIATION ACTIONS - ONLY VISIBLE IF PENDING */}
           {isPending && canTakeAction && (
             <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4"><div><p className="font-bold text-slate-900 dark:text-white">Action Required</p><p className="text-xs text-slate-500">Please respond to this proposal.</p></div><div className="flex gap-2"><button onClick={() => setShowCounterModal(true)} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 flex items-center"><RefreshCw size={16} className="mr-2" />Counter Offer</button><button onClick={() => handleStatusChange(ContractStatus.DECLINED)} className="px-4 py-2 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 flex items-center"><XCircle size={16} className="mr-2" />Decline</button><Button onClick={() => handleStatusChange(ContractStatus.ACCEPTED)} className="flex items-center"><CheckCircle size={16} className="mr-2" />Accept Contract</Button></div></div>
           )}
+          
+          {/* ACTIVE CONTRACT ACTIONS - NO COUNTER OFFER ALLOWED */}
           {isActive && !pendingEndRequest && (
-            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex items-center justify-between"><div><p className="font-bold text-slate-900 dark:text-white">Active Contract</p><p className="text-xs text-slate-500">Project is in progress.</p></div><button onClick={() => setShowEndContractModal(true)} className="px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-red-50 hover:text-red-600">End Contract</button></div>
+            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex items-center justify-between">
+               <div>
+                  <p className="font-bold text-slate-900 dark:text-white">Active Contract</p>
+                  <p className="text-xs text-slate-500">Project is in progress.</p>
+               </div>
+               
+               <div className="flex items-center gap-3">
+                  {disableEndContractInit && (
+                     <div className="group relative">
+                        <span className="text-xs text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full flex items-center">
+                           <Lock size={12} className="mr-1" /> End Locked
+                        </span>
+                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                           You cannot initiate contract termination while the creator is actively working on an IN-PROGRESS milestone.
+                        </div>
+                     </div>
+                  )}
+                  <button 
+                     disabled={disableEndContractInit}
+                     onClick={() => setShowEndContractModal(true)} 
+                     className={`px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg transition-colors ${disableEndContractInit ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-red-50 hover:text-red-600'}`}
+                  >
+                     End Contract
+                  </button>
+               </div>
+            </div>
           )}
+
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 p-6"><h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">Contract History</h3><div className="relative border-l-2 border-slate-100 ml-3 space-y-6">{contract.history.map((item) => (<div key={item.id} className="relative pl-6"><div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-200 border-2 border-white"></div><div className="flex flex-col"><span className="text-xs text-slate-400 font-mono mb-1">{new Date(item.date).toLocaleString()}</span><span className="font-medium text-slate-900 dark:text-white">{item.action.toUpperCase()}</span><span className="text-sm text-slate-500">by {item.actorName}</span>{item.note && <p className="mt-1 text-sm bg-slate-50 p-2 rounded text-slate-600 italic">"{item.note}"</p>}</div></div>))}</div></div>
         </div>
         <div className="lg:w-96 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 h-[600px] sticky top-24">
@@ -870,7 +943,6 @@ const ContractDetail: React.FC = () => {
                        ? "Escrow contracts include an 8% platform commission. Use the 'Adjust' button below to cover this and WHT taxes." 
                        : "Direct payments have 0% platform commission. Only WHT taxes apply."}
                    </p>
-                   {/* MODIFIED: Adjust button now respects the modal's selected payment method */}
                    <Button size="sm" variant="outline" className="w-fit bg-white" onClick={handleGrossUp}>
                      <Wand2 size={14} className="mr-2" /> Adjust Price to Net Desired Amount
                    </Button>
@@ -887,7 +959,6 @@ const ContractDetail: React.FC = () => {
               
               <div className="grid md:grid-cols-2 gap-4">
                 <Input label="Duration (Days)" type="number" value={counterTerms.durationDays} onChange={(e) => setCounterTerms({...counterTerms, durationDays: parseInt(e.target.value)})} />
-                {/* NEW: Expiry date is hidden/locked for creators as it's a client deadline */}
                 {isClientViewer && <Input label="Offer Valid Until" type="date" min={new Date().toISOString().split('T')[0]} />}
               </div>
             </div>
@@ -895,27 +966,144 @@ const ContractDetail: React.FC = () => {
           </div>
         </div>
       )}
+      
       {showSubmitWorkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"><div className="p-5 border-b border-slate-100 bg-slate-50 dark:bg-slate-800 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900 dark:text-white">Submit Work for Review</h3><button onClick={() => setShowSubmitWorkModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white"><XCircle size={24} /></button></div><div className="p-6 space-y-4"><p className="text-sm text-slate-600 dark:text-slate-400">Provide a link to your work.</p><Input label="Work Link / URL" placeholder="https://..." value={workLink} onChange={(e) => setWorkLink(e.target.value)} /><div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label><textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={3} placeholder="Describe what you've done..." value={workNote} onChange={(e) => setWorkNote(e.target.value)} /></div></div><div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowSubmitWorkModal(null)}>Cancel</Button><Button onClick={() => setShowSubmitWarning(true)} disabled={!workLink && !workNote}>Submit Work</Button></div></div></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Submit Work for Review</h3>
+              <button onClick={() => setShowSubmitWorkModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white"><XCircle size={24} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Provide a link to your work.</p>
+              <Input label="Work Link / URL" placeholder="https://..." value={workLink} onChange={(e) => setWorkLink(e.target.value)} />
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
+                <textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={3} placeholder="Describe what you've done..." value={workNote} onChange={(e) => setWorkNote(e.target.value)} />
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowSubmitWorkModal(null)}>Cancel</Button>
+              <Button onClick={() => setShowSubmitWarning(true)} disabled={!workLink && !workNote}>Submit Work</Button>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* RESTORED CREATOR SUBMISSION WARNING */}
+      {showSubmitWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 text-center">
+            <ShieldAlert size={48} className="mx-auto mb-4 text-orange-600" />
+            <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white uppercase tracking-tight">Confirm Submission</h3>
+            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl mb-4 border border-orange-200">
+               <p className="text-sm text-orange-800 dark:text-orange-400 font-medium">
+                  By clicking confirm, you certify that the work link provided is authentic and complete. 
+                  <br/><br/>
+                  <span className="font-bold">WARNING:</span> Submitting empty, invalid, or non-functional links to trigger payment is considered fraud. Fraudulent claims lead to <span className="font-black underline">immediate account suspension and permanent banning</span>.
+               </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1" onClick={() => setShowSubmitWarning(false)}>Back</Button>
+              <Button className="flex-1 bg-orange-600" onClick={handleSubmitWork}>I Confirm</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showReviewWorkModal && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"><div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Request Changes</h3><button onClick={() => setShowReviewWorkModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div><div className="p-6 space-y-4"><p className="text-sm text-slate-600">Explain clearly what needs to be changed. <span className="font-bold text-orange-600">This consumes 1 revision.</span></p><textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={4} placeholder="e.g. Change the music tracks..." value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} /></div><div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowReviewWorkModal(null)}>Cancel</Button><Button onClick={() => handleRequestChanges(showReviewWorkModal.id)} disabled={!revisionNote}>Request Changes</Button></div></div></div>
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+               <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Request Changes</h3><button onClick={() => setShowReviewWorkModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
+               <div className="p-6 space-y-4">
+                  <p className="text-sm text-slate-600">Explain clearly what needs to be changed. <span className="font-bold text-orange-600">This consumes 1 revision.</span></p>
+                  <textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={4} placeholder="e.g. Change the music tracks..." value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} />
+               </div>
+               <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                  <Button variant="ghost" onClick={() => setShowReviewWorkModal(null)}>Cancel</Button>
+                  <Button onClick={() => handleRequestChanges(showReviewWorkModal.id)} disabled={!revisionNote}>Request Changes</Button>
+               </div>
+            </div>
+         </div>
       )}
+
       {showPaymentProofModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"><div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Upload Payment Proof</h3><button onClick={() => setShowPaymentProofModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div><div className="p-6 space-y-4"><div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">Send payment then upload screenshot here.</div><label className="block text-sm font-medium mb-2">Payment Method</label><select className="w-full px-4 py-2 border border-slate-300 rounded-lg dark:bg-slate-800" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option>M-Pesa</option><option>Bank Transfer</option><option>Crypto</option></select><div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:bg-slate-50" onClick={() => setProofImage("https://via.placeholder.com/300x400")} >{proofImage ? <p className="text-xs text-green-600 font-bold">Image Selected</p> : <p className="text-sm text-slate-600 font-medium">Click to upload screenshot</p>}</div></div><div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowPaymentProofModal(null)}>Cancel</Button><Button onClick={() => setShowPaymentWarning(true)} disabled={!proofImage}>Send Verification</Button></div></div></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-900">Upload Payment Proof</h3>
+              <button onClick={() => setShowPaymentProofModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">Send payment then upload screenshot here.</div>
+              <label className="block text-sm font-medium mb-2">Payment Method</label>
+              <select className="w-full px-4 py-2 border border-slate-300 rounded-lg dark:bg-slate-800" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                 <option>M-Pesa</option>
+                 <option>Bank Transfer</option>
+                 <option>Crypto</option>
+              </select>
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:bg-slate-50" onClick={() => setProofImage("https://via.placeholder.com/300x400")} >
+                 {proofImage ? <p className="text-xs text-green-600 font-bold">Image Selected</p> : <p className="text-sm text-slate-600 font-medium">Click to upload screenshot</p>}
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowPaymentProofModal(null)}>Cancel</Button>
+              <Button onClick={() => setShowPaymentWarning(true)} disabled={!proofImage}>Send Verification</Button>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* RESTORED CLIENT PAYMENT WARNING */}
+      {showPaymentWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 text-center">
+            <ShieldAlert size={48} className="mx-auto mb-4 text-blue-600" />
+            <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white uppercase tracking-tight">Verify Payment Proof</h3>
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl mb-4 border border-blue-200">
+               <p className="text-sm text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
+                  By uploading this proof, you certify that the payment has been successfully sent to the creator.
+                  <br/><br/>
+                  <span className="font-bold">LEGAL NOTICE:</span> Submitting fake payment screenshots or doctored SMS alerts is a crime under Kenyan Law. Accounts found submitting fake proof will be <span className="font-black underline">permanently banned and reported to the authorities</span>.
+               </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1" onClick={() => setShowPaymentWarning(false)}>Back</Button>
+              <Button className="flex-1 bg-blue-600" onClick={handleSubmitPaymentProof}>I Certify & Send</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDisputeModal && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"><div className="p-5 border-b border-slate-100 bg-red-50 flex justify-between items-center"><h3 className="font-bold text-lg text-red-900"><AlertTriangle className="mr-2" size={20}/> Raise Dispute</h3><button onClick={() => setShowDisputeModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div><div className="p-6 space-y-4"><p className="text-sm font-medium">Disputes are a last resort.</p><div className={`p-4 rounded-xl border flex items-start gap-3 ${triedChatting ? 'bg-green-50 border-green-200' : 'bg-slate-50'}`}><input type="checkbox" id="amicableCheck" className="mt-1 w-4 h-4 text-brand-600 rounded" checked={triedChatting} onChange={(e) => setTriedChatting(e.target.checked)}/><label htmlFor="amicableCheck" className="text-sm text-slate-700 leading-tight cursor-pointer">I attempted to resolve this amicably first.</label></div><textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-red-500 dark:bg-slate-800" rows={4} placeholder="Describe the issue..." value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} /></div><div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowDisputeModal(null)}>Cancel</Button><Button className="bg-red-600" onClick={() => setShowDisputeWarning(true)} disabled={!disputeReason || !triedChatting}>Submit Dispute</Button></div></div></div>
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+               <div className="p-5 border-b border-slate-100 bg-red-50 flex justify-between items-center"><h3 className="font-bold text-lg text-red-900"><AlertTriangle className="mr-2" size={20}/> Raise Dispute</h3><button onClick={() => setShowDisputeModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
+               <div className="p-6 space-y-4">
+                  <p className="text-sm font-medium">Disputes are a last resort.</p>
+                  <div className={`p-4 rounded-xl border flex items-start gap-3 ${triedChatting ? 'bg-green-50 border-green-200' : 'bg-slate-50'}`}><input type="checkbox" id="amicableCheck" className="mt-1 w-4 h-4 text-brand-600 rounded" checked={triedChatting} onChange={(e) => setTriedChatting(e.target.checked)}/><label htmlFor="amicableCheck" className="text-sm text-slate-700 leading-tight cursor-pointer">I attempted to resolve this amicably first.</label></div>
+                  <textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-red-500 dark:bg-slate-800" rows={4} placeholder="Describe the issue..." value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} />
+               </div>
+               <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowDisputeModal(null)}>Cancel</Button><Button className="bg-red-600" onClick={() => setShowDisputeWarning(true)} disabled={!disputeReason || !triedChatting}>Submit Dispute</Button></div>
+            </div>
+         </div>
       )}
       {showRatingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"><div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Rate Experience</h3><button onClick={() => setShowRatingModal(false)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div><div className="p-8 text-center space-y-6"><p>How was your experience with <span className="font-bold">{isCreator ? contract.clientName : contract.creatorName}</span>?</p><div className="flex justify-center gap-2">{[1, 2, 3, 4, 5].map((star) => (<button key={star} onClick={() => setRating(star)}><Star size={32} fill={star <= rating ? "#eab308" : "none"} className={star <= rating ? "text-yellow-500" : "text-slate-300"} /></button>))}</div><textarea className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={3} placeholder="Share details..." value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /><Button onClick={handleSubmitRating} disabled={rating === 0} className="w-full">Submit Review</Button></div></div></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Rate Experience</h3><button onClick={() => setShowRatingModal(false)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
+            <div className="p-8 text-center space-y-6">
+              <p>How was your experience with <span className="font-bold">{isCreator ? contract.clientName : contract.creatorName}</span>?</p>
+              <div className="flex justify-center gap-2">{[1, 2, 3, 4, 5].map((star) => (<button key={star} onClick={() => setRating(star)}><Star size={32} fill={star <= rating ? "#eab308" : "none"} className={star <= rating ? "text-yellow-500" : "text-slate-300"} /></button>))}</div>
+              <textarea className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={3} placeholder="Share details..." value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /><Button onClick={handleSubmitRating} disabled={rating === 0} className="w-full">Submit Review</Button>
+            </div>
+          </div>
+        </div>
       )}
-      {showSubmitWarning && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 text-center"><ShieldAlert size={32} className="mx-auto mb-4 text-orange-600" /><h3 className="text-xl font-bold mb-3">Confirm Submission</h3><p className="text-sm text-slate-700 mb-4">Certify the work is complete. Fraudulent collection leads to suspension.</p><div className="flex gap-3"><Button variant="ghost" className="flex-1" onClick={() => setShowSubmitWarning(false)}>Back</Button><Button className="flex-1 bg-orange-600" onClick={handleSubmitWork}>I Confirm</Button></div></div></div>}
-      {showPaymentWarning && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 text-center"><ShieldAlert size={32} className="mx-auto mb-4 text-blue-600" /><h3 className="text-xl font-bold mb-3">Confirm Payment</h3><p className="text-sm text-slate-700 mb-4">Certify payment is authentic. Fake proof is punishable by law.</p><div className="flex gap-3"><Button variant="ghost" className="flex-1" onClick={() => setShowPaymentWarning(false)}>Back</Button><Button className="flex-1 bg-blue-600" onClick={handleSubmitPaymentProof}>Confirm Payment</Button></div></div></div>}
       {showDisputeWarning && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 text-center"><AlertTriangle size={32} className="mx-auto mb-4 text-red-600" /><h3 className="text-xl font-bold mb-3">Raise Dispute?</h3><p className="text-sm text-slate-700 mb-4">This triggers a formal investigation. Bad faith disputes result in bans.</p><div className="flex gap-3"><Button variant="ghost" className="flex-1" onClick={() => setShowDisputeWarning(false)}>Back</Button><Button className="flex-1 bg-red-600" onClick={handleRaiseDispute}>Raise Dispute</Button></div></div></div>}
       {showResolveDisputeModal && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg p-6 border border-blue-200"><h3 className="font-bold text-lg text-blue-900 flex items-center mb-4"><Handshake className="mr-2" size={20}/> Resolve Amicably</h3><div className="grid grid-cols-2 gap-3 mb-3"><button className={`p-3 rounded-lg border font-medium ${resolutionType === 'RESUME_WORK' ? 'bg-brand-50 border-brand-500' : ''}`} onClick={() => setResolutionType('RESUME_WORK')}>Resume Work</button><button className={`p-3 rounded-lg border font-medium ${resolutionType === 'RETRY_PAYMENT' ? 'bg-brand-50 border-brand-500' : ''}`} onClick={() => setResolutionType('RETRY_PAYMENT')}>Retry Payment</button></div><textarea className="w-full px-4 py-2 border rounded-lg dark:bg-slate-800 mb-4" rows={3} placeholder="Explain the solution..." value={resolutionMessage} onChange={(e) => setResolutionMessage(e.target.value)} /><div className="flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowResolveDisputeModal(null)}>Cancel</Button><Button onClick={handleProposeResolution}>Send Proposal</Button></div></div></div>}
       {showEndContractModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg p-6"><h3 className="font-bold text-lg mb-4">End Contract</h3><div className="grid grid-cols-2 gap-4 mb-4"><button onClick={() => setEndType('completion')} className={`p-4 rounded-xl border-2 ${endType === 'completion' ? 'border-brand-500 bg-brand-50' : ''}`}><CheckCircle size={24} className="mx-auto mb-2" />Completed</button><button onClick={() => setEndType('termination')} className={`p-4 rounded-xl border-2 ${endType === 'termination' ? 'border-red-500 bg-red-50' : ''}`}><XCircle size={24} className="mx-auto mb-2" />Terminate</button></div><textarea className="w-full px-4 py-2 border rounded-lg dark:bg-slate-800 mb-4" rows={3} placeholder="Description..." value={endReason} onChange={(e) => setEndReason(e.target.value)} /><div className="flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowEndContractModal(false)}>Cancel</Button><Button onClick={() => handleRequestEndContract(endReason, endType)} disabled={!endReason}>Send Request</Button></div></div></div>}
-      {showRejectEndModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6"><h3 className="font-bold text-lg mb-4">Reject Request</h3><textarea className="w-full px-4 py-2 border rounded-lg dark:bg-slate-800 mb-4" rows={3} placeholder="Reason..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /><div className="flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowRejectEndModal(false)}>Cancel</Button><Button onClick={handleResolveEndRequest(false)} disabled={!rejectionReason}>Reject</Button></div></div></div>}
+      {showRejectEndModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"><div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6"><h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Reject Request</h3><p className="text-sm text-slate-600 dark:text-slate-400 mb-4">State why you are rejecting the request to end the contract.</p><textarea className="w-full px-4 py-2 border rounded-lg dark:bg-slate-800 mb-4 dark:text-white" rows={3} placeholder="Reason..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /><div className="flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowRejectEndModal(false)}>Cancel</Button><Button onClick={() => handleResolveEndRequest(false)} disabled={!rejectionReason}>Reject</Button></div></div></div>}
     </div>
   );
 };
