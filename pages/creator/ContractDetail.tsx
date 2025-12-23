@@ -64,6 +64,7 @@ const ContractDetail: React.FC = () => {
 
   // Dispute State
   const [disputeReason, setDisputeReason] = useState('');
+  const [triedChatting, setTriedChatting] = useState(false);
   const [resolutionType, setResolutionType] = useState<'RESUME_WORK' | 'RETRY_PAYMENT'>('RESUME_WORK');
   const [resolutionMessage, setResolutionMessage] = useState('');
 
@@ -462,6 +463,7 @@ const ContractDetail: React.FC = () => {
        setShowDisputeWarning(false);
        setShowDisputeModal(null);
        setDisputeReason('');
+       setTriedChatting(false);
     } catch (e) {
        console.error(e);
     }
@@ -810,43 +812,55 @@ const ContractDetail: React.FC = () => {
                            
                            {/* CREATOR ACTIONS */}
                            {isCreator && (
-                              <div className="flex justify-end gap-2">
-                                 {isInProgress && (
-                                    // Rule 1: Prevent submission if active end request
-                                    pendingEndRequest ? (
-                                      <span className="text-xs text-red-600 dark:text-red-400 flex items-center bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded font-medium border border-red-200 dark:border-red-800">
-                                        <AlertTriangle size={12} className="mr-1" /> Action Blocked: End Request Pending
-                                      </span>
-                                    ) : (
-                                      <Button size="sm" onClick={() => setShowSubmitWorkModal(ms.id)}>
-                                         <Upload size={16} className="mr-2" /> Submit Work
-                                      </Button>
-                                    )
+                              <div className="flex justify-between items-center">
+                                 {/* Last Resort Dispute for Creator */}
+                                 {(isInProgress || isReview) && (
+                                   <button 
+                                      onClick={() => setShowDisputeModal(ms.id)}
+                                      className="text-xs font-bold text-red-600 dark:text-red-400 hover:underline flex items-center"
+                                   >
+                                      <ShieldAlert size={14} className="mr-1" /> Dispute Milestone
+                                   </button>
                                  )}
-                                 {isPaymentVerify && (
-                                    <div className="flex flex-col items-end w-full">
-                                       <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-100 dark:border-purple-800 mb-3 w-full">
-                                          <p className="text-sm font-bold text-purple-800 dark:text-purple-300 mb-2">Client has sent payment.</p>
-                                          {ms.paymentProof && (
-                                             <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800">
-                                                <Eye size={14} /> 
-                                                <a href={ms.paymentProof.content} target="_blank" rel="noreferrer" className="hover:underline text-blue-500">View Proof</a>
-                                                <span className="text-slate-300">|</span>
-                                                <span>Method: {ms.paymentProof.method}</span>
-                                             </div>
-                                          )}
+                                 
+                                 <div className="flex justify-end gap-2 ml-auto">
+                                    {isInProgress && (
+                                       // Rule 1: Prevent submission if active end request
+                                       pendingEndRequest ? (
+                                       <span className="text-xs text-red-600 dark:text-red-400 flex items-center bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded font-medium border border-red-200 dark:border-red-800">
+                                          <AlertTriangle size={12} className="mr-1" /> Action Blocked: End Request Pending
+                                       </span>
+                                       ) : (
+                                       <Button size="sm" onClick={() => setShowSubmitWorkModal(ms.id)}>
+                                          <Upload size={16} className="mr-2" /> Submit Work
+                                       </Button>
+                                       )
+                                    )}
+                                    {isPaymentVerify && (
+                                       <div className="flex flex-col items-end w-full">
+                                          <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-100 dark:border-purple-800 mb-3 w-full">
+                                             <p className="text-sm font-bold text-purple-800 dark:text-purple-300 mb-2">Client has sent payment.</p>
+                                             {ms.paymentProof && (
+                                                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800">
+                                                   <Eye size={14} /> 
+                                                   <a href={ms.paymentProof.content} target="_blank" rel="noreferrer" className="hover:underline text-blue-500">View Proof</a>
+                                                   <span className="text-slate-300">|</span>
+                                                   <span>Method: {ms.paymentProof.method}</span>
+                                                </div>
+                                             )}
+                                          </div>
+                                          <div className="flex gap-2">
+                                             <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setShowDisputeModal(ms.id)}>
+                                                Dispute Payment
+                                             </Button>
+                                             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleConfirmPayment(ms.id)}>
+                                                Confirm Receipt
+                                             </Button>
+                                          </div>
                                        </div>
-                                       <div className="flex gap-2">
-                                          <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setShowDisputeModal(ms.id)}>
-                                             Dispute Payment
-                                          </Button>
-                                          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleConfirmPayment(ms.id)}>
-                                             Confirm Receipt
-                                          </Button>
-                                       </div>
-                                    </div>
-                                 )}
-                                 {isReview && <span className="text-xs text-orange-600 flex items-center bg-orange-50 px-2 py-1 rounded"><Clock size={12} className="mr-1"/> Waiting for client approval</span>}
+                                    )}
+                                    {isReview && <span className="text-xs text-orange-600 flex items-center bg-orange-50 px-2 py-1 rounded"><Clock size={12} className="mr-1"/> Waiting for client approval</span>}
+                                 </div>
                               </div>
                            )}
 
@@ -884,9 +898,12 @@ const ContractDetail: React.FC = () => {
                                           {revisionsLeft > 0 ? (
                                              <Button size="sm" variant="outline" onClick={() => setShowReviewWorkModal(ms)}>Request Changes</Button>
                                           ) : (
-                                             <div className="flex items-center text-xs text-slate-500 italic bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">
-                                                <Lock size={12} className="mr-1.5" /> Revisions exhausted per contract
-                                             </div>
+                                             <button 
+                                                onClick={() => setShowDisputeModal(ms.id)}
+                                                className="px-4 py-2 text-xs font-bold text-red-600 border border-red-200 rounded-full hover:bg-red-50 flex items-center transition-colors"
+                                             >
+                                                <ShieldAlert size={14} className="mr-1.5" /> Raise Quality Dispute
+                                             </button>
                                           )}
                                           <Button size="sm" onClick={() => setShowPaymentProofModal(ms.id)}>
                                              Approve & Pay
@@ -1514,7 +1531,7 @@ const ContractDetail: React.FC = () => {
                  <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes / Description</label>
                     <textarea 
-                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:text-white"
                       rows={3}
                       placeholder="I've completed the video edits..."
                       value={workNote}
@@ -1624,26 +1641,53 @@ const ContractDetail: React.FC = () => {
                 <h3 className="font-bold text-lg text-red-900 dark:text-red-400 flex items-center">
                    <AlertTriangle className="mr-2" size={20}/> Raise Dispute
                 </h3>
-                <button onClick={() => setShowDisputeModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                <button onClick={() => { setShowDisputeModal(null); setTriedChatting(false); }} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
                   <XCircle size={24} />
                 </button>
               </div>
               <div className="p-6 space-y-4">
-                 <p className="text-sm text-slate-600 dark:text-slate-400">
+                 <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
                     Disputes should be a last resort. Our support team will review the evidence provided by both parties.
                  </p>
-                 <textarea 
-                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-red-500 dark:bg-slate-800 dark:text-white"
-                   rows={4}
-                   placeholder="I haven't received the payment yet / The work was not done..."
-                   value={disputeReason}
-                   onChange={(e) => setDisputeReason(e.target.value)}
-                 />
+
+                 {/* Last Resort Warning for Clients out of revisions */}
+                 {isClientViewer && getRevisionLimit(contract?.terms.revisionPolicy) <= (contract?.terms.milestones?.find(m => m.id === showDisputeModal)?.revisionsUsed || 0) && (
+                    <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
+                       <p className="text-xs text-orange-800 dark:text-orange-300">
+                         <strong>Policy Notice:</strong> You have used all agreed revisions. This dispute will be reviewed by Ubuni Support. If found to be in bad faith or an attempt to bypass the revision limit, your **Trust Score** will be penalized.
+                       </p>
+                    </div>
+                 )}
+
+                 {/* Amicable Resolution Check */}
+                 <div className={`p-4 rounded-xl border flex items-start gap-3 transition-colors ${triedChatting ? 'bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800' : 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}>
+                    <input 
+                       type="checkbox" 
+                       id="amicableCheck"
+                       className="mt-1 w-4 h-4 text-brand-600 rounded"
+                       checked={triedChatting}
+                       onChange={(e) => setTriedChatting(e.target.checked)}
+                    />
+                    <label htmlFor="amicableCheck" className="text-sm text-slate-700 dark:text-slate-300 leading-tight cursor-pointer">
+                       I have attempted to resolve this disagreement amicably through the project discussion board first.
+                    </label>
+                 </div>
+
+                 <div>
+                    <label className="block text-sm font-bold text-slate-900 dark:text-white mb-1 uppercase tracking-tight">Reason for Dispute</label>
+                    <textarea 
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-red-500 dark:bg-slate-800 dark:text-white"
+                      rows={4}
+                      placeholder={isCreator ? "e.g. Scope creep - client is asking for work not in contract..." : "e.g. Quality issue - deliverable does not match requirements..."}
+                      value={disputeReason}
+                      onChange={(e) => setDisputeReason(e.target.value)}
+                    />
+                 </div>
               </div>
               <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
-                 <Button variant="ghost" onClick={() => setShowDisputeModal(null)}>Cancel</Button>
+                 <Button variant="ghost" onClick={() => { setShowDisputeModal(null); setTriedChatting(false); }}>Cancel</Button>
                  {/* Change: Open Warning Modal instead of direct submit */}
-                 <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => setShowDisputeWarning(true)} disabled={!disputeReason}>Submit Dispute</Button>
+                 <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => setShowDisputeWarning(true)} disabled={!disputeReason || !triedChatting}>Submit Dispute</Button>
               </div>
            </div>
         </div>
@@ -1742,7 +1786,7 @@ const ContractDetail: React.FC = () => {
                     <ShieldAlert size={32} />
                  </div>
                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Confirm Payment</h3>
-                 <div className="text-left bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 mb-4">
+                 <div className="text-left bg-blue-50 bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 mb-4">
                     <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                        You are about to mark this milestone as paid. Please ensure the attached proof is authentic.
                        <br/><br/>
@@ -1769,9 +1813,9 @@ const ContractDetail: React.FC = () => {
                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Raise Payment Dispute?</h3>
                  <div className="text-left bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-800/30 mb-4">
                     <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                       Disputing a payment triggers a formal investigation by our Support Team. This action cannot be undone.
+                       Disputing a project triggers a formal investigation by our Support Team. This action cannot be undone.
                        <br/><br/>
-                       <span className="font-bold text-red-800 dark:text-red-400">Warning:</span> If it is determined that you received the funds but falsely claimed otherwise, you will face legal consequences and a permanent ban from the platform.
+                       <span className="font-bold text-red-800 dark:text-red-400">Warning:</span> If it is determined that this dispute was raised in bad faith (e.g. to avoid payment or bypass revision limits), you will face penalties including **Trust Score reduction** or account ban.
                     </p>
                  </div>
                  <div className="flex gap-3">
