@@ -26,7 +26,6 @@ const ContractDetail: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   
-  // To display creator payment info to client
   const [creatorUser, setCreatorUser] = useState<User | null>(null);
 
   // Modals
@@ -35,14 +34,12 @@ const ContractDetail: React.FC = () => {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showRejectEndModal, setShowRejectEndModal] = useState(false);
   
-  // New Modals for Trust & Verification
-  const [showSubmitWorkModal, setShowSubmitWorkModal] = useState<string | null>(null); // holds milestone ID
-  const [showPaymentProofModal, setShowPaymentProofModal] = useState<string | null>(null); // holds milestone ID
+  const [showSubmitWorkModal, setShowSubmitWorkModal] = useState<string | null>(null);
+  const [showPaymentProofModal, setShowPaymentProofModal] = useState<string | null>(null);
   const [showReviewWorkModal, setShowReviewWorkModal] = useState<Milestone | null>(null);
-  const [showDisputeModal, setShowDisputeModal] = useState<string | null>(null); // holds milestone ID
-  const [showResolveDisputeModal, setShowResolveDisputeModal] = useState<string | null>(null); // holds milestone ID for mutual resolution
+  const [showDisputeModal, setShowDisputeModal] = useState<string | null>(null);
+  const [showResolveDisputeModal, setShowResolveDisputeModal] = useState<string | null>(null);
   
-  // Warning Modals
   const [showSubmitWarning, setShowSubmitWarning] = useState(false);
   const [showPaymentWarning, setShowPaymentWarning] = useState(false);
   const [showDisputeWarning, setShowDisputeWarning] = useState(false);
@@ -56,10 +53,9 @@ const ContractDetail: React.FC = () => {
   const [workNote, setWorkNote] = useState('');
 
   // Payment Proof State
-  const [proofImage, setProofImage] = useState<string>(''); // Simulating image URL/Base64
+  const [proofImage, setProofImage] = useState<string>(''); 
   const [paymentMethod, setPaymentMethod] = useState('M-Pesa');
 
-  // Review State (Client)
   const [revisionNote, setRevisionNote] = useState('');
 
   // Dispute State
@@ -75,7 +71,7 @@ const ContractDetail: React.FC = () => {
 
   // Rating State
   const [rating, setRating] = useState(0);
-  const [paymentRating, setPaymentRating] = useState(0); // For payment reliability
+  const [paymentRating, setPaymentRating] = useState(0); 
   const [reviewComment, setReviewComment] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -93,8 +89,6 @@ const ContractDetail: React.FC = () => {
     milestones: []
   });
   
-  const [customSplitCount, setCustomSplitCount] = useState(6);
-
   const getRevisionLimit = (policy: string | undefined): number => {
     if (!policy) return 0;
     if (policy === 'Unlimited Revisions') return Infinity;
@@ -522,22 +516,50 @@ const ContractDetail: React.FC = () => {
 
   const handleGrossUp = () => {
     if (!contract) return;
-    const rate = taxResidency === 'resident' ? 0.05 : 0.20;
-    const multiplier = 1 / (1 - rate);
-    const currentAmount = contract.terms.amount;
-    const newGrossAmount = Math.ceil(currentAmount * multiplier);
     
-    const newTerms = JSON.parse(JSON.stringify(contract.terms));
-    newTerms.amount = newGrossAmount;
-    if (newTerms.paymentType === 'MILESTONE' && newTerms.milestones) {
-       newTerms.milestones = newTerms.milestones.map((m: Milestone) => ({
-         ...m,
-         amount: Math.ceil(m.amount * multiplier)
-       }));
-       newTerms.amount = newTerms.milestones.reduce((sum: number, m: Milestone) => sum + m.amount, 0);
+    // NEW LOGIC: Use current modal selections if open, otherwise fallback to contract terms
+    const activePaymentMethod = showCounterModal ? counterTerms.paymentMethod : contract.terms.paymentMethod;
+    const isEscrow = activePaymentMethod === 'ESCROW';
+    
+    // Commission (8% if Escrow, 0% if Direct)
+    const platformCommissionRate = isEscrow ? 0.08 : 0;
+    // Tax (5% or 20%)
+    const taxRate = taxResidency === 'resident' ? 0.05 : 0.20;
+    
+    // To ensure the creator gets the "Current Amount" as their Take-home:
+    // TakeHome = Gross * (1 - Commission) * (1 - Tax)
+    // Therefore: Gross = TakeHome / ((1 - Commission) * (1 - Tax))
+    const multiplier = 1 / ((1 - platformCommissionRate) * (1 - taxRate));
+    
+    const currentBaseAmount = showCounterModal ? counterTerms.amount : contract.terms.amount;
+    const newGrossAmount = Math.ceil(currentBaseAmount * multiplier);
+    
+    if (showCounterModal) {
+       // Adjusting inside the modal
+       const updatedTerms = JSON.parse(JSON.stringify(counterTerms));
+       updatedTerms.amount = newGrossAmount;
+       if (updatedTerms.paymentType === 'MILESTONE' && updatedTerms.milestones) {
+          updatedTerms.milestones = updatedTerms.milestones.map((m: Milestone) => ({
+            ...m,
+            amount: Math.ceil(m.amount * multiplier)
+          }));
+          updatedTerms.amount = updatedTerms.milestones.reduce((sum: number, m: Milestone) => sum + m.amount, 0);
+       }
+       setCounterTerms(updatedTerms);
+    } else {
+       // Triggering adjustment from the dashboard view
+       const newTerms = JSON.parse(JSON.stringify(contract.terms));
+       newTerms.amount = newGrossAmount;
+       if (newTerms.paymentType === 'MILESTONE' && newTerms.milestones) {
+          newTerms.milestones = newTerms.milestones.map((m: Milestone) => ({
+            ...m,
+            amount: Math.ceil(m.amount * multiplier)
+          }));
+          newTerms.amount = newTerms.milestones.reduce((sum: number, m: Milestone) => sum + m.amount, 0);
+       }
+       setCounterTerms(newTerms);
+       setShowCounterModal(true);
     }
-    setCounterTerms(newTerms);
-    setShowCounterModal(true);
   };
 
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
@@ -552,35 +574,20 @@ const ContractDetail: React.FC = () => {
   const hasActiveDispute = contract.terms.milestones?.some(m => m.status === 'DISPUTED');
   const pendingEndRequest = contract.endRequest?.status === 'pending';
 
-  let clientEndRestriction = "";
-  if (isClientViewer && isActive) {
-    if (contract.terms.paymentType === 'MILESTONE') {
-        const m1 = contract.terms.milestones?.[0];
-        if (m1 && m1.status !== 'PAID' && m1.status !== 'CANCELLED') {
-            clientEndRestriction = "Action blocked: Milestone 1 must be paid to ensure commitment.";
-        }
-    }
-    const hasPendingWork = contract.terms.milestones?.some(m => ['UNDER_REVIEW', 'PAYMENT_VERIFY'].includes(m.status));
-    if (hasPendingWork) clientEndRestriction = "Action blocked: Please review submitted work first.";
-  }
-
   let canTakeAction = false;
   let statusMessage = "";
   if (contract.status === ContractStatus.SENT) {
-    if (isCreator) canTakeAction = true; else statusMessage = "Waiting for creator to respond";
+    if (isCreator) canTakeAction = true; else statusMessage = "Waiting for response";
   } else if (contract.status === ContractStatus.NEGOTIATING) {
     if (lastHistoryItem?.actionBy && lastHistoryItem.actionBy !== user?.id) {
        canTakeAction = true;
-       statusMessage = "Counter-offer received. Your turn to respond.";
+       statusMessage = "Your turn to respond";
     } else if (lastHistoryItem?.actionBy === user?.id) {
-       statusMessage = "Waiting for response to your counter-offer";
+       statusMessage = "Waiting for review";
     } else canTakeAction = true; 
   }
 
-  const iRequestedEnd = contract.endRequest?.requesterId === user?.id;
-  const isRejectedEndRequest = contract.endRequest?.status === 'rejected';
   const hasReviewed = isCreator ? contract.isCreatorReviewed : contract.isClientReviewed;
-  const showPaymentInfo = isClientViewer && isActive && creatorUser?.profile?.paymentMethods;
 
   // Escrow Calculation Helpers for Client View
   const escrowFee = contract.terms.paymentMethod === 'ESCROW' ? Math.round(contract.terms.amount * 0.03) : 0;
@@ -675,20 +682,6 @@ const ContractDetail: React.FC = () => {
                                  {isPaymentVerify && <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded"><Clock size={12} className="mr-1"/> Waiting for creator to confirm payment</span>}
                               </div>
                            )}
-                           {isDisputed && (
-                              <div className="w-full bg-red-50 p-4 rounded-lg border border-red-200">
-                                 <div className="flex justify-between items-start mb-2"><p className="font-bold text-red-800 text-sm flex items-center"><AlertTriangle size={16} className="mr-2" /> Dispute Raised</p>{!hasPendingResolution && <button onClick={() => setShowResolveDisputeModal(ms.id)} className="text-xs flex items-center text-blue-600 hover:underline font-bold"><Handshake size={14} className="mr-1" /> Resolve Amicably</button>}</div>
-                                 <p className="text-xs text-red-700 mt-1">Reason: {ms.disputeReason}</p>
-                                 {hasPendingResolution && (
-                                    <div className="mt-4 p-3 bg-white rounded border border-blue-200 animate-in fade-in">
-                                       <p className="text-sm font-bold text-slate-800 mb-1">Proposed Resolution</p>
-                                       <p className="text-xs text-slate-600 mb-2"><span className="font-bold">{ms.disputeResolution?.requestedByName}</span> suggests: <span className="italic"> "{ms.disputeResolution?.message}"</span></p>
-                                       <div className="flex items-center justify-between"><span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded">Action: {ms.disputeResolution?.type === 'RESUME_WORK' ? 'Resume Work' : 'Retry Payment'}</span>{iProposedResolution ? <span className="text-xs text-slate-500 italic flex items-center"><Clock size={12} className="mr-1"/> Waiting for response</span> : <Button size="sm" className="bg-green-600 text-xs h-8" onClick={() => handleAcceptResolution(ms.id)}>Accept Resolution</Button>}</div>
-                                    </div>
-                                 )}
-                              </div>
-                           )}
-                           {isLocked && <span className="text-xs text-slate-400 italic flex items-center"><Lock size={12} className="mr-1"/> Locked until previous milestone is paid</span>}
                         </div>
                      )}
                   </div>
@@ -701,6 +694,16 @@ const ContractDetail: React.FC = () => {
 
   const renderCreatorEarningsBreakdown = () => {
     if (!contract || !isCreator) return null;
+    
+    // NEW: If it's not the creator's turn to respond/counter, hide the breakdown/adjust button
+    if (!canTakeAction && isPending) {
+       return (
+         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 text-center">
+            <p className="text-sm text-slate-500 italic">Proposal submitted. Waiting for client to respond before further adjustments.</p>
+         </div>
+       );
+    }
+
     const baseAmount = contract.terms.amount;
     const isEscrow = contract.terms.paymentMethod === 'ESCROW';
     const platformCommission = isEscrow ? Math.round(baseAmount * 0.08) : 0;
@@ -709,7 +712,7 @@ const ContractDetail: React.FC = () => {
     const estimatedTakeHome = baseAmount - platformCommission - estimatedTax;
 
     return (
-      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 animate-in slide-in-from-right-2">
         <div className="p-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 flex justify-between items-center cursor-pointer" onClick={() => setShowTaxDetails(!showTaxDetails)}>
           <h3 className="font-bold text-slate-800 dark:text-white flex items-center"><Calculator size={20} className="mr-2 text-blue-600" /> Earnings Breakdown & Tax</h3>
           <button className="text-slate-500">{showTaxDetails ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</button>
@@ -730,7 +733,10 @@ const ContractDetail: React.FC = () => {
               <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100"><p className="text-xs text-green-700 mb-1">Net Take-home</p><p className="font-bold text-green-800">{contract.terms.currency} {estimatedTakeHome.toLocaleString()}</p></div>
             </div>
             {isEscrow && isPending && <div className="bg-brand-50 p-3 rounded-lg border border-brand-100 mb-6 flex items-start gap-3"><ShieldCheck className="text-brand-600 mt-0.5 flex-shrink-0" size={18} /><div><p className="text-xs font-bold text-brand-900">Secured via Escrow Kenya</p><p className="text-xs text-brand-700">Funds are secured upfront. Guaranteed payment once work is approved. No more chasing clients for M-Pesa screenshots.</p></div></div>}
-            <div className="flex justify-end gap-3"><button className="text-sm text-slate-500 px-3 py-2" onClick={() => setShowTaxDetails(false)}>Dismiss</button><Button size="sm" variant="outline" onClick={handleGrossUp}>Adjust Price to Cover Fees</Button></div>
+            <div className="flex justify-end gap-3">
+              <button className="text-sm text-slate-500 px-3 py-2" onClick={() => setShowTaxDetails(false)}>Dismiss</button>
+              <Button size="sm" variant="outline" onClick={handleGrossUp}>Adjust Price to Cover Fees</Button>
+            </div>
           </div>
         )}
       </div>
@@ -757,7 +763,6 @@ const ContractDetail: React.FC = () => {
                 {renderDiffValue(contract.terms.amount, contract.previousTerms?.amount, "Project Amount", <DollarSign size={14} className="mr-1"/>, contract.terms.currency)}
                 {renderDiffValue(contract.terms.durationDays, contract.previousTerms?.durationDays, "Duration", <Calendar size={14} className="mr-1"/>, "", "Days")}
                 
-                {/* NEW: Dynamic Escrow Fee Card for Clients */}
                 {isClientViewer && contract.terms.paymentMethod === 'ESCROW' && (
                   <>
                     <div className="bg-brand-50 dark:bg-brand-900/10 p-4 rounded-xl border border-brand-100 dark:border-brand-800">
@@ -780,10 +785,7 @@ const ContractDetail: React.FC = () => {
             <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4"><div><p className="font-bold text-slate-900 dark:text-white">Action Required</p><p className="text-xs text-slate-500">Please respond to this proposal.</p></div><div className="flex gap-2"><button onClick={() => setShowCounterModal(true)} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 flex items-center"><RefreshCw size={16} className="mr-2" />Counter Offer</button><button onClick={() => handleStatusChange(ContractStatus.DECLINED)} className="px-4 py-2 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 flex items-center"><XCircle size={16} className="mr-2" />Decline</button><Button onClick={() => handleStatusChange(ContractStatus.ACCEPTED)} className="flex items-center"><CheckCircle size={16} className="mr-2" />Accept Contract</Button></div></div>
           )}
           {isActive && !pendingEndRequest && (
-            <div className={`sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border ${hasActiveDispute || clientEndRestriction ? 'border-red-200 ring-2 ring-red-100' : 'border-slate-200'} flex items-center justify-between`}><div><p className="font-bold text-slate-900 dark:text-white">Active Contract</p><p className="text-xs text-slate-500">{clientEndRestriction || 'Project is in progress.'}</p></div>{hasActiveDispute || clientEndRestriction ? <button disabled className="px-4 py-2 bg-slate-100 text-slate-400 font-medium rounded-lg cursor-not-allowed flex items-center"><Lock size={16} className="mr-2" /> End Contract</button> : <button onClick={() => setShowEndContractModal(true)} className="px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-red-50 hover:text-red-600">End Contract</button>}</div>
-          )}
-          {isCompleted && !hasReviewed && (
-             <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex items-center justify-between"><div><p className="font-bold text-slate-900 dark:text-white">Contract Completed</p><p className="text-xs text-slate-500">Rate your experience.</p></div><Button onClick={() => setShowRatingModal(true)} className="flex items-center"><Star size={16} className="mr-2" />Rate Experience</Button></div>
+            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex items-center justify-between"><div><p className="font-bold text-slate-900 dark:text-white">Active Contract</p><p className="text-xs text-slate-500">Project is in progress.</p></div><button onClick={() => setShowEndContractModal(true)} className="px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-red-50 hover:text-red-600">End Contract</button></div>
           )}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 p-6"><h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">Contract History</h3><div className="relative border-l-2 border-slate-100 ml-3 space-y-6">{contract.history.map((item) => (<div key={item.id} className="relative pl-6"><div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-200 border-2 border-white"></div><div className="flex flex-col"><span className="text-xs text-slate-400 font-mono mb-1">{new Date(item.date).toLocaleString()}</span><span className="font-medium text-slate-900 dark:text-white">{item.action.toUpperCase()}</span><span className="text-sm text-slate-500">by {item.actorName}</span>{item.note && <p className="mt-1 text-sm bg-slate-50 p-2 rounded text-slate-600 italic">"{item.note}"</p>}</div></div>))}</div></div>
         </div>
@@ -800,7 +802,19 @@ const ContractDetail: React.FC = () => {
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800"><h3 className="font-bold text-lg text-slate-900 dark:text-white">Propose Counter Offer</h3><button onClick={() => setShowCounterModal(false)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
             <div className="p-6 overflow-y-auto space-y-6">
               <div><label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Payment Method</label><div className="grid grid-cols-2 gap-4"><button onClick={() => setCounterTerms({...counterTerms, paymentMethod: 'ESCROW'})} className={`p-4 rounded-xl border-2 text-left transition-all ${counterTerms.paymentMethod === 'ESCROW' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-1"><ShieldCheck size={18} className="text-brand-600" /> Escrow Kenya</div><p className="text-xs text-slate-500">Highly secured via 3rd party hold. Fees apply.</p></button><button onClick={() => setCounterTerms({...counterTerms, paymentMethod: 'DIRECT'})} className={`p-4 rounded-xl border-2 text-left transition-all ${counterTerms.paymentMethod === 'DIRECT' ? 'border-slate-900 bg-slate-50 dark:bg-slate-800 dark:border-white ring-1 ring-slate-900' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-1"><Smartphone size={18} className="text-slate-400" /> Direct Transfer</div><p className="text-xs text-slate-500">Manual M-Pesa/Bank transfer. Zero platform fees.</p></button></div></div>
-              {isCreator && counterTerms.paymentMethod === 'ESCROW' && <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-xs text-blue-700 flex items-start gap-2"><Info size={14} className="mt-0.5 flex-shrink-0" /><p><strong>Note:</strong> Escrow contracts have an 8% commission. You may want to increase your base amount to cover this.</p></div>}
+              {isCreator && (
+                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col gap-3">
+                   <p className="text-xs text-blue-700 flex items-start gap-2">
+                     <Info size={14} className="mt-0.5 flex-shrink-0" />
+                     {counterTerms.paymentMethod === 'ESCROW' 
+                       ? "Escrow contracts include an 8% platform commission. Use the 'Adjust' button below to cover this and WHT taxes." 
+                       : "Direct payments have 0% platform commission. Only WHT taxes apply."}
+                   </p>
+                   <Button size="sm" variant="outline" className="w-fit bg-white" onClick={handleGrossUp}>
+                     <Wand2 size={14} className="mr-2" /> Adjust Price to Net Desired Amount
+                   </Button>
+                 </div>
+              )}
               <div className="grid grid-cols-2 gap-4"><button onClick={() => toggleCounterPaymentType('FIXED')} className={`p-4 rounded-xl border text-center transition-all ${counterTerms.paymentType === 'FIXED' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><DollarSign className="mx-auto mb-2" size={24} /><div className="font-bold">Fixed</div></button><button onClick={() => toggleCounterPaymentType('MILESTONE')} className={`p-4 rounded-xl border text-center transition-all ${counterTerms.paymentType === 'MILESTONE' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><Flag className="mx-auto mb-2" size={24} /><div className="font-bold">Milestone</div></button></div>
               {counterTerms.paymentType === 'FIXED' ? <Input label="Total Amount (KES)" type="number" value={counterTerms.amount} onChange={(e) => setCounterTerms({...counterTerms, amount: parseInt(e.target.value)})} /> : (
                 <div className="space-y-4"><div className="flex justify-between items-center"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label><span className="text-sm font-bold text-brand-600">Total: KES {counterTerms.amount.toLocaleString()}</span></div>
