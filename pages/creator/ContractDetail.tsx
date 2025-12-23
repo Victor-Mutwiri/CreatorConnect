@@ -93,6 +93,15 @@ const ContractDetail: React.FC = () => {
   
   const [customSplitCount, setCustomSplitCount] = useState(6); // Default for custom input
 
+  // REVISION HELPER
+  const getRevisionLimit = (policy: string | undefined): number => {
+    if (!policy) return 0;
+    if (policy === 'Unlimited Revisions') return Infinity;
+    if (policy === 'No Revisions') return 0;
+    const match = policy.match(/\d+/);
+    return match ? parseInt(match[0]) : 0;
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -195,7 +204,8 @@ const ContractDetail: React.FC = () => {
          sanitizedTerms.milestones = sanitizedTerms.milestones.map((m, idx) => ({
             ...m,
             id: m.id || `ms-new-${Date.now()}-${idx}`,
-            status: 'PENDING' // Reset status for new negotiation
+            status: 'PENDING', // Reset status for new negotiation
+            revisionsUsed: m.revisionsUsed || 0
          }));
       } else {
         // FIXED Contract Logic:
@@ -206,7 +216,8 @@ const ContractDetail: React.FC = () => {
           title: 'Complete Project Delivery',
           description: 'Final delivery of all agreed items.',
           amount: sanitizedTerms.amount, // Ensure milestone amount matches total contract value
-          status: 'PENDING'
+          status: 'PENDING',
+          revisionsUsed: 0
         }];
       }
 
@@ -261,7 +272,8 @@ const ContractDetail: React.FC = () => {
         title: `Phase ${i + 1}`,
         description: i === 0 ? 'Initial deliverable / Concept' : 'Work in progress',
         amount: amount,
-        status: 'PENDING'
+        status: 'PENDING',
+        revisionsUsed: 0
       });
     }
 
@@ -285,9 +297,9 @@ const ContractDetail: React.FC = () => {
             ...prev,
             paymentType: type,
             milestones: [
-              { id: `temp-1`, title: 'Phase 1', amount: m1, description: 'Initial Phase', status: 'PENDING' },
-              { id: `temp-2`, title: 'Phase 2', amount: m2, description: 'Mid Phase', status: 'PENDING' },
-              { id: `temp-3`, title: 'Phase 3', amount: m3, description: 'Final Phase', status: 'PENDING' }
+              { id: `temp-1`, title: 'Phase 1', amount: m1, description: 'Initial Phase', status: 'PENDING', revisionsUsed: 0 },
+              { id: `temp-2`, title: 'Phase 2', amount: m2, description: 'Mid Phase', status: 'PENDING', revisionsUsed: 0 },
+              { id: `temp-3`, title: 'Phase 3', amount: m3, description: 'Final Phase', status: 'PENDING', revisionsUsed: 0 }
             ]
          }));
        } else {
@@ -320,7 +332,8 @@ const ContractDetail: React.FC = () => {
         title: '',
         amount: 0,
         description: '',
-        status: 'PENDING'
+        status: 'PENDING',
+        revisionsUsed: 0
      };
      setCounterTerms(prev => ({
         ...prev,
@@ -699,13 +712,19 @@ const ContractDetail: React.FC = () => {
      if (!contract.terms.milestones || contract.terms.milestones.length === 0) return null;
      
      const isFixedContract = contract.terms.paymentType === 'FIXED';
+     const revisionLimit = getRevisionLimit(contract.terms.revisionPolicy);
 
      return (
        <div className="space-y-4 mt-6">
-         <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
-            <Flag size={20} className="mr-2 text-brand-600" /> 
-            {isFixedContract ? 'Project Deliverable' : 'Milestones'}
-         </h3>
+         <div className="flex justify-between items-center">
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center">
+               <Flag size={20} className="mr-2 text-brand-600" /> 
+               {isFixedContract ? 'Project Deliverable' : 'Milestones'}
+            </h3>
+            <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-slate-500">
+               Policy: {contract.terms.revisionPolicy}
+            </span>
+         </div>
          <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-4 space-y-8 pl-8 py-2">
             {contract.terms.milestones.map((ms, idx) => {
                const isLocked = ms.status === 'PENDING';
@@ -715,6 +734,9 @@ const ContractDetail: React.FC = () => {
                const isPaymentVerify = ms.status === 'PAYMENT_VERIFY';
                const isDisputed = ms.status === 'DISPUTED';
                const isCancelled = ms.status === 'CANCELLED';
+               
+               const usedRevisions = ms.revisionsUsed || 0;
+               const revisionsLeft = revisionLimit === Infinity ? Infinity : revisionLimit - usedRevisions;
                
                // Mutual Dispute Resolution State
                const hasPendingResolution = !!ms.disputeResolution;
@@ -749,7 +771,14 @@ const ContractDetail: React.FC = () => {
 
                      <div className="flex justify-between items-start mb-2">
                         <div>
-                           <h4 className={`font-bold text-lg ${isCancelled ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>{ms.title}</h4>
+                           <div className="flex items-center gap-2">
+                              <h4 className={`font-bold text-lg ${isCancelled ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>{ms.title}</h4>
+                              {usedRevisions > 0 && (
+                                <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                   REV #{usedRevisions}
+                                </span>
+                              )}
+                           </div>
                            <p className="text-sm text-slate-500 dark:text-slate-400">{ms.description}</p>
                         </div>
                         <div className="text-right">
@@ -823,18 +852,26 @@ const ContractDetail: React.FC = () => {
 
                            {/* CLIENT ACTIONS */}
                            {isClientViewer && (
-                              <div className="flex justify-end gap-2">
+                              <div className="w-full">
                                  {isReview && (
                                     <div className="w-full">
                                        <div className="bg-orange-50 dark:bg-orange-900/10 p-3 rounded-lg border border-orange-100 dark:border-orange-800 mb-3">
                                           <div className="flex justify-between items-start">
-                                             <p className="text-sm font-bold text-orange-800 dark:text-orange-400 mb-2">Review Submission</p>
+                                             <div>
+                                                <p className="text-sm font-bold text-orange-800 dark:text-orange-400">Review Submission</p>
+                                                {/* REVISION TRACKER UI */}
+                                                <div className="flex items-center mt-1">
+                                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${revisionsLeft <= 0 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                      {revisionLimit === Infinity ? 'Unlimited Revisions' : `${revisionsLeft} Revisions Remaining`}
+                                                   </span>
+                                                </div>
+                                             </div>
                                              <div className="text-xs text-orange-600 flex items-center">
                                                 <Clock size={12} className="mr-1" /> Auto-approves in 71h 59m
                                              </div>
                                           </div>
                                           {ms.submission && (
-                                             <div className="bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 text-sm">
+                                             <div className="bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 text-sm mt-3">
                                                 <p className="font-semibold text-slate-900 dark:text-white mb-1">Creator Note:</p>
                                                 <p className="text-slate-600 dark:text-slate-400 mb-2 italic">"{ms.submission.note}"</p>
                                                 <a href={ms.submission.content} target="_blank" rel="noreferrer" className="inline-flex items-center text-brand-600 hover:underline">
@@ -843,8 +880,14 @@ const ContractDetail: React.FC = () => {
                                              </div>
                                           )}
                                        </div>
-                                       <div className="flex justify-end gap-2">
-                                          <Button size="sm" variant="outline" onClick={() => setShowReviewWorkModal(ms)}>Request Changes</Button>
+                                       <div className="flex justify-end gap-2 items-center">
+                                          {revisionsLeft > 0 ? (
+                                             <Button size="sm" variant="outline" onClick={() => setShowReviewWorkModal(ms)}>Request Changes</Button>
+                                          ) : (
+                                             <div className="flex items-center text-xs text-slate-500 italic bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">
+                                                <Lock size={12} className="mr-1.5" /> Revisions exhausted per contract
+                                             </div>
+                                          )}
                                           <Button size="sm" onClick={() => setShowPaymentProofModal(ms.id)}>
                                              Approve & Pay
                                           </Button>
@@ -1500,7 +1543,8 @@ const ContractDetail: React.FC = () => {
               </div>
               <div className="p-6 space-y-4">
                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Please explain clearly what needs to be changed.
+                    Please explain clearly what needs to be changed. 
+                    <span className="block font-bold text-orange-600 mt-1">This will consume 1 of your agreed revisions.</span>
                  </p>
                  <textarea 
                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-brand-500 dark:bg-slate-800 dark:text-white"

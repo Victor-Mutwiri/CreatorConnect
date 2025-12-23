@@ -110,6 +110,11 @@ export const mockContractService = {
     const terms = data.terms as ContractTerms;
     if (!terms.paymentType) terms.paymentType = 'FIXED';
     
+    // Initialize milestones with revisionsUsed: 0
+    if (terms.milestones) {
+      terms.milestones = terms.milestones.map(m => ({ ...m, revisionsUsed: 0 }));
+    }
+    
     const newContract: Contract = {
       id: `c-${Date.now()}`,
       clientId,
@@ -229,6 +234,14 @@ export const mockContractService = {
 
     const currentContract = contracts[index];
 
+    // Ensure counter-offered milestones have revision tracking initialized
+    if (newTerms.milestones) {
+      newTerms.milestones = newTerms.milestones.map(m => ({
+        ...m,
+        revisionsUsed: m.revisionsUsed || 0
+      }));
+    }
+
     const updatedContract = { 
       ...currentContract,
       previousTerms: currentContract.terms, // Save previous terms before update
@@ -302,9 +315,11 @@ export const mockContractService = {
     }
 
     if (newStatus === 'IN_PROGRESS' && payload?.revisionNotes) {
-      // Reverting from review to in progress (Changes Requested)
+      // Reverting from review to in progress (Changes Requested - A REVISION)
       contract.terms.milestones[mIndex].revisionNotes = payload.revisionNotes;
-      note = `Changes requested: ${payload.revisionNotes}`;
+      // INCREMENT REVISIONS USED
+      contract.terms.milestones[mIndex].revisionsUsed = (contract.terms.milestones[mIndex].revisionsUsed || 0) + 1;
+      note = `Changes requested (Revision #${contract.terms.milestones[mIndex].revisionsUsed}): ${payload.revisionNotes}`;
     }
 
     if (newStatus === 'PAYMENT_VERIFY' && payload?.paymentProof) {

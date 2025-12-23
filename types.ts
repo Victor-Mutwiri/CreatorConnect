@@ -238,6 +238,7 @@ export interface Milestone {
   description: string;
   amount: number;
   status: MilestoneStatus;
+  revisionsUsed?: number; // Tracker for change requests
   
   // Trust & Verification Fields
   submission?: MilestoneSubmission;
