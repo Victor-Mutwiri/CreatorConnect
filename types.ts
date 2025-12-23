@@ -216,6 +216,7 @@ export enum ContractStatus {
 }
 
 export type ContractPaymentType = 'FIXED' | 'MILESTONE';
+export type ContractPaymentMethod = 'DIRECT' | 'ESCROW';
 
 export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'PAYMENT_VERIFY' | 'PAID' | 'DISPUTED' | 'CANCELLED';
 
@@ -257,6 +258,7 @@ export interface Milestone {
 
 export interface ContractTerms {
   paymentType: ContractPaymentType;
+  paymentMethod?: ContractPaymentMethod; // Choice between Direct or Escrow Kenya
   amount: number; // Total Contract Value
   currency: string;
   durationDays: number;
