@@ -566,6 +566,7 @@ const ContractDetail: React.FC = () => {
   if (!contract) return <div className="p-20 text-center dark:text-white">Contract not found</div>;
 
   const isPending = [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(contract.status);
+  const isAwaitingDeposit = contract.status === ContractStatus.AWAITING_DEPOSIT;
   const isActive = [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(contract.status);
   const isCompleted = contract.status === ContractStatus.COMPLETED;
   const lastHistoryItem = contract.history[contract.history.length - 1];
@@ -748,10 +749,69 @@ const ContractDetail: React.FC = () => {
       <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-24 pb-8 flex flex-col lg:flex-row gap-8">
         <div className="flex-1 space-y-6">
           <button onClick={() => navigate(-1)} className="flex items-center text-slate-500 hover:text-slate-900 mb-2 transition-colors"><ArrowLeft size={18} className="mr-1" /> Back to Contracts</button>
+          
+          {/* AWAITING DEPOSIT BANNERS */}
+          {isAwaitingDeposit && (
+            <div className="animate-in slide-in-from-top-4 duration-500">
+               {isClientViewer ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-2xl p-6 shadow-lg">
+                     <div className="flex items-start gap-4">
+                        <div className="p-3 bg-red-100 dark:bg-red-800/50 rounded-full text-red-600 animate-pulse">
+                           <Clock size={32} />
+                        </div>
+                        <div className="flex-1">
+                           <h3 className="text-xl font-bold text-red-900 dark:text-red-300">Action Required: Escrow Funding Required</h3>
+                           <p className="text-red-800 dark:text-red-400 mt-1 font-medium">
+                              You have <span className="font-black text-red-600">02:59:45</span> remaining to fund the escrow account.
+                           </p>
+                           <div className="mt-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-100 space-y-3">
+                              <p className="text-sm text-slate-700 dark:text-slate-300">
+                                 Deposit <span className="font-bold">KES {totalFundingRequired.toLocaleString()}</span> to Paybill <span className="font-bold">880123</span> (Escrow Kenya) with Account Name <span className="font-bold">UBUNI-{contract.id.slice(-4)}</span>.
+                              </p>
+                              <div className="flex gap-2">
+                                 <Button className="bg-red-600 hover:bg-red-700">I've Sent the Funds</Button>
+                                 <button className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">How does this work?</button>
+                              </div>
+                           </div>
+                           <p className="text-[10px] text-red-600 dark:text-red-400 mt-4 flex items-center gap-1">
+                              <AlertTriangle size={12} /> Failure to fund will result in automatic contract termination. Repeated cancellations may lead to account suspension.
+                           </p>
+                        </div>
+                     </div>
+                  </div>
+               ) : (
+                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-300 rounded-2xl p-6">
+                     <div className="flex items-start gap-4">
+                        <div className="p-3 bg-orange-100 dark:bg-orange-800/50 rounded-full text-orange-600">
+                           <Shield size={32} />
+                        </div>
+                        <div>
+                           <h3 className="text-xl font-bold text-orange-900 dark:text-orange-300">Waiting for Client Funding</h3>
+                           <p className="text-orange-800 dark:text-orange-400 mt-1">
+                              The client has been notified to fund the escrow account. 
+                              <span className="font-bold block mt-2">IMPORTANT: Do not begin work until the status changes to "ACTIVE" to ensure your payment is secured.</span>
+                           </p>
+                        </div>
+                     </div>
+                  </div>
+               )}
+            </div>
+          )}
+
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex justify-between items-start mb-4">
               <div><h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{contract.title}</h1>{isClientViewer ? <p className="text-slate-500">Creator: <Link to={`/profile/${contract.creatorId}`} className="font-semibold text-slate-700 hover:text-brand-600">{contract.creatorName}</Link></p> : <p className="text-slate-500">Client: <Link to={`/client/profile/${contract.clientId}`} className="font-semibold text-slate-700 hover:text-brand-600">{contract.clientName}</Link></p>}</div>
-              <div className="text-right"><span className={`inline-block px-3 py-1 rounded-full text-sm font-bold uppercase mb-2 ${isActive ? 'bg-green-100 text-green-700' : contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{contract.status.replace('_', ' ')}</span><div className="flex flex-col items-end">{contract.terms.paymentType && <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{contract.terms.paymentType} Contract</span>}{contract.terms.paymentMethod === 'ESCROW' ? <span className="flex items-center gap-1 text-[10px] text-brand-600 font-black uppercase mt-1"><ShieldCheck size={12} /> Escrow Kenya Secured</span> : <span className="text-[10px] text-slate-400 uppercase font-bold mt-1">Direct Transfer</span>}</div></div>
+              <div className="text-right">
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold uppercase mb-2 ${
+                  isActive ? 'bg-green-100 text-green-700' : 
+                  isAwaitingDeposit ? 'bg-orange-100 text-orange-700' :
+                  contract.status === ContractStatus.SENT ? 'bg-blue-100 text-blue-700' : 
+                  'bg-orange-100 text-orange-700'
+                }`}>
+                  {contract.status.replace('_', ' ')}
+                </span>
+                <div className="flex flex-col items-end">{contract.terms.paymentType && <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{contract.terms.paymentType} Contract</span>}{contract.terms.paymentMethod === 'ESCROW' ? <span className="flex items-center gap-1 text-[10px] text-brand-600 font-black uppercase mt-1"><ShieldCheck size={12} /> Escrow Kenya Secured</span> : <span className="text-[10px] text-slate-400 uppercase font-bold mt-1">Direct Transfer</span>}</div>
+              </div>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{contract.description}</p>
           </div>

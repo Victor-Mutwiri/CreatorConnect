@@ -208,6 +208,7 @@ export enum ContractStatus {
   DRAFT = 'DRAFT',
   SENT = 'SENT', // Client sent to creator
   NEGOTIATING = 'NEGOTIATING', // Counter-offer made
+  AWAITING_DEPOSIT = 'AWAITING_DEPOSIT', // Escrow accepted but not funded
   ACCEPTED = 'ACCEPTED', // Both agreed
   ACTIVE = 'ACTIVE', // Work in progress
   COMPLETED = 'COMPLETED',

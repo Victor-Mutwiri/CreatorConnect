@@ -175,15 +175,26 @@ export const mockContractService = {
     
     if (index === -1) throw new Error('Contract not found');
 
-    let updatedContract = { ...contracts[index], status, updatedAt: new Date().toISOString() };
+    let targetStatus = status;
+    const contract = contracts[index];
+
+    // --- NEW ESCROW FLOW LOGIC ---
+    // If the action is ACCEPT, check if Escrow Kenya is used.
+    if (status === ContractStatus.ACCEPTED) {
+       if (contract.terms.paymentMethod === 'ESCROW') {
+          targetStatus = ContractStatus.AWAITING_DEPOSIT;
+       }
+    }
+
+    let updatedContract = { ...contract, status: targetStatus, updatedAt: new Date().toISOString() };
     
-    // If contract is ACCEPTED and it has milestones, set the first one to IN_PROGRESS
-    if (status === ContractStatus.ACCEPTED && updatedContract.terms.milestones && updatedContract.terms.milestones.length > 0) {
+    // If contract is ACCEPTED (Direct) and it has milestones, set the first one to IN_PROGRESS
+    if (targetStatus === ContractStatus.ACCEPTED && updatedContract.terms.milestones && updatedContract.terms.milestones.length > 0) {
       updatedContract.terms.milestones[0].status = 'IN_PROGRESS';
     }
     
     // If contract is completed, update stats
-    if (status === ContractStatus.COMPLETED) {
+    if (targetStatus === ContractStatus.COMPLETED) {
        updateClientStats(updatedContract.clientId, { incrementCompleted: true });
     }
 
@@ -191,10 +202,10 @@ export const mockContractService = {
     updatedContract.history.push({
       id: Math.random().toString(36).substr(2, 9),
       date: new Date().toISOString(),
-      action: status.toLowerCase(),
+      action: targetStatus.toLowerCase().replace('_', ' '),
       actorName: userName,
       actionBy: userId,
-      note
+      note: note || (targetStatus === ContractStatus.AWAITING_DEPOSIT ? 'Accepted. Awaiting Escrow funding.' : undefined)
     });
 
     contracts[index] = updatedContract;
@@ -204,15 +215,19 @@ export const mockContractService = {
     const isCreatorAction = userId === updatedContract.creatorId;
     const targetUserId = isCreatorAction ? updatedContract.clientId : updatedContract.creatorId;
     
-    if (status === ContractStatus.ACCEPTED) {
+    if (targetStatus === ContractStatus.ACCEPTED || targetStatus === ContractStatus.AWAITING_DEPOSIT) {
+       const msg = targetStatus === ContractStatus.AWAITING_DEPOSIT 
+          ? `${userName} has accepted the contract. Please fund the escrow to begin.` 
+          : `${userName} has accepted the contract. Work can begin!`;
+          
        createNotification(
          targetUserId,
          'Contract Accepted',
-         `${userName} has accepted the contract for "${updatedContract.title}". Work can begin!`,
+         msg,
          'success',
          `/creator/contracts/${updatedContract.id}`
        );
-    } else if (status === ContractStatus.DECLINED) {
+    } else if (targetStatus === ContractStatus.DECLINED) {
        createNotification(
          targetUserId,
          'Contract Declined',

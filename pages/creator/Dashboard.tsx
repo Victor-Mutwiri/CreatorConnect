@@ -73,7 +73,7 @@ const Dashboard: React.FC = () => {
   }, [user]);
 
   // Updated filtering logic to be more precise
-  const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status));
+  const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED, ContractStatus.AWAITING_DEPOSIT].includes(c.status));
   const pendingContracts = contracts.filter(c => [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status));
   const rejectedContracts = contracts.filter(c => c.status === ContractStatus.DECLINED);
   const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
@@ -128,6 +128,11 @@ const Dashboard: React.FC = () => {
   const getContractActionStatus = (contract: Contract) => {
     if (contract.endRequest?.status === 'pending') {
        return { text: 'End Request Pending', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: AlertTriangle };
+    }
+
+    // --- ESCROW FUNDING STATE ---
+    if (contract.status === ContractStatus.AWAITING_DEPOSIT) {
+       return { text: 'Waiting for Deposit', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: Clock, animate: true };
     }
 
     // Find the first active milestone
@@ -211,7 +216,7 @@ const Dashboard: React.FC = () => {
                  <Flag size={24} />
               </div>
               <div>
-                 <h3 className="font-bold text-rose-900 dark:text-rose-300">Account Flagged for Review</h3>
+                 <h3 className="font-bold text-rose-900 dark:text-red-300">Account Flagged for Review</h3>
                  <p className="text-sm text-rose-800 dark:text-rose-400 mt-1">
                     Your account has been flagged{user.flagReason ? `: ${user.flagReason}` : '.'} Our team is reviewing your activity.
                  </p>

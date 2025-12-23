@@ -239,7 +239,7 @@ const ClientDashboard: React.FC = () => {
   };
 
   // Contracts Filtering Logic
-  const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED].includes(c.status));
+  const activeContracts = contracts.filter(c => [ContractStatus.ACTIVE, ContractStatus.ACCEPTED, ContractStatus.AWAITING_DEPOSIT].includes(c.status));
   const pendingContracts = contracts.filter(c => [ContractStatus.SENT, ContractStatus.NEGOTIATING].includes(c.status));
   const completedContracts = contracts.filter(c => c.status === ContractStatus.COMPLETED);
 
@@ -278,6 +278,7 @@ const ClientDashboard: React.FC = () => {
       case ContractStatus.ACCEPTED: return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
       case ContractStatus.SENT: return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
       case ContractStatus.NEGOTIATING: return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+      case ContractStatus.AWAITING_DEPOSIT: return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
       case ContractStatus.COMPLETED: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
       case ContractStatus.CANCELLED: return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
       case ContractStatus.DECLINED: return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
@@ -315,6 +316,11 @@ const ClientDashboard: React.FC = () => {
   const getContractActionStatus = (contract: Contract) => {
     if (contract.endRequest?.status === 'pending') {
        return { text: 'End Request Pending', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: AlertTriangle };
+    }
+
+    // --- ESCROW FUNDING STATE ---
+    if (contract.status === ContractStatus.AWAITING_DEPOSIT) {
+       return { text: 'Deposit Required', color: 'text-red-600 bg-red-50 dark:bg-red-900/20', icon: DollarSign, animate: true };
     }
 
     // Find the first active milestone
@@ -442,7 +448,7 @@ const ClientDashboard: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 className="font-bold text-base text-slate-900 dark:text-white">Active Campaigns</h3>
-                <button onClick={() => setActiveTab('contracts')} className="text-xs font-medium text-brand-600 hover:text-brand-500">View All</button>
+                <button onClick={() => setActiveTab('contracts')} className="text-xs font-medium text-brand-600 hover:text-brand-50">View All</button>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {activeContracts.length > 0 ? activeContracts.map(contract => {
@@ -700,7 +706,7 @@ const ClientDashboard: React.FC = () => {
                  <Flag size={24} />
               </div>
               <div>
-                 <h3 className="font-bold text-rose-900 dark:text-rose-300">Account Flagged for Review</h3>
+                 <h3 className="font-bold text-rose-900 dark:text-red-300">Account Flagged for Review</h3>
                  <p className="text-sm text-rose-800 dark:text-rose-400 mt-1">
                     Your account has been flagged{user.flagReason ? `: ${user.flagReason}` : '.'} Our team is reviewing your activity.
                  </p>
