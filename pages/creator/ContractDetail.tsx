@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -25,6 +24,8 @@ const ContractDetail: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  // Added isSubmitting state to fix undefined errors in escrow payment flow
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [creatorUser, setCreatorUser] = useState<User | null>(null);
 
@@ -33,6 +34,7 @@ const ContractDetail: React.FC = () => {
   const [showEndContractModal, setShowEndContractModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showRejectEndModal, setShowRejectEndModal] = useState(false);
+  const [showEscrowPayModal, setShowEscrowPayModal] = useState(false);
   
   const [showSubmitWorkModal, setShowSubmitWorkModal] = useState<string | null>(null);
   const [showPaymentProofModal, setShowPaymentProofModal] = useState<string | null>(null);
@@ -176,6 +178,13 @@ const ContractDetail: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleConfirmEscrowPayment = async () => {
+    setIsSubmitting(true);
+    await handleStatusChange(ContractStatus.ACTIVE);
+    setShowEscrowPayModal(false);
+    setIsSubmitting(false);
   };
 
   const handleCounterOffer = async () => {
@@ -746,15 +755,20 @@ const ContractDetail: React.FC = () => {
                         <div className="flex-1">
                            <h3 className="text-xl font-bold text-red-900 dark:text-red-300">Action Required: Escrow Funding Required</h3>
                            <p className="text-red-800 dark:text-red-400 mt-1 font-medium">
-                              You have <span className="font-black text-red-600">02:59:45</span> remaining to fund the escrow account.
+                              Your contract is waiting for the initial deposit to become active.
                            </p>
                            <div className="mt-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-100 space-y-3">
                               <p className="text-sm text-slate-700 dark:text-slate-300">
-                                 Deposit <span className="font-bold">KES {totalFundingRequired.toLocaleString()}</span> to Paybill <span className="font-bold">880123</span> (Escrow Kenya) with Account Name <span className="font-bold">UBUNI-{contract.id.slice(-4)}</span>.
+                                 Deposit <span className="font-bold">KES {totalFundingRequired.toLocaleString()}</span> to the Escrow Kenya secure wallet to protect both parties and start the job.
                               </p>
                               <div className="flex gap-2">
-                                 <Button className="bg-red-600 hover:bg-red-700">I've Sent the Funds</Button>
-                                 <button className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">How does this work?</button>
+                                 <Button 
+                                    onClick={() => setShowEscrowPayModal(true)}
+                                    className="bg-red-600 hover:bg-red-700 text-white shadow-xl shadow-red-500/20"
+                                 >
+                                    Pay KES {totalFundingRequired.toLocaleString()} to Escrow
+                                 </Button>
+                                 <button className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Payment Security Info</button>
                               </div>
                            </div>
                         </div>
@@ -770,7 +784,7 @@ const ContractDetail: React.FC = () => {
                            <h3 className="text-xl font-bold text-orange-900 dark:text-orange-300">Waiting for Client Funding</h3>
                            <p className="text-orange-800 dark:text-orange-400 mt-1">
                               The client has been notified to fund the escrow account. 
-                              <span className="font-bold block mt-2">IMPORTANT: Do not begin work until the status changes to "ACTIVE" to ensure your payment is secured.</span>
+                              <span className="font-bold block mt-2 text-red-600">IMPORTANT: Do not begin work until the status changes to "ACTIVE" to ensure your payment is secured.</span>
                            </p>
                         </div>
                      </div>
@@ -925,6 +939,57 @@ const ContractDetail: React.FC = () => {
           <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 flex gap-2"><input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 bg-slate-100 dark:bg-slate-800 border-0 rounded-full px-4 text-sm dark:text-white"/><button type="submit" className="p-2 bg-brand-600 text-white rounded-full hover:bg-brand-700 shadow-sm"><Send size={18} /></button></form>
         </div>
       </div>
+
+      {/* ESCROW PAYMENT REDIRECTION MODAL */}
+      {showEscrowPayModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-6 text-center space-y-6">
+              <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center mx-auto text-brand-600">
+                 <ShieldCheck size={32} />
+              </div>
+              
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Escrow Payment Gateway</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                   You are paying <span className="font-bold text-slate-900 dark:text-white">KES {totalFundingRequired.toLocaleString()}</span> to secure this project.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-left space-y-3">
+                 <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">1</div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">You will be redirected to <span className="font-bold">Escrow Kenya's secure page</span> to complete the transaction.</p>
+                 </div>
+                 <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">2</div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Follow the M-Pesa or Bank transfer instructions on their page.</p>
+                 </div>
+                 <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">3</div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300"><span className="font-bold text-brand-600">Crucial:</span> After paying, do not close the window. Simply navigate back to Ubuni Connect and wait for the confirmation.</p>
+                 </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Button 
+                   onClick={handleConfirmEscrowPayment}
+                   disabled={isSubmitting}
+                   className="w-full h-12 text-lg"
+                >
+                  {isSubmitting ? <Loader className="animate-spin mr-2" /> : 'Proceed to Payment'}
+                </Button>
+                <button 
+                  onClick={() => setShowEscrowPayModal(false)}
+                  className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 transition-colors py-2"
+                >
+                  Go Back
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCounterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">

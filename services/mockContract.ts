@@ -1,5 +1,5 @@
 
-import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, MilestoneSubmission, MilestonePaymentProof, Milestone } from '../types';
+import { Contract, ContractStatus, Message, Notification, ContractTerms, User, ContractEndRequest, Review, MilestoneStatus, Milestone, MilestoneSubmission, MilestonePaymentProof } from '../types';
 import { mockAuth } from './mockAuth'; // We need access to update user profiles
 
 const CONTRACTS_KEY = 'ubuni_contracts_db';
@@ -188,8 +188,8 @@ export const mockContractService = {
 
     let updatedContract = { ...contract, status: targetStatus, updatedAt: new Date().toISOString() };
     
-    // If contract is ACCEPTED (Direct) and it has milestones, set the first one to IN_PROGRESS
-    if (targetStatus === ContractStatus.ACCEPTED && updatedContract.terms.milestones && updatedContract.terms.milestones.length > 0) {
+    // If contract is becoming ACTIVE (Deposit confirmed) or ACCEPTED (Direct) and it has milestones, set the first one to IN_PROGRESS
+    if ((targetStatus === ContractStatus.ACCEPTED || targetStatus === ContractStatus.ACTIVE) && updatedContract.terms.milestones && updatedContract.terms.milestones.length > 0) {
       updatedContract.terms.milestones[0].status = 'IN_PROGRESS';
     }
     
@@ -224,6 +224,15 @@ export const mockContractService = {
          targetUserId,
          'Contract Accepted',
          msg,
+         'success',
+         `/creator/contracts/${updatedContract.id}`
+       );
+    } else if (targetStatus === ContractStatus.ACTIVE && !isCreatorAction) {
+       // If Client confirms deposit, notify Creator
+       createNotification(
+         updatedContract.creatorId,
+         'Deposit Confirmed!',
+         `The escrow deposit for "${updatedContract.title}" has been received. You can now start the job!`,
          'success',
          `/creator/contracts/${updatedContract.id}`
        );
