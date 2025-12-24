@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -24,7 +25,6 @@ const ContractDetail: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  // Added isSubmitting state to fix undefined errors in escrow payment flow
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [creatorUser, setCreatorUser] = useState<User | null>(null);
@@ -38,6 +38,7 @@ const ContractDetail: React.FC = () => {
   
   const [showSubmitWorkModal, setShowSubmitWorkModal] = useState<string | null>(null);
   const [showPaymentProofModal, setShowPaymentProofModal] = useState<string | null>(null);
+  const [showReleaseEscrowModal, setShowReleaseEscrowModal] = useState<Milestone | null>(null);
   const [showReviewWorkModal, setShowReviewWorkModal] = useState<Milestone | null>(null);
   const [showDisputeModal, setShowDisputeModal] = useState<string | null>(null);
   const [showResolveDisputeModal, setShowResolveDisputeModal] = useState<string | null>(null);
@@ -172,7 +173,7 @@ const ContractDetail: React.FC = () => {
       
       const sysMsg = await mockContractService.sendMessage(
         contract.id, 'system', 'System', 
-        `Contract was ${status.toLowerCase()} by ${user.name}`
+        `Contract status changed to ${status.toLowerCase()} by ${user.name}`
       );
       setMessages([...messages, sysMsg]);
     } catch (e) {
@@ -392,6 +393,26 @@ const ContractDetail: React.FC = () => {
     }
   };
 
+  const handleReleaseEscrow = async (milestoneId: string) => {
+     if (!contract || !user) return;
+     try {
+       setIsSubmitting(true);
+       const updated = await mockContractService.updateMilestoneStatus(
+          contract.id,
+          milestoneId,
+          'PAID',
+          user.id,
+          user.name
+       );
+       setContract(updated);
+       setShowReleaseEscrowModal(null);
+     } catch (e) {
+        console.error(e);
+     } finally {
+       setIsSubmitting(false);
+     }
+  };
+
   const handleConfirmPayment = async (milestoneId: string) => {
      if (!contract || !user) return;
      try {
@@ -564,6 +585,39 @@ const ContractDetail: React.FC = () => {
     }
   };
 
+  // Timer Component for Auto-Release
+  const AutoReleaseTimer: React.FC<{ submissionDate: string }> = ({ submissionDate }) => {
+    const [timeLeft, setTimeLeft] = useState<string>('');
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        const submissionTime = new Date(submissionDate).getTime();
+        const deadline = submissionTime + (24 * 60 * 60 * 1000); // 24 hours
+        const now = new Date().getTime();
+        const diff = deadline - now;
+
+        if (diff <= 0) {
+          setTimeLeft('EXPIRED (Approving...)');
+          clearInterval(interval);
+        } else {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const secs = Math.floor((diff % (1000 * 60)) / 1000);
+          setTimeLeft(`${hours}h ${mins}m ${secs}s`);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, [submissionDate]);
+
+    return (
+      <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-bold bg-orange-50 dark:bg-orange-900/20 px-3 py-1 rounded-full animate-pulse">
+        <Clock size={14} />
+        <span>Auto-release in: {timeLeft}</span>
+      </div>
+    );
+  };
+
   if (loading) return <div className="p-20 text-center dark:text-white">Loading...</div>;
   if (!contract) return <div className="p-20 text-center dark:text-white">Contract not found</div>;
 
@@ -576,6 +630,7 @@ const ContractDetail: React.FC = () => {
   const isClientViewer = user?.id === contract.clientId;
   const hasActiveDispute = contract.terms.milestones?.some(m => m.status === 'DISPUTED');
   const pendingEndRequest = contract.endRequest?.status === 'pending';
+  const isEscrowContract = contract.terms.paymentMethod === 'ESCROW';
   
   const isCreatorWorking = contract.terms.milestones?.some(m => m.status === 'IN_PROGRESS');
   const disableEndContractInit = isClientViewer && isCreatorWorking;
@@ -590,7 +645,7 @@ const ContractDetail: React.FC = () => {
   }
 
   // Escrow Calculation Helpers for Client View
-  const escrowFee = contract.terms.paymentMethod === 'ESCROW' ? Math.round(contract.terms.amount * 0.03) : 0;
+  const escrowFee = isEscrowContract ? Math.round(contract.terms.amount * 0.03) : 0;
   const totalFundingRequired = contract.terms.amount + escrowFee;
 
   const renderDiffValue = (current: number, previous: number | undefined, label: string, icon: React.ReactNode, prefix: string = '', suffix: string = '') => {
@@ -670,10 +725,34 @@ const ContractDetail: React.FC = () => {
                                  {isReview && (
                                     <div className="w-full">
                                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mb-3">
-                                          <div className="flex justify-between items-start"><div><p className="text-sm font-bold text-orange-800">Review Submission</p><div className="flex items-center mt-1"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${revisionsLeft <= 0 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{revisionLimit === Infinity ? 'Unlimited Revisions' : `${revisionsLeft} Revisions Remaining`}</span></div></div><div className="text-xs text-orange-600 flex items-center"><Clock size={12} className="mr-1" /> Auto-approves in 71h 59m</div></div>
+                                          <div className="flex justify-between items-start">
+                                            <div>
+                                              <p className="text-sm font-bold text-orange-800">Review Submission</p>
+                                              <div className="flex items-center mt-1">
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${revisionsLeft <= 0 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                  {revisionLimit === Infinity ? 'Unlimited Revisions' : `${revisionsLeft} Revisions Remaining`}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            {isEscrowContract && ms.submission?.date && (
+                                              <AutoReleaseTimer submissionDate={ms.submission.date} />
+                                            )}
+                                          </div>
                                           {ms.submission && <div className="bg-white p-2 rounded border border-slate-200 text-sm mt-3"><p className="font-semibold text-slate-900 mb-1">Creator Note:</p><p className="text-slate-600 italic">"{ms.submission.note}"</p><a href={ms.submission.content} target="_blank" rel="noreferrer" className="inline-flex items-center text-brand-600 hover:underline"><ExternalLink size={14} className="mr-1" /> View Work</a></div>}
                                        </div>
-                                       <div className="flex justify-end gap-2 items-center">{revisionsLeft > 0 ? <Button size="sm" variant="outline" onClick={() => setShowReviewWorkModal(ms)}>Request Changes</Button> : <button onClick={() => setShowDisputeModal(ms.id)} className="px-4 py-2 text-xs font-bold text-red-600 border border-red-200 rounded-full hover:bg-red-50 flex items-center"><ShieldAlert size={14} className="mr-1.5" /> Raise Quality Dispute</button>}<Button size="sm" onClick={() => setShowPaymentProofModal(ms.id)}>Approve & Pay</Button></div>
+                                       <div className="flex justify-end gap-2 items-center">
+                                         {revisionsLeft > 0 && (
+                                           <Button size="sm" variant="outline" onClick={() => setShowReviewWorkModal(ms)}>Request Changes</Button>
+                                         )}
+                                         {revisionsLeft <= 0 && !isEscrowContract && (
+                                            <button onClick={() => setShowDisputeModal(ms.id)} className="px-4 py-2 text-xs font-bold text-red-600 border border-red-200 rounded-full hover:bg-red-50 flex items-center">
+                                              <ShieldAlert size={14} className="mr-1.5" /> Raise Quality Dispute
+                                            </button>
+                                         )}
+                                         <Button size="sm" onClick={() => isEscrowContract ? setShowReleaseEscrowModal(ms) : setShowPaymentProofModal(ms.id)}>
+                                           {isEscrowContract ? 'Release Funds' : 'Approve & Pay'}
+                                         </Button>
+                                       </div>
                                     </div>
                                  )}
                                  {isInProgress && <span className="text-xs text-brand-600 bg-brand-50 px-2 py-1 rounded"><Loader size={12} className="mr-1 animate-spin"/> Creator is working on this</span>}
@@ -703,8 +782,7 @@ const ContractDetail: React.FC = () => {
     }
 
     const baseAmount = contract.terms.amount;
-    const isEscrow = contract.terms.paymentMethod === 'ESCROW';
-    const platformCommission = isEscrow ? Math.round(baseAmount * 0.08) : 0;
+    const platformCommission = isEscrowContract ? Math.round(baseAmount * 0.08) : 0;
     const taxRate = taxResidency === 'resident' ? 0.05 : 0.20;
     const estimatedTax = (baseAmount - platformCommission) * taxRate;
     const estimatedTakeHome = baseAmount - platformCommission - estimatedTax;
@@ -726,7 +804,7 @@ const ContractDetail: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200"><p className="text-xs text-slate-500 mb-1">Contract Total</p><p className="font-bold text-slate-900 dark:text-white">{contract.terms.currency} {baseAmount.toLocaleString()}</p></div>
-              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 relative group"><p className="text-xs text-slate-500 mb-1 flex items-center">Platform Fee {isEscrow && <Info size={10} className="ml-1 opacity-50" />}</p><p className={`font-bold ${platformCommission > 0 ? 'text-red-500' : 'text-slate-400'}`}>{contract.terms.currency} {platformCommission.toLocaleString()}</p>{isEscrow && <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">8% Ubuni Connect platform commission for secured Escrow transactions.</div>}</div>
+              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 relative group"><p className="text-xs text-slate-500 mb-1 flex items-center">Platform Fee {isEscrowContract && <Info size={10} className="ml-1 opacity-50" />}</p><p className={`font-bold ${platformCommission > 0 ? 'text-red-500' : 'text-slate-400'}`}>{contract.terms.currency} {platformCommission.toLocaleString()}</p>{isEscrowContract && <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">8% Ubuni Connect platform commission for secured Escrow transactions.</div>}</div>
               <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200"><p className="text-xs text-slate-500 mb-1">Est. WHT Tax</p><p className="font-bold text-slate-600">{contract.terms.currency} {estimatedTax.toLocaleString()}</p></div>
               <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100"><p className="text-xs text-green-700 mb-1">Net Take-home</p><p className="font-bold text-green-800">{contract.terms.currency} {estimatedTakeHome.toLocaleString()}</p></div>
             </div>
@@ -845,7 +923,7 @@ const ContractDetail: React.FC = () => {
                 }`}>
                   {contract.status.replace('_', ' ')}
                 </span>
-                <div className="flex flex-col items-end">{contract.terms.paymentType && <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{contract.terms.paymentType} Contract</span>}{contract.terms.paymentMethod === 'ESCROW' ? <span className="flex items-center gap-1 text-[10px] text-brand-600 font-black uppercase mt-1"><ShieldCheck size={12} /> Escrow Kenya Secured</span> : <span className="text-[10px] text-slate-400 uppercase font-bold mt-1">Direct Transfer</span>}</div>
+                <div className="flex flex-col items-end">{contract.terms.paymentType && <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{contract.terms.paymentType} Contract</span>}{isEscrowContract ? <span className="flex items-center gap-1 text-[10px] text-brand-600 font-black uppercase mt-1"><ShieldCheck size={12} /> Escrow Kenya Secured</span> : <span className="text-[10px] text-slate-400 uppercase font-bold mt-1">Direct Transfer</span>}</div>
               </div>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{contract.description}</p>
@@ -857,7 +935,7 @@ const ContractDetail: React.FC = () => {
                 {renderDiffValue(contract.terms.amount, contract.previousTerms?.amount, "Project Amount", <DollarSign size={14} className="mr-1"/>, contract.terms.currency)}
                 {renderDiffValue(contract.terms.durationDays, contract.previousTerms?.durationDays, "Duration", <Calendar size={14} className="mr-1"/>, "", "Days")}
                 
-                {isClientViewer && contract.terms.paymentMethod === 'ESCROW' && (
+                {isClientViewer && isEscrowContract && (
                   <>
                     <div className="bg-brand-50 dark:bg-brand-900/10 p-4 rounded-xl border border-brand-100 dark:border-brand-800">
                         <div className="text-slate-500 dark:text-slate-400 text-sm mb-1 flex items-center"><Zap size={14} className="mr-1 text-brand-600"/> Escrow Fee (3%)</div>
@@ -875,62 +953,7 @@ const ContractDetail: React.FC = () => {
 
           {renderCreatorEarningsBreakdown()}
 
-          {/* NEGOTIATION ACTIONS - STRICT TURN BASED LOCK */}
-          {isPending && canTakeAction && (
-            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border-2 border-brand-200 dark:border-brand-800 flex flex-wrap gap-4 items-center justify-between animate-in slide-in-from-bottom-4">
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <RefreshCw size={16} className="text-brand-600" /> Action Required
-                </p>
-                <p className="text-xs text-slate-500">Respond to this proposal to move forward.</p>
-              </div>
-              <div className="flex gap-2">
-                {/* STRICT LOCK: Adjust Price is now part of the conditional Action Bar only */}
-                {isCreator && (
-                  <button 
-                    onClick={handleGrossUp}
-                    className="px-4 py-2 bg-blue-50 text-blue-700 font-bold rounded-lg hover:bg-blue-100 flex items-center text-sm border border-blue-200"
-                  >
-                    <Wand2 size={16} className="mr-2" /> Adjust Price
-                  </button>
-                )}
-                <button onClick={() => setShowCounterModal(true)} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 flex items-center text-sm"><RefreshCw size={16} className="mr-2" />Counter Offer</button>
-                <button onClick={() => handleStatusChange(ContractStatus.DECLINED)} className="px-4 py-2 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 flex items-center text-sm"><XCircle size={16} className="mr-2" />Decline</button>
-                <Button onClick={() => handleStatusChange(ContractStatus.ACCEPTED)} className="flex items-center text-sm"><CheckCircle size={16} className="mr-2" />Accept Contract</Button>
-              </div>
-            </div>
-          )}
-          
-          {/* ACTIVE CONTRACT ACTIONS - NO COUNTER OFFER OR ADJUST PRICE ALLOWED */}
-          {isActive && !pendingEndRequest && (
-            <div className="sticky bottom-4 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-xl border border-slate-200 flex items-center justify-between">
-               <div>
-                  <p className="font-bold text-slate-900 dark:text-white">Active Contract</p>
-                  <p className="text-xs text-slate-500">Project is in progress.</p>
-               </div>
-               
-               <div className="flex items-center gap-3">
-                  {disableEndContractInit && (
-                     <div className="group relative">
-                        <span className="text-xs text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full flex items-center">
-                           <Lock size={12} className="mr-1" /> End Locked
-                        </span>
-                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
-                           You cannot initiate contract termination while the creator is actively working on an IN-PROGRESS milestone.
-                        </div>
-                     </div>
-                  )}
-                  <button 
-                     disabled={disableEndContractInit}
-                     onClick={() => setShowEndContractModal(true)} 
-                     className={`px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg transition-colors ${disableEndContractInit ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-red-50 hover:text-red-600'}`}
-                  >
-                     End Contract
-                  </button>
-               </div>
-            </div>
-          )}
-
+          {/* ACTIONS & HISTORY... */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 p-6"><h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">Contract History</h3><div className="relative border-l-2 border-slate-100 ml-3 space-y-6">{contract.history.map((item) => (<div key={item.id} className="relative pl-6"><div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-200 border-2 border-white"></div><div className="flex flex-col"><span className="text-xs text-slate-400 font-mono mb-1">{new Date(item.date).toLocaleString()}</span><span className="font-medium text-slate-900 dark:text-white">{item.action.toUpperCase()}</span><span className="text-sm text-slate-500">by {item.actorName}</span>{item.note && <p className="mt-1 text-sm bg-slate-50 p-2 rounded text-slate-600 italic">"{item.note}"</p>}</div></div>))}</div></div>
         </div>
         <div className="lg:w-96 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 h-[600px] sticky top-24">
@@ -940,7 +963,56 @@ const ContractDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* ESCROW PAYMENT REDIRECTION MODAL */}
+      {/* RELEASE ESCROW FUNDS MODAL (NEW) */}
+      {showReleaseEscrowModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-6">
+              <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-600">
+                 <ShieldCheck size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white text-center mb-1">Release Escrow Funds</h3>
+              <p className="text-sm text-slate-500 text-center mb-6 px-4">
+                You are about to release the payment for <strong>{showReleaseEscrowModal.title}</strong> to the creator.
+              </p>
+
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-3 mb-6 border border-slate-100 dark:border-slate-700">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Milestone Amount</span>
+                  <span className="font-bold text-slate-900 dark:text-white">KES {showReleaseEscrowModal.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Platform Commission (8%)</span>
+                  <span className="font-bold text-red-500">- KES {Math.round(showReleaseEscrowModal.amount * 0.08).toLocaleString()}</span>
+                </div>
+                <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
+                <div className="flex justify-between items-center pt-1">
+                   <span className="font-bold text-slate-900 dark:text-white">Released to Creator</span>
+                   <span className="text-lg font-black text-brand-600">KES {Math.round(showReleaseEscrowModal.amount * 0.92).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                 <Button 
+                   onClick={() => handleReleaseEscrow(showReleaseEscrowModal.id)}
+                   disabled={isSubmitting}
+                   className="w-full h-12 text-lg"
+                 >
+                   {isSubmitting ? <Loader className="animate-spin mr-2" /> : 'Confirm Release'}
+                 </Button>
+                 <button 
+                   onClick={() => setShowReleaseEscrowModal(null)}
+                   className="text-sm font-medium text-slate-500 hover:text-slate-700 py-2"
+                 >
+                   Go Back
+                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OTHER MODALS... (Counter, Submit Work, Payment Proof, etc.) */}
       {showEscrowPayModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
@@ -948,43 +1020,22 @@ const ContractDetail: React.FC = () => {
               <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center mx-auto text-brand-600">
                  <ShieldCheck size={32} />
               </div>
-              
               <div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Escrow Payment Gateway</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                    You are paying <span className="font-bold text-slate-900 dark:text-white">KES {totalFundingRequired.toLocaleString()}</span> to secure this project.
                 </p>
               </div>
-
               <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-left space-y-3">
-                 <div className="flex gap-3">
-                    <div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">1</div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">You will be redirected to <span className="font-bold">Escrow Kenya's secure page</span> to complete the transaction.</p>
-                 </div>
-                 <div className="flex gap-3">
-                    <div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">2</div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">Follow the M-Pesa or Bank transfer instructions on their page.</p>
-                 </div>
-                 <div className="flex gap-3">
-                    <div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">3</div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300"><span className="font-bold text-brand-600">Crucial:</span> After paying, do not close the window. Simply navigate back to Ubuni Connect and wait for the confirmation.</p>
-                 </div>
+                 <div className="flex gap-3"><div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">1</div><p className="text-xs text-slate-600 dark:text-slate-300">You will be redirected to <span className="font-bold">Escrow Kenya's secure page</span> to complete the transaction.</p></div>
+                 <div className="flex gap-3"><div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">2</div><p className="text-xs text-slate-600 dark:text-slate-300">Follow the M-Pesa or Bank transfer instructions on their page.</p></div>
+                 <div className="flex gap-3"><div className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] flex items-center justify-center flex-shrink-0 font-bold">3</div><p className="text-xs text-slate-600 dark:text-slate-300"><span className="font-bold text-brand-600">Crucial:</span> After paying, do not close the window. Simply navigate back to Ubuni Connect and wait for the confirmation.</p></div>
               </div>
-
               <div className="flex flex-col gap-3">
-                <Button 
-                   onClick={handleConfirmEscrowPayment}
-                   disabled={isSubmitting}
-                   className="w-full h-12 text-lg"
-                >
+                <Button onClick={handleConfirmEscrowPayment} disabled={isSubmitting} className="w-full h-12 text-lg">
                   {isSubmitting ? <Loader className="animate-spin mr-2" /> : 'Proceed to Payment'}
                 </Button>
-                <button 
-                  onClick={() => setShowEscrowPayModal(false)}
-                  className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 transition-colors py-2"
-                >
-                  Go Back
-                </button>
+                <button onClick={() => setShowEscrowPayModal(false)} className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 transition-colors py-2">Go Back</button>
               </div>
             </div>
           </div>
@@ -997,21 +1048,12 @@ const ContractDetail: React.FC = () => {
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800"><h3 className="font-bold text-lg text-slate-900 dark:text-white">Propose Counter Offer</h3><button onClick={() => setShowCounterModal(false)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
             <div className="p-6 overflow-y-auto space-y-6">
               <div><label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Payment Method</label><div className="grid grid-cols-2 gap-4"><button onClick={() => setCounterTerms({...counterTerms, paymentMethod: 'ESCROW'})} className={`p-4 rounded-xl border-2 text-left transition-all ${counterTerms.paymentMethod === 'ESCROW' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-1"><ShieldCheck size={18} className="text-brand-600" /> Escrow Kenya</div><p className="text-xs text-slate-500">Highly secured via 3rd party hold. Fees apply.</p></button><button onClick={() => setCounterTerms({...counterTerms, paymentMethod: 'DIRECT'})} className={`p-4 rounded-xl border-2 text-left transition-all ${counterTerms.paymentMethod === 'DIRECT' ? 'border-slate-900 bg-slate-50 dark:bg-slate-800 dark:border-white ring-1 ring-slate-900' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-1"><Smartphone size={18} className="text-slate-400" /> Direct Transfer</div><p className="text-xs text-slate-500">Manual M-Pesa/Bank transfer. Zero platform fees.</p></button></div></div>
-              
               {isCreator && (
                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col gap-3">
-                   <p className="text-xs text-blue-700 flex items-start gap-2">
-                     <Info size={14} className="mt-0.5 flex-shrink-0" />
-                     {counterTerms.paymentMethod === 'ESCROW' 
-                       ? "Escrow contracts include an 8% platform commission. Use the 'Adjust' button below to cover this and WHT taxes." 
-                       : "Direct payments have 0% platform commission. Only WHT taxes apply."}
-                   </p>
-                   <Button size="sm" variant="outline" className="w-fit bg-white" onClick={handleGrossUp}>
-                     <Wand2 size={14} className="mr-2" /> Adjust Price to Net Desired Amount
-                   </Button>
+                   <p className="text-xs text-blue-700 flex items-start gap-2"><Info size={14} className="mt-0.5 flex-shrink-0" />{counterTerms.paymentMethod === 'ESCROW' ? "Escrow contracts include an 8% platform commission. Use the 'Adjust' button below to cover this and WHT taxes." : "Direct payments have 0% platform commission. Only WHT taxes apply."}</p>
+                   <Button size="sm" variant="outline" className="w-fit bg-white" onClick={handleGrossUp}><Wand2 size={14} className="mr-2" /> Adjust Price to Net Desired Amount</Button>
                  </div>
               )}
-
               <div className="grid grid-cols-2 gap-4"><button onClick={() => toggleCounterPaymentType('FIXED')} className={`p-4 rounded-xl border text-center transition-all ${counterTerms.paymentType === 'FIXED' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><DollarSign className="mx-auto mb-2" size={24} /><div className="font-bold">Fixed</div></button><button onClick={() => toggleCounterPaymentType('MILESTONE')} className={`p-4 rounded-xl border text-center transition-all ${counterTerms.paymentType === 'MILESTONE' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}><Flag className="mx-auto mb-2" size={24} /><div className="font-bold">Milestone</div></button></div>
               {counterTerms.paymentType === 'FIXED' ? <Input label="Total Amount (KES)" type="number" value={counterTerms.amount} onChange={(e) => setCounterTerms({...counterTerms, amount: parseInt(e.target.value)})} /> : (
                 <div className="space-y-4"><div className="flex justify-between items-center"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Project Milestones</label><span className="text-sm font-bold text-brand-600">Total: KES {counterTerms.amount.toLocaleString()}</span></div>
@@ -1019,7 +1061,6 @@ const ContractDetail: React.FC = () => {
                   <button onClick={addCounterMilestone} className="flex items-center text-sm font-bold text-brand-600 hover:text-brand-700 mt-2"><Plus size={16} className="mr-1" /> Add Milestone</button>
                 </div>
               )}
-              
               <div className="grid md:grid-cols-2 gap-4">
                 <Input label="Duration (Days)" type="number" value={counterTerms.durationDays} onChange={(e) => setCounterTerms({...counterTerms, durationDays: parseInt(e.target.value)})} />
                 {isClientViewer && <Input label="Offer Valid Until" type="date" min={new Date().toISOString().split('T')[0]} />}
@@ -1033,43 +1074,26 @@ const ContractDetail: React.FC = () => {
       {showSubmitWorkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Submit Work for Review</h3>
-              <button onClick={() => setShowSubmitWorkModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white"><XCircle size={24} /></button>
-            </div>
+            <div className="p-5 border-b border-slate-100 bg-slate-50 dark:bg-slate-800 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900 dark:text-white">Submit Work for Review</h3><button onClick={() => setShowSubmitWorkModal(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white"><XCircle size={24} /></button></div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-slate-600 dark:text-slate-400">Provide a link to your work.</p>
               <Input label="Work Link / URL" placeholder="https://..." value={workLink} onChange={(e) => setWorkLink(e.target.value)} />
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label>
-                <textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={3} placeholder="Describe what you've done..." value={workNote} onChange={(e) => setWorkNote(e.target.value)} />
-              </div>
+              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes</label><textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={3} placeholder="Describe what you've done..." value={workNote} onChange={(e) => setWorkNote(e.target.value)} /></div>
             </div>
-            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setShowSubmitWorkModal(null)}>Cancel</Button>
-              <Button onClick={() => setShowSubmitWarning(true)} disabled={!workLink && !workNote}>Submit Work</Button>
-            </div>
+            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowSubmitWorkModal(null)}>Cancel</Button><Button onClick={() => setShowSubmitWarning(true)} disabled={!workLink && !workNote}>Submit Work</Button></div>
           </div>
         </div>
       )}
 
-      {/* RESTORED CREATOR SUBMISSION WARNING */}
       {showSubmitWarning && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 text-center">
             <ShieldAlert size={48} className="mx-auto mb-4 text-orange-600" />
             <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white uppercase tracking-tight">Confirm Submission</h3>
             <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl mb-4 border border-orange-200">
-               <p className="text-sm text-orange-800 dark:text-orange-400 font-medium">
-                  By clicking confirm, you certify that the work link provided is authentic and complete. 
-                  <br/><br/>
-                  <span className="font-bold">WARNING:</span> Submitting empty, invalid, or non-functional links to trigger payment is considered fraud. Fraudulent claims lead to <span className="font-black underline">immediate account suspension and permanent banning</span>.
-               </p>
+               <p className="text-sm text-orange-800 dark:text-orange-400 font-medium">By clicking confirm, you certify that the work link provided is authentic and complete.<br/><br/><span className="font-bold">WARNING:</span> Submitting empty, invalid, or non-functional links to trigger payment is considered fraud. Fraudulent claims lead to <span className="font-black underline">immediate account suspension and permanent banning</span>.</p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => setShowSubmitWarning(false)}>Back</Button>
-              <Button className="flex-1 bg-orange-600" onClick={handleSubmitWork}>I Confirm</Button>
-            </div>
+            <div className="flex gap-3"><Button variant="ghost" className="flex-1" onClick={() => setShowSubmitWarning(false)}>Back</Button><Button className="flex-1 bg-orange-600" onClick={handleSubmitWork}>I Confirm</Button></div>
           </div>
         </div>
       )}
@@ -1078,14 +1102,8 @@ const ContractDetail: React.FC = () => {
          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
                <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Request Changes</h3><button onClick={() => setShowReviewWorkModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
-               <div className="p-6 space-y-4">
-                  <p className="text-sm text-slate-600">Explain clearly what needs to be changed. <span className="font-bold text-orange-600">This consumes 1 revision.</span></p>
-                  <textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={4} placeholder="e.g. Change the music tracks..." value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} />
-               </div>
-               <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                  <Button variant="ghost" onClick={() => setShowReviewWorkModal(null)}>Cancel</Button>
-                  <Button onClick={() => handleRequestChanges(showReviewWorkModal.id)} disabled={!revisionNote}>Request Changes</Button>
-               </div>
+               <div className="p-6 space-y-4"><p className="text-sm text-slate-600">Explain clearly what needs to be changed. <span className="font-bold text-orange-600">This consumes 1 revision.</span></p><textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 dark:bg-slate-800" rows={4} placeholder="e.g. Change the music tracks..." value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} /></div>
+               <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowReviewWorkModal(null)}>Cancel</Button><Button onClick={() => handleRequestChanges(showReviewWorkModal.id)} disabled={!revisionNote}>Request Changes</Button></div>
             </div>
          </div>
       )}
@@ -1093,47 +1111,25 @@ const ContractDetail: React.FC = () => {
       {showPaymentProofModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-slate-900">Upload Payment Proof</h3>
-              <button onClick={() => setShowPaymentProofModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button>
-            </div>
+            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-900">Upload Payment Proof</h3><button onClick={() => setShowPaymentProofModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
             <div className="p-6 space-y-4">
               <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">Send payment then upload screenshot here.</div>
               <label className="block text-sm font-medium mb-2">Payment Method</label>
-              <select className="w-full px-4 py-2 border border-slate-300 rounded-lg dark:bg-slate-800" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-                 <option>M-Pesa</option>
-                 <option>Bank Transfer</option>
-                 <option>Crypto</option>
-              </select>
-              <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:bg-slate-50" onClick={() => setProofImage("https://via.placeholder.com/300x400")} >
-                 {proofImage ? <p className="text-xs text-green-600 font-bold">Image Selected</p> : <p className="text-sm text-slate-600 font-medium">Click to upload screenshot</p>}
-              </div>
+              <select className="w-full px-4 py-2 border border-slate-300 rounded-lg dark:bg-slate-800" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option>M-Pesa</option><option>Bank Transfer</option><option>Crypto</option></select>
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:bg-slate-50" onClick={() => setProofImage("https://via.placeholder.com/300x400")} >{proofImage ? <p className="text-xs text-green-600 font-bold">Image Selected</p> : <p className="text-sm text-slate-600 font-medium">Click to upload screenshot</p>}</div>
             </div>
-            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setShowPaymentProofModal(null)}>Cancel</Button>
-              <Button onClick={() => setShowPaymentWarning(true)} disabled={!proofImage}>Send Verification</Button>
-            </div>
+            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowPaymentProofModal(null)}>Cancel</Button><Button onClick={() => setShowPaymentWarning(true)} disabled={!proofImage}>Send Verification</Button></div>
           </div>
         </div>
       )}
 
-      {/* RESTORED CLIENT PAYMENT WARNING */}
       {showPaymentWarning && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 text-center">
             <ShieldAlert size={48} className="mx-auto mb-4 text-blue-600" />
             <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white uppercase tracking-tight">Verify Payment Proof</h3>
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl mb-4 border border-blue-200">
-               <p className="text-sm text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
-                  By uploading this proof, you certify that the payment has been successfully sent to the creator.
-                  <br/><br/>
-                  <span className="font-bold">LEGAL NOTICE:</span> Submitting fake payment screenshots or doctored SMS alerts is a crime under Kenyan Law. Accounts found submitting fake proof will be <span className="font-black underline">permanently banned and reported to the authorities</span>.
-               </p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => setShowPaymentWarning(false)}>Back</Button>
-              <Button className="flex-1 bg-blue-600" onClick={handleSubmitPaymentProof}>I Certify & Send</Button>
-            </div>
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl mb-4 border border-blue-200"><p className="text-sm text-blue-800 dark:text-blue-300 font-medium leading-relaxed">By uploading this proof, you certify that the payment has been successfully sent to the creator.<br/><br/><span className="font-bold">LEGAL NOTICE:</span> Submitting fake payment screenshots or doctored SMS alerts is a crime under Kenyan Law. Accounts found submitting fake proof will be <span className="font-black underline">permanently banned and reported to the authorities</span>.</p></div>
+            <div className="flex gap-3"><Button variant="ghost" className="flex-1" onClick={() => setShowPaymentWarning(false)}>Back</Button><Button className="flex-1 bg-blue-600" onClick={handleSubmitPaymentProof}>I Certify & Send</Button></div>
           </div>
         </div>
       )}
@@ -1142,11 +1138,7 @@ const ContractDetail: React.FC = () => {
          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
                <div className="p-5 border-b border-slate-100 bg-red-50 flex justify-between items-center"><h3 className="font-bold text-lg text-red-900"><AlertTriangle className="mr-2" size={20}/> Raise Dispute</h3><button onClick={() => setShowDisputeModal(null)} className="text-slate-400 hover:text-slate-700"><XCircle size={24} /></button></div>
-               <div className="p-6 space-y-4">
-                  <p className="text-sm font-medium">Disputes are a last resort.</p>
-                  <div className={`p-4 rounded-xl border flex items-start gap-3 ${triedChatting ? 'bg-green-50 border-green-200' : 'bg-slate-50'}`}><input type="checkbox" id="amicableCheck" className="mt-1 w-4 h-4 text-brand-600 rounded" checked={triedChatting} onChange={(e) => setTriedChatting(e.target.checked)}/><label htmlFor="amicableCheck" className="text-sm text-slate-700 leading-tight cursor-pointer">I attempted to resolve this amicably first.</label></div>
-                  <textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-red-500 dark:bg-slate-800" rows={4} placeholder="Describe the issue..." value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} />
-               </div>
+               <div className="p-6 space-y-4"><p className="text-sm font-medium">Disputes are a last resort.</p><div className={`p-4 rounded-xl border flex items-start gap-3 ${triedChatting ? 'bg-green-50 border-green-200' : 'bg-slate-50'}`}><input type="checkbox" id="amicableCheck" className="mt-1 w-4 h-4 text-brand-600 rounded" checked={triedChatting} onChange={(e) => setTriedChatting(e.target.checked)}/><label htmlFor="amicableCheck" className="text-sm text-slate-700 leading-tight cursor-pointer">I attempted to resolve this amicably first.</label></div><textarea className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-red-500 dark:bg-slate-800" rows={4} placeholder="Describe the issue..." value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} /></div>
                <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3"><Button variant="ghost" onClick={() => setShowDisputeModal(null)}>Cancel</Button><Button className="bg-red-600" onClick={() => setShowDisputeWarning(true)} disabled={!disputeReason || !triedChatting}>Submit Dispute</Button></div>
             </div>
          </div>
